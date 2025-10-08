@@ -81,6 +81,31 @@ interface User {
   role: string;
 }
 
+// Mapeamento de status PT-BR -> valores do banco (EN)
+const dbStatus = {
+  scheduled: 'scheduled',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+const ptToDbStatus: Record<string, typeof dbStatus[keyof typeof dbStatus]> = {
+  agendada: 'scheduled',
+  agendado: 'scheduled',
+  scheduled: 'scheduled',
+  concluida: 'completed',
+  concluída: 'completed',
+  realizada: 'completed',
+  completed: 'completed',
+  cancelada: 'cancelled',
+  cancelado: 'cancelled',
+  cancelled: 'cancelled',
+};
+
+const toDbStatus = (value: string): 'scheduled' | 'completed' | 'cancelled' => {
+  const key = value?.toLowerCase?.() ?? '';
+  return ptToDbStatus[key] ?? (value as 'scheduled' | 'completed' | 'cancelled');
+};
+
 export default function Demonstrations() {
   const { user, userRole } = useAuth();
   const [demonstrations, setDemonstrations] = useState<Demonstration[]>([]);
@@ -463,7 +488,7 @@ export default function Demonstrations() {
     console.log('[DEBUG] executeUpdateStatus - tipo do status:', typeof confirmAction.status);
     
     try {
-      const updateData = { status: 'completed' as const };
+      const updateData = { status: toDbStatus(confirmAction.status) };
       console.log('[DEBUG] executeUpdateStatus - dados para update:', updateData);
       
       const { error } = await supabase
@@ -540,7 +565,7 @@ export default function Demonstrations() {
     try {
       const { error } = await supabase
         .from('services')
-        .update({ status: 'completed' })
+        .update({ status: toDbStatus(confirmAction.status) })
         .eq('id', confirmAction.id);
 
       if (error) throw error;
@@ -606,7 +631,7 @@ export default function Demonstrations() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
       scheduled: { label: 'Agendada', className: 'bg-blue-100 text-blue-800' },
-      completed: { label: 'Realizada', className: 'bg-green-100 text-green-800' },
+      completed: { label: 'Concluída', className: 'bg-green-100 text-green-800' },
       cancelled: { label: 'Cancelada', className: 'bg-red-100 text-red-800' },
     };
     return variants[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
