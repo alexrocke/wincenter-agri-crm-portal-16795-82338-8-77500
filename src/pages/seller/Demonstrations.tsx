@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -12,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Calendar, Plus, Eye, CheckCircle2, XCircle, Clock, Wrench, CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Calendar, Plus, Eye, CheckCircle2, XCircle, Clock, Wrench, CalendarDays, ChevronLeft, ChevronRight, Pencil, Filter, X as XIcon } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -84,6 +85,7 @@ interface User {
 
 export default function Demonstrations() {
   const { user, userRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [demonstrations, setDemonstrations] = useState<Demonstration[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -98,6 +100,61 @@ export default function Demonstrations() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Filtros de período
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [tempStartDate, setTempStartDate] = useState<Date | undefined>(undefined);
+  const [tempEndDate, setTempEndDate] = useState<Date | undefined>(undefined);
+
+  // Inicializar filtros da URL
+  useEffect(() => {
+    const startParam = searchParams.get('start');
+    const endParam = searchParams.get('end');
+
+    if (startParam) {
+      setStartDate(new Date(startParam));
+      setTempStartDate(new Date(startParam));
+    }
+
+    if (endParam) {
+      setEndDate(new Date(endParam));
+      setTempEndDate(new Date(endParam));
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetchDemonstrations();
+    fetchServices();
+    fetchClients();
+    fetchProducts();
+    // Buscar usuários tanto para admin quanto para vendedor (para exibição de nomes)
+    fetchUsers();
+  }, [userRole, startDate, endDate]);
+
+  const applyFilters = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+
+    // Atualizar URL
+    const params = new URLSearchParams();
+    if (tempStartDate) {
+      params.set('start', tempStartDate.toISOString().split('T')[0]);
+    }
+    if (tempEndDate) {
+      params.set('end', tempEndDate.toISOString().split('T')[0]);
+    }
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    setTempStartDate(undefined);
+    setTempEndDate(undefined);
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setSearchParams({});
+  };
+
   const [submittingServiceId, setSubmittingServiceId] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<any>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -167,6 +224,16 @@ export default function Demonstrations() {
 
       if (userRole !== 'admin' && clientIds.length > 0) {
         query = query.or(`client_id.in.(${clientIds.join(',')})`);
+      }
+
+      // Aplicar filtro de período
+      if (startDate) {
+        query = query.gte('date', startDate.toISOString());
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('date', endOfDay.toISOString());
       }
 
       const { data, error } = await query;
@@ -248,6 +315,16 @@ export default function Demonstrations() {
 
       if (userRole !== 'admin' && clientIds.length > 0) {
         query = query.or(`client_id.in.(${clientIds.join(',')}),assigned_users.cs.{${user?.id}}`);
+      }
+
+      // Aplicar filtro de período
+      if (startDate) {
+        query = query.gte('date', startDate.toISOString());
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('date', endOfDay.toISOString());
       }
 
       const { data, error } = await query;
@@ -707,6 +784,74 @@ export default function Demonstrations() {
             </Button>
           </div>
         </div>
+
+        {/* Área de Filtros */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              <CardTitle>Filtros de Período</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Data Início */}
+              <div className="space-y-2">
+                <Label>Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {tempStartDate ? format(tempStartDate, 'dd/MM/yyyy') : 'Selecione'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={tempStartDate}
+                      onSelect={setTempStartDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Data Fim */}
+              <div className="space-y-2">
+                <Label>Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {tempEndDate ? format(tempEndDate, 'dd/MM/yyyy') : 'Selecione'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={tempEndDate}
+                      onSelect={setTempEndDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={applyFilters} className="gap-2">
+                <Filter className="h-4 w-4" />
+                Aplicar Filtros
+              </Button>
+              <Button onClick={clearFilters} variant="outline" className="gap-2">
+                <XIcon className="h-4 w-4" />
+                Limpar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
