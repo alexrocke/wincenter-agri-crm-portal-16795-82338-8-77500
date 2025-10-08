@@ -391,6 +391,73 @@ export default function Demonstrations() {
     });
   };
 
+  const handleCompleteDemo = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('demonstrations')
+        .update({ status: 'completed' })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Demonstração concluída!');
+      fetchDemonstrations();
+    } catch (error: any) {
+      console.error('Error completing demonstration:', error);
+      toast.error('Erro ao concluir demonstração');
+    }
+  };
+
+  const handleCompleteService = async (id: string) => {
+    if (submittingServiceId === id) return;
+    setSubmittingServiceId(id);
+
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ status: 'completed' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const service = services.find(s => s.id === id);
+      if (service && service.total_value) {
+        const saleData = {
+          client_id: service.client_id,
+          seller_auth_id: user?.id,
+          sold_at: new Date().toISOString(),
+          status: 'closed' as const,
+          gross_value: service.total_value,
+          total_cost: 0,
+          estimated_profit: service.total_value,
+          payment_received: false,
+          service_id: service.id,
+          region: null,
+          tax_percent: null,
+        };
+
+        const { error: saleError } = await supabase
+          .from('sales')
+          .insert([saleData]);
+
+        if (saleError) {
+          console.error('Error creating sale from service:', saleError);
+          toast.error('Serviço concluído, mas erro ao criar venda automática');
+        } else {
+          toast.success('Serviço concluído e venda criada automaticamente!');
+        }
+      } else {
+        toast.success('Serviço concluído!');
+      }
+
+      fetchServices();
+    } catch (error: any) {
+      console.error('Error completing service:', error);
+      toast.error('Erro ao concluir serviço');
+    } finally {
+      setSubmittingServiceId(null);
+    }
+  };
+
 
 
 
@@ -615,6 +682,10 @@ export default function Demonstrations() {
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
                               </Button>
+                              <Button size="sm" variant="default" onClick={() => handleCompleteDemo(demo.id)}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Concluir
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -652,6 +723,15 @@ export default function Demonstrations() {
                               <Button size="sm" variant="secondary" onClick={() => handleEditService(service)}>
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="default" 
+                                onClick={() => handleCompleteService(service.id)}
+                                disabled={submittingServiceId === service.id}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                {submittingServiceId === service.id ? 'Processando...' : 'Concluir'}
                               </Button>
                             </div>
                           </div>
