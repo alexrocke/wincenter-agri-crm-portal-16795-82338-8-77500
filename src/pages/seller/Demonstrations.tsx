@@ -730,14 +730,6 @@ export default function Demonstrations() {
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
                               </Button>
-                              <Button size="sm" variant="default" onClick={() => handleUpdateStatus(demo.id, 'completed')}>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Concluir
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(demo.id, 'cancelled')}>
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Cancelar
-                              </Button>
                             </div>
                           </div>
                         ))}
