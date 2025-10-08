@@ -108,11 +108,17 @@ export default function Demonstrations() {
     farm_name: '',
     contact_name: '',
     cpf_cnpj: '',
+    email: '',
     phone: '',
     whatsapp: '',
-    email: '',
     city: '',
     state: '',
+    address: '',
+    cep: '',
+    hectares: '',
+    relationship_status: 'lead',
+    crops: '',
+    location_link: '',
   });
   const [formData, setFormData] = useState({
     client_id: '',
@@ -531,13 +537,18 @@ export default function Demonstrations() {
         farm_name: newClientData.farm_name.trim(),
         contact_name: newClientData.contact_name.trim(),
         cpf_cnpj: newClientData.cpf_cnpj.trim() || null,
+        email: newClientData.email.trim() || null,
         phone: newClientData.phone.trim() || null,
         whatsapp: newClientData.whatsapp.trim() || null,
-        email: newClientData.email.trim() || null,
         city: newClientData.city.trim() || null,
         state: newClientData.state.trim() || null,
+        address: newClientData.address.trim() || null,
+        cep: newClientData.cep.trim() || null,
+        hectares: newClientData.hectares ? Number(newClientData.hectares) : null,
+        relationship_status: newClientData.relationship_status,
+        crops: newClientData.crops ? newClientData.crops.split(',').map(c => c.trim()) : null,
+        location_link: newClientData.location_link.trim() || null,
         seller_auth_id: user?.id,
-        relationship_status: 'prospect',
       };
 
       const { data, error } = await supabase
@@ -562,11 +573,17 @@ export default function Demonstrations() {
         farm_name: '',
         contact_name: '',
         cpf_cnpj: '',
+        email: '',
         phone: '',
         whatsapp: '',
-        email: '',
         city: '',
         state: '',
+        address: '',
+        cep: '',
+        hectares: '',
+        relationship_status: 'lead',
+        crops: '',
+        location_link: '',
       });
     } catch (error: any) {
       console.error('Error creating client:', error);
@@ -1571,7 +1588,7 @@ export default function Demonstrations() {
 
         {/* Dialog de Novo Cliente */}
         <Dialog open={newClientDialogOpen} onOpenChange={setNewClientDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
             </DialogHeader>
@@ -1608,6 +1625,19 @@ export default function Demonstrations() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newClientData.email}
+                    onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="phone">Telefone</Label>
                   <Input
                     id="phone"
@@ -1616,9 +1646,6 @@ export default function Demonstrations() {
                     placeholder="(00) 0000-0000"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="whatsapp">WhatsApp</Label>
                   <Input
@@ -1626,16 +1653,6 @@ export default function Demonstrations() {
                     value={newClientData.whatsapp}
                     onChange={(e) => setNewClientData({ ...newClientData, whatsapp: e.target.value })}
                     placeholder="(00) 00000-0000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newClientData.email}
-                    onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
-                    placeholder="email@exemplo.com"
                   />
                 </div>
               </div>
@@ -1662,6 +1679,77 @@ export default function Demonstrations() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address">Endereço</Label>
+                  <Input
+                    id="address"
+                    value={newClientData.address}
+                    onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+                    placeholder="Ex: Rua Principal, 123"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cep">CEP</Label>
+                  <Input
+                    id="cep"
+                    value={newClientData.cep}
+                    onChange={(e) => setNewClientData({ ...newClientData, cep: e.target.value })}
+                    placeholder="00000-000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hectares">Hectares</Label>
+                  <Input
+                    id="hectares"
+                    type="number"
+                    value={newClientData.hectares}
+                    onChange={(e) => setNewClientData({ ...newClientData, hectares: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="relationship_status">Status do Relacionamento</Label>
+                  <Select
+                    value={newClientData.relationship_status}
+                    onValueChange={(value) => setNewClientData({ ...newClientData, relationship_status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lead">Lead</SelectItem>
+                      <SelectItem value="prospect">Prospecto</SelectItem>
+                      <SelectItem value="customer">Cliente</SelectItem>
+                      <SelectItem value="inactive">Inativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="crops">Culturas (separadas por vírgula)</Label>
+                <Input
+                  id="crops"
+                  value={newClientData.crops}
+                  onChange={(e) => setNewClientData({ ...newClientData, crops: e.target.value })}
+                  placeholder="Ex: Soja, Milho, Algodão"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location_link">Link da Localização</Label>
+                <Input
+                  id="location_link"
+                  value={newClientData.location_link}
+                  onChange={(e) => setNewClientData({ ...newClientData, location_link: e.target.value })}
+                  placeholder="https://maps.google.com/..."
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button 
                   type="button" 
@@ -1672,11 +1760,17 @@ export default function Demonstrations() {
                       farm_name: '',
                       contact_name: '',
                       cpf_cnpj: '',
+                      email: '',
                       phone: '',
                       whatsapp: '',
-                      email: '',
                       city: '',
                       state: '',
+                      address: '',
+                      cep: '',
+                      hectares: '',
+                      relationship_status: 'lead',
+                      crops: '',
+                      location_link: '',
                     });
                   }}
                 >
