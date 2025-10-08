@@ -657,6 +657,7 @@ export type Database = {
           cancellation_reason: string | null
           client_id: string
           created_at: string
+          created_by: string | null
           date: string
           fixed_value: number | null
           hectares: number | null
@@ -673,6 +674,7 @@ export type Database = {
           cancellation_reason?: string | null
           client_id: string
           created_at?: string
+          created_by?: string | null
           date: string
           fixed_value?: number | null
           hectares?: number | null
@@ -689,6 +691,7 @@ export type Database = {
           cancellation_reason?: string | null
           client_id?: string
           created_at?: string
+          created_by?: string | null
           date?: string
           fixed_value?: number | null
           hectares?: number | null

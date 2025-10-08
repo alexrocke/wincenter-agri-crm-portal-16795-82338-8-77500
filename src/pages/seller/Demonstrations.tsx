@@ -442,6 +442,7 @@ export default function Demonstrations() {
       } else {
         // Criar novo serviço
         serviceData.status = 'scheduled';
+        serviceData.created_by = user?.id; // Quem cria o serviço recebe a comissão
         
         const { error } = await supabase
           .from('services')
