@@ -35,6 +35,7 @@ interface Demonstration {
   crop: string | null;
   hectares: number | null;
   created_at?: string;
+  cancellation_reason?: string | null;
   clients?: {
     farm_name: string;
     contact_name: string;
@@ -54,6 +55,7 @@ interface Service {
   value_per_hectare: number | null;
   total_value: number | null;
   created_at?: string;
+  cancellation_reason?: string | null;
   clients?: {
     farm_name: string;
     contact_name: string;
@@ -99,6 +101,9 @@ export default function Demonstrations() {
   const [weatherData, setWeatherData] = useState<any>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ id: string; status: 'scheduled' | 'completed' | 'cancelled'; type: 'demo' | 'service' } | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [itemToCancel, setItemToCancel] = useState<{ id: string; type: 'demo' | 'service' } | null>(null);
   const [formData, setFormData] = useState({
     client_id: '',
     assigned_users: [] as string[],
@@ -392,8 +397,48 @@ export default function Demonstrations() {
 
 
   const handleUpdateStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
+    if (status === 'cancelled') {
+      setItemToCancel({ id, type: 'demo' });
+      setCancelDialogOpen(true);
+      return;
+    }
     setConfirmAction({ id, status, type: 'demo' });
     setConfirmDialogOpen(true);
+  };
+
+  const handleCancelWithReason = async () => {
+    if (!itemToCancel || !cancelReason.trim()) {
+      toast.error('Por favor, informe o motivo do cancelamento');
+      return;
+    }
+
+    try {
+      const table = itemToCancel.type === 'demo' ? 'demonstrations' : 'services';
+      const { error } = await supabase
+        .from(table)
+        .update({ 
+          status: 'cancelled',
+          cancellation_reason: cancelReason.trim()
+        })
+        .eq('id', itemToCancel.id);
+
+      if (error) throw error;
+
+      toast.success(`${itemToCancel.type === 'demo' ? 'Demonstração' : 'Serviço'} cancelado com sucesso!`);
+      
+      if (itemToCancel.type === 'demo') {
+        fetchDemonstrations();
+      } else {
+        fetchServices();
+      }
+    } catch (error: any) {
+      console.error('Error cancelling:', error);
+      toast.error(error.message || 'Erro ao cancelar');
+    } finally {
+      setCancelDialogOpen(false);
+      setCancelReason('');
+      setItemToCancel(null);
+    }
   };
 
   const executeUpdateStatus = async () => {
@@ -469,6 +514,12 @@ export default function Demonstrations() {
   const handleUpdateServiceStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
     // Prevenir múltiplos cliques
     if (submittingServiceId === id) return;
+    
+    if (status === 'cancelled') {
+      setItemToCancel({ id, type: 'service' });
+      setCancelDialogOpen(true);
+      return;
+    }
     
     setConfirmAction({ id, status, type: 'service' });
     setConfirmDialogOpen(true);
@@ -587,12 +638,15 @@ export default function Demonstrations() {
 
   const scheduledDemos = demonstrations.filter(d => d.status === 'scheduled');
   const completedDemos = demonstrations.filter(d => d.status === 'completed');
+  const cancelledDemos = demonstrations.filter(d => d.status === 'cancelled');
   const scheduledServices = services.filter(s => s.status === 'scheduled');
   const completedServices = services.filter(s => s.status === 'completed');
+  const cancelledServices = services.filter(s => s.status === 'cancelled');
 
   const totalItems = demonstrations.length + services.length;
   const totalScheduled = scheduledDemos.length + scheduledServices.length;
   const totalCompleted = completedDemos.length + completedServices.length;
+  const totalCancelled = cancelledDemos.length + cancelledServices.length;
 
   // Calendar logic
   const monthStart = startOfMonth(currentMonth);
@@ -636,7 +690,7 @@ export default function Demonstrations() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -675,6 +729,19 @@ export default function Demonstrations() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium">Canceladas</CardTitle>
+              <XCircle className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{totalCancelled}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {cancelledDemos.length} demos • {cancelledServices.length} serviços
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <WeatherForecast />
@@ -689,7 +756,7 @@ export default function Demonstrations() {
           </TabsList>
 
           <TabsContent value="lista" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -729,6 +796,14 @@ export default function Demonstrations() {
                               <Button size="sm" variant="secondary" onClick={() => handleEditDemo(demo)}>
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
+                              </Button>
+                              <Button size="sm" variant="default" onClick={() => handleUpdateStatus(demo.id, 'completed')}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Concluir
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(demo.id, 'cancelled')}>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Cancelar
                               </Button>
                             </div>
                           </div>
@@ -843,6 +918,88 @@ export default function Demonstrations() {
                                   <Calendar className="h-3 w-3" />
                                   {format(new Date(service.date), "dd/MM/yyyy", { locale: ptBR })}
                                 </p>
+                              </div>
+                              <Badge className={getStatusBadge(service.status).className}>
+                                {getStatusBadge(service.status).label}
+                              </Badge>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => handleViewService(service)}>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver Detalhes
+                            </Button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <XCircle className="h-5 w-5 text-red-600" />
+                    Canceladas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {totalCancelled === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">Nenhum item cancelado</p>
+                    ) : (
+                      <>
+                        {cancelledDemos.map((demo) => (
+                          <div key={demo.id} className="border rounded-lg p-4 space-y-3 border-l-4 border-l-red-500">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="bg-red-50">Demonstração</Badge>
+                                  <p className="font-semibold">{demo.clients?.farm_name}</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{demo.clients?.contact_name}</p>
+                                <p className="text-sm flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(demo.date), "dd/MM/yyyy", { locale: ptBR })}
+                                </p>
+                                {demo.cancellation_reason && (
+                                  <div className="text-sm bg-red-50 p-2 rounded mt-2">
+                                    <p className="font-medium text-red-800">Motivo do cancelamento:</p>
+                                    <p className="text-red-700">{demo.cancellation_reason}</p>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge className={getStatusBadge(demo.status).className}>
+                                {getStatusBadge(demo.status).label}
+                              </Badge>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => handleViewDemo(demo)}>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver Detalhes
+                            </Button>
+                          </div>
+                        ))}
+                        {cancelledServices.map((service) => (
+                          <div key={service.id} className="border rounded-lg p-4 space-y-3 border-l-4 border-l-red-500">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="bg-red-50">
+                                    <Wrench className="h-3 w-3 mr-1" />
+                                    {getServiceTypeName(service.service_type)}
+                                  </Badge>
+                                  <p className="font-semibold">{service.clients?.farm_name}</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{service.clients?.contact_name}</p>
+                                <p className="text-sm flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(service.date), "dd/MM/yyyy", { locale: ptBR })}
+                                </p>
+                                {service.cancellation_reason && (
+                                  <div className="text-sm bg-red-50 p-2 rounded mt-2">
+                                    <p className="font-medium text-red-800">Motivo do cancelamento:</p>
+                                    <p className="text-red-700">{service.cancellation_reason}</p>
+                                  </div>
+                                )}
                               </div>
                               <Badge className={getStatusBadge(service.status).className}>
                                 {getStatusBadge(service.status).label}
@@ -1377,9 +1534,7 @@ export default function Demonstrations() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar Ação</AlertDialogTitle>
               <AlertDialogDescription>
-                {confirmAction?.status === 'completed' 
-                  ? 'Tem certeza que deseja marcar como concluída? Esta ação irá atualizar o status.' 
-                  : 'Tem certeza que deseja cancelar? Esta ação irá atualizar o status.'}
+                Tem certeza que deseja marcar como concluída? Esta ação irá atualizar o status.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1401,6 +1556,47 @@ export default function Demonstrations() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Dialog de cancelamento com motivo */}
+        <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cancelar {itemToCancel?.type === 'demo' ? 'Demonstração' : 'Serviço'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="cancelReason">Motivo do Cancelamento *</Label>
+                <Textarea
+                  id="cancelReason"
+                  placeholder="Informe o motivo do cancelamento..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={4}
+                  className="mt-2"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCancelDialogOpen(false);
+                    setCancelReason('');
+                    setItemToCancel(null);
+                  }}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelWithReason}
+                  disabled={!cancelReason.trim()}
+                >
+                  Confirmar Cancelamento
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

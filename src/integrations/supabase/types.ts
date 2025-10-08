@@ -237,6 +237,7 @@ export type Database = {
       demonstrations: {
         Row: {
           assigned_users: string[] | null
+          cancellation_reason: string | null
           client_id: string | null
           created_at: string | null
           crop: string | null
@@ -257,6 +258,7 @@ export type Database = {
         }
         Insert: {
           assigned_users?: string[] | null
+          cancellation_reason?: string | null
           client_id?: string | null
           created_at?: string | null
           crop?: string | null
@@ -277,6 +279,7 @@ export type Database = {
         }
         Update: {
           assigned_users?: string[] | null
+          cancellation_reason?: string | null
           client_id?: string | null
           created_at?: string | null
           crop?: string | null
@@ -651,6 +654,7 @@ export type Database = {
       services: {
         Row: {
           assigned_users: string[] | null
+          cancellation_reason: string | null
           client_id: string
           created_at: string
           date: string
@@ -666,6 +670,7 @@ export type Database = {
         }
         Insert: {
           assigned_users?: string[] | null
+          cancellation_reason?: string | null
           client_id: string
           created_at?: string
           date: string
@@ -681,6 +686,7 @@ export type Database = {
         }
         Update: {
           assigned_users?: string[] | null
+          cancellation_reason?: string | null
           client_id?: string
           created_at?: string
           date?: string
