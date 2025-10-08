@@ -103,6 +103,17 @@ export default function Demonstrations() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [itemToCancel, setItemToCancel] = useState<{ id: string; type: 'demo' | 'service' } | null>(null);
+  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
+  const [newClientData, setNewClientData] = useState({
+    farm_name: '',
+    contact_name: '',
+    cpf_cnpj: '',
+    phone: '',
+    whatsapp: '',
+    email: '',
+    city: '',
+    state: '',
+  });
   const [formData, setFormData] = useState({
     client_id: '',
     assigned_users: [] as string[],
@@ -506,6 +517,60 @@ export default function Demonstrations() {
     } catch (error: any) {
       console.error('Error cancelling item:', error);
       toast.error('Erro ao cancelar');
+    }
+  };
+
+  const handleCreateClient = async () => {
+    if (!newClientData.farm_name.trim() || !newClientData.contact_name.trim()) {
+      toast.error('Preencha os campos obrigatórios');
+      return;
+    }
+
+    try {
+      const clientData: any = {
+        farm_name: newClientData.farm_name.trim(),
+        contact_name: newClientData.contact_name.trim(),
+        cpf_cnpj: newClientData.cpf_cnpj.trim() || null,
+        phone: newClientData.phone.trim() || null,
+        whatsapp: newClientData.whatsapp.trim() || null,
+        email: newClientData.email.trim() || null,
+        city: newClientData.city.trim() || null,
+        state: newClientData.state.trim() || null,
+        seller_auth_id: user?.id,
+        relationship_status: 'prospect',
+      };
+
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([clientData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Cliente cadastrado com sucesso!');
+      
+      // Atualizar lista de clientes
+      await fetchClients();
+      
+      // Selecionar o novo cliente no formulário
+      setFormData({ ...formData, client_id: data.id });
+      
+      // Fechar dialog e resetar form
+      setNewClientDialogOpen(false);
+      setNewClientData({
+        farm_name: '',
+        contact_name: '',
+        cpf_cnpj: '',
+        phone: '',
+        whatsapp: '',
+        email: '',
+        city: '',
+        state: '',
+      });
+    } catch (error: any) {
+      console.error('Error creating client:', error);
+      toast.error('Erro ao cadastrar cliente');
     }
   };
 
@@ -1052,7 +1117,18 @@ export default function Demonstrations() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Cliente *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Cliente *</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setNewClientDialogOpen(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Novo Cliente
+                  </Button>
+                </div>
                 <ClientAutocomplete
                   value={formData.client_id}
                   onChange={(value) => setFormData({ ...formData, client_id: value })}
@@ -1487,6 +1563,128 @@ export default function Demonstrations() {
                 </Button>
                 <Button variant="destructive" onClick={handleCancelConfirm}>
                   Confirmar Cancelamento
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Novo Cliente */}
+        <Dialog open={newClientDialogOpen} onOpenChange={setNewClientDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="farm_name">Nome da Fazenda *</Label>
+                  <Input
+                    id="farm_name"
+                    value={newClientData.farm_name}
+                    onChange={(e) => setNewClientData({ ...newClientData, farm_name: e.target.value })}
+                    placeholder="Ex: Fazenda São José"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact_name">Nome do Contato *</Label>
+                  <Input
+                    id="contact_name"
+                    value={newClientData.contact_name}
+                    onChange={(e) => setNewClientData({ ...newClientData, contact_name: e.target.value })}
+                    placeholder="Ex: João Silva"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cpf_cnpj">CPF/CNPJ</Label>
+                  <Input
+                    id="cpf_cnpj"
+                    value={newClientData.cpf_cnpj}
+                    onChange={(e) => setNewClientData({ ...newClientData, cpf_cnpj: e.target.value })}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={newClientData.phone}
+                    onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                    placeholder="(00) 0000-0000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    value={newClientData.whatsapp}
+                    onChange={(e) => setNewClientData({ ...newClientData, whatsapp: e.target.value })}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newClientData.email}
+                    onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    value={newClientData.city}
+                    onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
+                    placeholder="Ex: São Paulo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">Estado</Label>
+                  <Input
+                    id="state"
+                    value={newClientData.state}
+                    onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
+                    placeholder="Ex: SP"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setNewClientDialogOpen(false);
+                    setNewClientData({
+                      farm_name: '',
+                      contact_name: '',
+                      cpf_cnpj: '',
+                      phone: '',
+                      whatsapp: '',
+                      email: '',
+                      city: '',
+                      state: '',
+                    });
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={handleCreateClient}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Cadastrar Cliente
                 </Button>
               </div>
             </div>
