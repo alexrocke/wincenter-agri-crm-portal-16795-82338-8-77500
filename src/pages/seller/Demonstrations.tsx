@@ -100,6 +100,9 @@ export default function Demonstrations() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [submittingServiceId, setSubmittingServiceId] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<any>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [itemToCancel, setItemToCancel] = useState<{ id: string; type: 'demo' | 'service' } | null>(null);
   const [formData, setFormData] = useState({
     client_id: '',
     assigned_users: [] as string[],
@@ -458,6 +461,54 @@ export default function Demonstrations() {
     }
   };
 
+  const handleCancelClick = (id: string, type: 'demo' | 'service') => {
+    setItemToCancel({ id, type });
+    setCancelReason('');
+    setCancelDialogOpen(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!itemToCancel || !cancelReason.trim()) {
+      toast.error('Por favor, informe o motivo do cancelamento');
+      return;
+    }
+
+    try {
+      if (itemToCancel.type === 'demo') {
+        const { error } = await supabase
+          .from('demonstrations')
+          .update({ 
+            status: 'cancelled',
+            cancellation_reason: cancelReason.trim()
+          })
+          .eq('id', itemToCancel.id);
+
+        if (error) throw error;
+        toast.success('Demonstração cancelada!');
+        fetchDemonstrations();
+      } else {
+        const { error } = await supabase
+          .from('services')
+          .update({ 
+            status: 'cancelled',
+            cancellation_reason: cancelReason.trim()
+          })
+          .eq('id', itemToCancel.id);
+
+        if (error) throw error;
+        toast.success('Serviço cancelado!');
+        fetchServices();
+      }
+
+      setCancelDialogOpen(false);
+      setItemToCancel(null);
+      setCancelReason('');
+    } catch (error: any) {
+      console.error('Error cancelling item:', error);
+      toast.error('Erro ao cancelar');
+    }
+  };
+
 
 
 
@@ -686,6 +737,10 @@ export default function Demonstrations() {
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Concluir
                               </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleCancelClick(demo.id, 'demo')}>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Cancelar
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -732,6 +787,10 @@ export default function Demonstrations() {
                               >
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 {submittingServiceId === service.id ? 'Processando...' : 'Concluir'}
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleCancelClick(service.id, 'service')}>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Cancelar
                               </Button>
                             </div>
                           </div>
@@ -1405,6 +1464,34 @@ export default function Demonstrations() {
           </DialogContent>
         </Dialog>
 
+        {/* Dialog de Cancelamento */}
+        <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cancelar {itemToCancel?.type === 'demo' ? 'Demonstração' : 'Serviço'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="cancel-reason">Motivo do Cancelamento *</Label>
+                <Textarea
+                  id="cancel-reason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Informe o motivo do cancelamento..."
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                  Voltar
+                </Button>
+                <Button variant="destructive" onClick={handleCancelConfirm}>
+                  Confirmar Cancelamento
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </AppLayout>
