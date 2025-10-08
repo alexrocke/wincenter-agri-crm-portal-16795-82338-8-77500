@@ -3,9 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, TrendingUp, Users, DollarSign, Target, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, DollarSign, Target, Package, Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Reports() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [salesData, setSalesData] = useState({
     totalRevenue: 0,
     totalProfit: 0,
@@ -16,17 +24,86 @@ export default function Reports() {
   const [sellerData, setSellerData] = useState<any[]>([]);
   const [productData, setProductData] = useState<any[]>([]);
 
+  // Filtros aplicados
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  // Filtros temporários (UI)
+  const [tempStartDate, setTempStartDate] = useState<Date | undefined>();
+  const [tempEndDate, setTempEndDate] = useState<Date | undefined>();
+
+  // Inicializar filtros da URL ou defaults
   useEffect(() => {
-    fetchReportsData();
+    const urlStart = searchParams.get('start');
+    const urlEnd = searchParams.get('end');
+
+    if (urlStart) {
+      const parsedStart = new Date(urlStart);
+      setStartDate(parsedStart);
+      setTempStartDate(parsedStart);
+    } else {
+      // Default: início do mês atual
+      const defaultStart = startOfMonth(new Date());
+      setStartDate(defaultStart);
+      setTempStartDate(defaultStart);
+    }
+
+    if (urlEnd) {
+      const parsedEnd = new Date(urlEnd);
+      setEndDate(parsedEnd);
+      setTempEndDate(parsedEnd);
+    } else {
+      // Default: fim do mês atual
+      const defaultEnd = endOfMonth(new Date());
+      setEndDate(defaultEnd);
+      setTempEndDate(defaultEnd);
+    }
   }, []);
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      fetchReportsData();
+    }
+  }, [startDate, endDate]);
+
+  const applyFilters = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+
+    const params = new URLSearchParams();
+    if (tempStartDate) params.set('start', tempStartDate.toISOString().split('T')[0]);
+    if (tempEndDate) params.set('end', tempEndDate.toISOString().split('T')[0]);
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    const defaultStart = startOfMonth(new Date());
+    const defaultEnd = endOfMonth(new Date());
+    
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+    setTempStartDate(defaultStart);
+    setTempEndDate(defaultEnd);
+    setSearchParams({});
+  };
 
   const fetchReportsData = async () => {
     try {
-      // Fetch sales overview
-      const { data: sales } = await supabase
+      if (!startDate || !endDate) return;
+
+      // Ajustar endDate para incluir o dia inteiro
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch sales overview com filtro de data
+      let salesQuery = supabase
         .from('sales')
-        .select('gross_value, estimated_profit, status')
-        .eq('status', 'closed');
+        .select('gross_value, estimated_profit, status, sold_at')
+        .eq('status', 'closed')
+        .gte('sold_at', startDate.toISOString())
+        .lte('sold_at', endOfDay.toISOString());
+
+      const { data: sales } = await salesQuery;
 
       const totalRevenue = sales?.reduce((sum, s) => sum + Number(s.gross_value), 0) || 0;
       const totalProfit = sales?.reduce((sum, s) => sum + Number(s.estimated_profit), 0) || 0;
@@ -38,7 +115,7 @@ export default function Reports() {
         avgTicket: sales && sales.length > 0 ? totalRevenue / sales.length : 0,
       });
 
-      // Fetch seller performance
+      // Fetch seller performance com filtro de data
       const { data: sellers } = await supabase
         .from('users')
         .select('id, name, email, auth_user_id')
@@ -50,9 +127,11 @@ export default function Reports() {
         
         const { data: allSales } = await supabase
           .from('sales')
-          .select('seller_auth_id, gross_value, estimated_profit, status')
+          .select('seller_auth_id, gross_value, estimated_profit, status, sold_at')
           .in('seller_auth_id', sellerAuthIds)
-          .eq('status', 'closed');
+          .eq('status', 'closed')
+          .gte('sold_at', startDate.toISOString())
+          .lte('sold_at', endOfDay.toISOString());
 
         const sellerStats = sellers.map(seller => {
           const sellerSales = allSales?.filter(s => s.seller_auth_id === seller.auth_user_id) || [];
@@ -68,8 +147,18 @@ export default function Reports() {
         setSellerData(sellerStats.sort((a, b) => b.totalRevenue - a.totalRevenue));
       }
 
-      // Fetch product performance
-      const { data: saleItems } = await supabase
+      // Fetch product performance com filtro de data
+      // Primeiro buscar IDs das vendas no período
+      const { data: periodSales } = await supabase
+        .from('sales')
+        .select('id')
+        .eq('status', 'closed')
+        .gte('sold_at', startDate.toISOString())
+        .lte('sold_at', endOfDay.toISOString());
+
+      const saleIds = periodSales?.map(s => s.id) || [];
+
+      let saleItemsQuery = supabase
         .from('sale_items')
         .select(`
           product_id,
@@ -81,6 +170,12 @@ export default function Reports() {
             category
           )
         `);
+
+      if (saleIds.length > 0) {
+        saleItemsQuery = saleItemsQuery.in('sale_id', saleIds);
+      }
+
+      const { data: saleItems } = await saleItemsQuery;
 
       const productStats = saleItems?.reduce((acc: any, item: any) => {
         const productId = item.product_id;
@@ -112,6 +207,81 @@ export default function Reports() {
           <h1 className="text-3xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground">Análises e indicadores de desempenho</p>
         </div>
+
+        {/* Filtros */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtros de Período</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <Label>Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !tempStartDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {tempStartDate ? format(tempStartDate, "dd/MM/yyyy") : "Selecione..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempStartDate}
+                      onSelect={setTempStartDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="flex-1">
+                <Label>Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !tempEndDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {tempEndDate ? format(tempEndDate, "dd/MM/yyyy") : "Selecione..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempEndDate}
+                      onSelect={setTempEndDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={applyFilters}>Aplicar Filtros</Button>
+                <Button variant="outline" onClick={clearFilters}>Limpar</Button>
+              </div>
+            </div>
+
+            {startDate && endDate && (
+              <div className="mt-3 text-sm text-muted-foreground">
+                Exibindo dados de {format(startDate, "dd/MM/yyyy")} até {format(endDate, "dd/MM/yyyy")}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card>

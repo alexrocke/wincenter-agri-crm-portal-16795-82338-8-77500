@@ -66,9 +66,6 @@ export default function AdminSales() {
           clients (
             farm_name,
             contact_name
-          ),
-          users!seller_auth_id (
-            name
           )
         `)
         .order('sold_at', { ascending: false });
@@ -81,10 +78,19 @@ export default function AdminSales() {
 
       if (error) throw error;
 
+      // Buscar nomes dos vendedores separadamente
+      const sellerAuthIds = [...new Set(data?.map(s => s.seller_auth_id).filter(Boolean))];
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('auth_user_id, name')
+        .in('auth_user_id', sellerAuthIds);
+
+      const usersMap = new Map(usersData?.map(u => [u.auth_user_id, u.name]));
+
       // Mapear dados do vendedor
       const salesWithSellers = (data || []).map((sale: any) => ({
         ...sale,
-        seller_name: sale.users?.name || 'N/A'
+        seller_name: usersMap.get(sale.seller_auth_id) || 'N/A'
       }));
 
       setSales(salesWithSellers);
