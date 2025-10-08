@@ -445,33 +445,14 @@ export default function Demonstrations() {
     if (!confirmAction) return;
     
     try {
-      // Normalizar qualquer label em PT para os valores válidos do enum
-      const map: Record<string, 'scheduled' | 'completed' | 'cancelled'> = {
-        scheduled: 'scheduled',
-        Scheduled: 'scheduled',
-        agendada: 'scheduled',
-        Agendada: 'scheduled',
-        completed: 'completed',
-        Completed: 'completed',
-        concluida: 'completed',
-        Concluída: 'completed',
-        Concluida: 'completed',
-        cancelled: 'cancelled',
-        Cancelled: 'cancelled',
-        cancelada: 'cancelled',
-        Cancelada: 'cancelled',
-      };
-      const normalizedStatus = map[String(confirmAction.status)] ?? (confirmAction.status as 'scheduled' | 'completed' | 'cancelled');
-
       const { error } = await supabase
         .from('demonstrations')
-        .update({ status: normalizedStatus })
+        .update({ status: 'completed' })
         .eq('id', confirmAction.id);
 
       if (error) throw error;
 
-      const statusLabel = normalizedStatus === 'completed' ? 'concluída' : 'cancelada';
-      toast.success(`Demonstração ${statusLabel}!`);
+      toast.success('Demonstração concluída!');
       fetchDemonstrations();
     } catch (error: any) {
       console.error('Error updating status:', error);
@@ -531,70 +512,48 @@ export default function Demonstrations() {
     setSubmittingServiceId(confirmAction.id);
     
     try {
-      // Normalizar qualquer label em PT para os valores válidos do enum
-      const map: Record<string, 'scheduled' | 'completed' | 'cancelled'> = {
-        scheduled: 'scheduled',
-        Scheduled: 'scheduled',
-        agendada: 'scheduled',
-        Agendada: 'scheduled',
-        completed: 'completed',
-        Completed: 'completed',
-        concluida: 'completed',
-        Concluída: 'completed',
-        Concluida: 'completed',
-        cancelled: 'cancelled',
-        Cancelled: 'cancelled',
-        cancelada: 'cancelled',
-        Cancelada: 'cancelled',
-      };
-      const normalizedStatus = map[String(confirmAction.status)] ?? (confirmAction.status as 'scheduled' | 'completed' | 'cancelled');
-
       const { error } = await supabase
         .from('services')
-        .update({ status: normalizedStatus })
+        .update({ status: 'completed' })
         .eq('id', confirmAction.id);
 
       if (error) throw error;
 
       // Se o serviço foi concluído, criar uma venda automaticamente
-      if (normalizedStatus === 'completed') {
-        const service = services.find(s => s.id === confirmAction.id);
-        if (service && service.total_value) {
-          try {
-            // Criar venda vinculada ao serviço
-            const saleData = {
-              client_id: service.client_id,
-              seller_auth_id: user?.id,
-              sold_at: new Date().toISOString(),
-              status: 'closed' as const,
-              gross_value: service.total_value,
-              total_cost: 0,
-              estimated_profit: service.total_value,
-              payment_received: false,
-              service_id: service.id,
-              region: null,
-              tax_percent: null,
-            };
+      const service = services.find(s => s.id === confirmAction.id);
+      if (service && service.total_value) {
+        try {
+          // Criar venda vinculada ao serviço
+          const saleData = {
+            client_id: service.client_id,
+            seller_auth_id: user?.id,
+            sold_at: new Date().toISOString(),
+            status: 'closed' as const,
+            gross_value: service.total_value,
+            total_cost: 0,
+            estimated_profit: service.total_value,
+            payment_received: false,
+            service_id: service.id,
+            region: null,
+            tax_percent: null,
+          };
 
-            const { error: saleError } = await supabase
-              .from('sales')
-              .insert([saleData]);
+          const { error: saleError } = await supabase
+            .from('sales')
+            .insert([saleData]);
 
-            if (saleError) {
-              console.error('Error creating sale from service:', saleError);
-              toast.error('Serviço concluído, mas erro ao criar venda automática');
-            } else {
-              toast.success('Serviço concluído e venda criada automaticamente!');
-            }
-          } catch (saleError) {
-            console.error('Error creating automatic sale:', saleError);
-            toast.error('Erro ao criar venda automática');
+          if (saleError) {
+            console.error('Error creating sale from service:', saleError);
+            toast.error('Serviço concluído, mas erro ao criar venda automática');
+          } else {
+            toast.success('Serviço concluído e venda criada automaticamente!');
           }
-        } else {
-          toast.success('Status atualizado!');
+        } catch (saleError) {
+          console.error('Error creating automatic sale:', saleError);
+          toast.error('Erro ao criar venda automática');
         }
       } else {
-        toast.success('Status atualizado!');
+        toast.success('Serviço concluído!');
       }
       
       fetchServices();
