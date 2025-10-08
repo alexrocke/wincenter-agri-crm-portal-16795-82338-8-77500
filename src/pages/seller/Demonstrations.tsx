@@ -81,30 +81,6 @@ interface User {
   role: string;
 }
 
-// Mapeamento de status PT-BR -> valores do banco (EN)
-const dbStatus = {
-  scheduled: 'scheduled',
-  completed: 'completed',
-  cancelled: 'cancelled',
-} as const;
-
-const ptToDbStatus: Record<string, typeof dbStatus[keyof typeof dbStatus]> = {
-  agendada: 'scheduled',
-  agendado: 'scheduled',
-  scheduled: 'scheduled',
-  concluida: 'completed',
-  concluída: 'completed',
-  realizada: 'completed',
-  completed: 'completed',
-  cancelada: 'cancelled',
-  cancelado: 'cancelled',
-  cancelled: 'cancelled',
-};
-
-const toDbStatus = (value: string): 'scheduled' | 'completed' | 'cancelled' => {
-  const key = value?.toLowerCase?.() ?? '';
-  return ptToDbStatus[key] ?? (value as 'scheduled' | 'completed' | 'cancelled');
-};
 
 export default function Demonstrations() {
   const { user, userRole } = useAuth();
@@ -124,11 +100,6 @@ export default function Demonstrations() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [submittingServiceId, setSubmittingServiceId] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<any>(null);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ id: string; status: 'scheduled' | 'completed' | 'cancelled'; type: 'demo' | 'service' } | null>(null);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [itemToCancel, setItemToCancel] = useState<{ id: string; type: 'demo' | 'service' } | null>(null);
   const [formData, setFormData] = useState({
     client_id: '',
     assigned_users: [] as string[],
@@ -421,98 +392,8 @@ export default function Demonstrations() {
   };
 
 
-  const handleUpdateStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
-    console.log('[DEBUG] handleUpdateStatus chamado com:', { id, status });
-    if (status === 'cancelled') {
-      setItemToCancel({ id, type: 'demo' });
-      setCancelDialogOpen(true);
-      return;
-    }
-    console.log('[DEBUG] Definindo confirmAction com status:', status);
-    setConfirmAction({ id, status, type: 'demo' });
-    setConfirmDialogOpen(true);
-  };
 
-  const handleCancelWithReason = async () => {
-    if (!itemToCancel || !cancelReason.trim()) {
-      toast.error('Por favor, informe o motivo do cancelamento');
-      return;
-    }
 
-    console.log('[DEBUG] handleCancelWithReason - itemToCancel:', itemToCancel);
-    console.log('[DEBUG] handleCancelWithReason - cancelReason:', cancelReason);
-
-    try {
-      const table = itemToCancel.type === 'demo' ? 'demonstrations' : 'services';
-      const updateData = { 
-        status: 'cancelled' as const,
-        cancellation_reason: cancelReason.trim()
-      };
-      
-      console.log('[DEBUG] handleCancelWithReason - table:', table);
-      console.log('[DEBUG] handleCancelWithReason - updateData:', updateData);
-      
-      const { error } = await supabase
-        .from(table)
-        .update(updateData)
-        .eq('id', itemToCancel.id);
-
-      if (error) {
-        console.error('[DEBUG] Erro do Supabase no cancelamento:', error);
-        throw error;
-      }
-
-      toast.success(`${itemToCancel.type === 'demo' ? 'Demonstração' : 'Serviço'} cancelado com sucesso!`);
-      
-      if (itemToCancel.type === 'demo') {
-        fetchDemonstrations();
-      } else {
-        fetchServices();
-      }
-    } catch (error: any) {
-      console.error('[DEBUG] Error cancelling:', error);
-      console.error('[DEBUG] Error completo:', JSON.stringify(error, null, 2));
-      toast.error(error.message || 'Erro ao cancelar');
-    } finally {
-      setCancelDialogOpen(false);
-      setCancelReason('');
-      setItemToCancel(null);
-    }
-  };
-
-  const executeUpdateStatus = async () => {
-    if (!confirmAction) return;
-    
-    console.log('[DEBUG] executeUpdateStatus - confirmAction:', confirmAction);
-    console.log('[DEBUG] executeUpdateStatus - status recebido:', confirmAction.status);
-    console.log('[DEBUG] executeUpdateStatus - tipo do status:', typeof confirmAction.status);
-    
-    try {
-      const updateData = { status: toDbStatus(confirmAction.status) };
-      console.log('[DEBUG] executeUpdateStatus - dados para update:', updateData);
-      
-      const { error } = await supabase
-        .from('demonstrations')
-        .update(updateData)
-        .eq('id', confirmAction.id);
-
-      if (error) {
-        console.error('[DEBUG] Erro do Supabase:', error);
-        throw error;
-      }
-
-      console.log('[DEBUG] Update realizado com sucesso!');
-      toast.success('Demonstração concluída!');
-      fetchDemonstrations();
-    } catch (error: any) {
-      console.error('[DEBUG] Error updating status:', error);
-      console.error('[DEBUG] Error completo:', JSON.stringify(error, null, 2));
-      toast.error(error.message || 'Erro ao atualizar status');
-    } finally {
-      setConfirmDialogOpen(false);
-      setConfirmAction(null);
-    }
-  };
 
   const handleEditDemo = (demo: Demonstration) => {
     setFormData({
@@ -543,80 +424,7 @@ export default function Demonstrations() {
     setServiceDialogOpen(true);
   };
 
-  const handleUpdateServiceStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
-    // Prevenir múltiplos cliques
-    if (submittingServiceId === id) return;
-    
-    if (status === 'cancelled') {
-      setItemToCancel({ id, type: 'service' });
-      setCancelDialogOpen(true);
-      return;
-    }
-    
-    setConfirmAction({ id, status, type: 'service' });
-    setConfirmDialogOpen(true);
-  };
 
-  const executeUpdateServiceStatus = async () => {
-    if (!confirmAction) return;
-    
-    setSubmittingServiceId(confirmAction.id);
-    
-    try {
-      const { error } = await supabase
-        .from('services')
-        .update({ status: toDbStatus(confirmAction.status) })
-        .eq('id', confirmAction.id);
-
-      if (error) throw error;
-
-      // Se o serviço foi concluído, criar uma venda automaticamente
-      const service = services.find(s => s.id === confirmAction.id);
-      if (service && service.total_value) {
-        try {
-          // Criar venda vinculada ao serviço
-          const saleData = {
-            client_id: service.client_id,
-            seller_auth_id: user?.id,
-            sold_at: new Date().toISOString(),
-            status: 'closed' as const,
-            gross_value: service.total_value,
-            total_cost: 0,
-            estimated_profit: service.total_value,
-            payment_received: false,
-            service_id: service.id,
-            region: null,
-            tax_percent: null,
-          };
-
-          const { error: saleError } = await supabase
-            .from('sales')
-            .insert([saleData]);
-
-          if (saleError) {
-            console.error('Error creating sale from service:', saleError);
-            toast.error('Serviço concluído, mas erro ao criar venda automática');
-          } else {
-            toast.success('Serviço concluído e venda criada automaticamente!');
-          }
-        } catch (saleError) {
-          console.error('Error creating automatic sale:', saleError);
-          toast.error('Erro ao criar venda automática');
-        }
-      } else {
-        toast.success('Serviço concluído!');
-      }
-      
-      fetchServices();
-    } catch (error) {
-      console.error('Error updating service status:', error);
-      toast.error('Erro ao atualizar status');
-    } finally {
-      setSubmittingServiceId(null);
-      setConfirmDialogOpen(false);
-      setConfirmAction(null);
-    }
-  };
 
   const handleViewDemo = (demo: Demonstration) => {
     setSelectedDemo(demo);
@@ -807,14 +615,6 @@ export default function Demonstrations() {
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
                               </Button>
-                              <Button size="sm" variant="default" onClick={() => handleUpdateStatus(demo.id, 'completed')}>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Concluir
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(demo.id, 'cancelled')}>
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Cancelar
-                              </Button>
                             </div>
                           </div>
                         ))}
@@ -852,19 +652,6 @@ export default function Demonstrations() {
                               <Button size="sm" variant="secondary" onClick={() => handleEditService(service)}>
                                 <Pencil className="h-3 w-3 mr-1" />
                                 Editar
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="default" 
-                                onClick={() => handleUpdateServiceStatus(service.id, 'completed')}
-                                disabled={submittingServiceId === service.id}
-                              >
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                {submittingServiceId === service.id ? 'Processando...' : 'Concluir'}
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleUpdateServiceStatus(service.id, 'cancelled')}>
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Cancelar
                               </Button>
                             </div>
                           </div>
@@ -1538,75 +1325,7 @@ export default function Demonstrations() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog de confirmação para ações */}
-        <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Ação</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja marcar como concluída? Esta ação irá atualizar o status.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setConfirmDialogOpen(false);
-                setConfirmAction(null);
-              }}>
-                Cancelar
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={() => {
-                if (confirmAction?.type === 'demo') {
-                  executeUpdateStatus();
-                } else {
-                  executeUpdateServiceStatus();
-                }
-              }}>
-                Confirmar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
-        {/* Dialog de cancelamento com motivo */}
-        <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cancelar {itemToCancel?.type === 'demo' ? 'Demonstração' : 'Serviço'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="cancelReason">Motivo do Cancelamento *</Label>
-                <Textarea
-                  id="cancelReason"
-                  placeholder="Informe o motivo do cancelamento..."
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  rows={4}
-                  className="mt-2"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setCancelDialogOpen(false);
-                    setCancelReason('');
-                    setItemToCancel(null);
-                  }}
-                >
-                  Voltar
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleCancelWithReason}
-                  disabled={!cancelReason.trim()}
-                >
-                  Confirmar Cancelamento
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );
