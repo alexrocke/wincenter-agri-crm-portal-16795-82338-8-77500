@@ -1,16 +1,30 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Clock, CheckCircle, XCircle, Edit, RefreshCw } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, XCircle, Edit, RefreshCw, Filter, X, User } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
+
+interface UserInfo {
+  auth_user_id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Commission {
   id: string;
@@ -24,20 +38,23 @@ interface Commission {
   created_at: string;
   sale_id: string;
   seller_auth_id: string;
+  receiver?: UserInfo;
   sales?: {
     sold_at: string;
     gross_value: number;
     clients?: {
       farm_name: string;
+      contact_name: string;
     };
   };
 }
 
 export default function AdminCommissions() {
+  const { user, userRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSeller, setSelectedSeller] = useState<string>('all');
-  const [sellers, setSellers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserInfo[]>([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null);
   const [editData, setEditData] = useState({
@@ -45,32 +62,82 @@ export default function AdminCommissions() {
     notes: '',
   });
 
+  // Estados de filtros aplicados
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  
+  // Estados temporários dos filtros (antes de aplicar)
+  const [tempSelectedUsers, setTempSelectedUsers] = useState<string[]>([]);
+  const [tempStartDate, setTempStartDate] = useState<Date | undefined>(undefined);
+  const [tempEndDate, setTempEndDate] = useState<Date | undefined>(undefined);
+
+  // Inicializar filtros da URL ou defaults
   useEffect(() => {
-    fetchSellers();
+    const usersParam = searchParams.get('users');
+    const startParam = searchParams.get('start');
+    const endParam = searchParams.get('end');
+
+    const isAdmin = userRole === 'admin';
+    
+    if (usersParam) {
+      const userIds = usersParam.split(',');
+      setSelectedUsers(userIds);
+      setTempSelectedUsers(userIds);
+    } else if (!isAdmin && user) {
+      // Seller/Técnico: pré-filtrar por ele mesmo
+      setSelectedUsers([user.id]);
+      setTempSelectedUsers([user.id]);
+    }
+
+    if (startParam) {
+      setStartDate(new Date(startParam));
+      setTempStartDate(new Date(startParam));
+    } else {
+      // Default: início do mês atual
+      const defaultStart = startOfMonth(new Date());
+      setStartDate(defaultStart);
+      setTempStartDate(defaultStart);
+    }
+
+    if (endParam) {
+      setEndDate(new Date(endParam));
+      setTempEndDate(new Date(endParam));
+    } else {
+      // Default: fim do mês atual
+      const defaultEnd = endOfMonth(new Date());
+      setEndDate(defaultEnd);
+      setTempEndDate(defaultEnd);
+    }
+  }, [searchParams, userRole, user]);
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
   useEffect(() => {
     fetchCommissions();
-  }, [selectedSeller]);
+  }, [selectedUsers, startDate, endDate, user]);
 
-  const fetchSellers = async () => {
+  const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, auth_user_id, name')
-        .in('role', ['seller', 'admin'])
+        .select('auth_user_id, name, email, role')
+        .in('role', ['seller', 'admin', 'technician'])
         .eq('status', 'active')
         .order('name');
 
       if (error) throw error;
-      setSellers(data || []);
+      setUsers(data || []);
     } catch (error) {
-      console.error('Error fetching sellers:', error);
+      console.error('Error fetching users:', error);
     }
   };
 
   const fetchCommissions = async () => {
     try {
+      setLoading(true);
       let query = supabase
         .from('commissions')
         .select(`
@@ -86,14 +153,45 @@ export default function AdminCommissions() {
         `)
         .order('created_at', { ascending: false });
 
-      if (selectedSeller !== 'all') {
-        query = query.eq('seller_auth_id', selectedSeller);
+      // Aplicar filtro de usuários
+      if (selectedUsers.length > 0) {
+        query = query.in('seller_auth_id', selectedUsers);
+      } else if (userRole !== 'admin' && user) {
+        // Não-admin: ver apenas suas comissões
+        query = query.eq('seller_auth_id', user.id);
+      }
+
+      // Aplicar filtro de período
+      if (startDate) {
+        query = query.gte('created_at', startDate.toISOString());
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endOfDay.toISOString());
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
-      setCommissions(data || []);
+
+      // Buscar informações dos recebedores
+      const commissionsWithReceivers = await Promise.all(
+        (data || []).map(async (commission) => {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('auth_user_id, name, email, role')
+            .eq('auth_user_id', commission.seller_auth_id)
+            .single();
+
+          return {
+            ...commission,
+            receiver: userData || undefined,
+          };
+        })
+      );
+
+      setCommissions(commissionsWithReceivers);
     } catch (error) {
       console.error('Error fetching commissions:', error);
       toast.error('Erro ao carregar comissões');
@@ -102,12 +200,49 @@ export default function AdminCommissions() {
     }
   };
 
+  const applyFilters = () => {
+    // Atualizar estados aplicados
+    setSelectedUsers(tempSelectedUsers);
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+
+    // Atualizar URL
+    const params = new URLSearchParams();
+    if (tempSelectedUsers.length > 0) {
+      params.set('users', tempSelectedUsers.join(','));
+    }
+    if (tempStartDate) {
+      params.set('start', tempStartDate.toISOString().split('T')[0]);
+    }
+    if (tempEndDate) {
+      params.set('end', tempEndDate.toISOString().split('T')[0]);
+    }
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    const isAdmin = userRole === 'admin';
+    const defaultStart = startOfMonth(new Date());
+    const defaultEnd = endOfMonth(new Date());
+
+    // Admin: limpa todos os filtros
+    // Seller/Técnico: mantém filtro por usuário mas limpa período
+    const clearedUsers = isAdmin ? [] : (user ? [user.id] : []);
+    
+    setTempSelectedUsers(clearedUsers);
+    setTempStartDate(defaultStart);
+    setTempEndDate(defaultEnd);
+    setSelectedUsers(clearedUsers);
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+    setSearchParams({});
+  };
+
   const processAllSales = async () => {
     try {
       setLoading(true);
       toast.info('Processando vendas...');
 
-      // Buscar todas as vendas fechadas
       const { data: sales, error: salesError } = await supabase
         .from('sales')
         .select('id')
@@ -115,7 +250,6 @@ export default function AdminCommissions() {
 
       if (salesError) throw salesError;
 
-      // Chamar função para cada venda
       for (const sale of sales || []) {
         const { error } = await supabase.rpc('create_commission_for_sale', {
           p_sale_id: sale.id
@@ -154,7 +288,6 @@ export default function AdminCommissions() {
         notes: editData.notes || null,
       };
 
-      // Se estiver marcando como pago ou cancelado, adicionar data
       if (editData.pay_status === 'paid' || editData.pay_status === 'canceled') {
         updateData.pay_status_date = new Date().toISOString();
       } else {
@@ -190,8 +323,19 @@ export default function AdminCommissions() {
     const bases: Record<string, string> = {
       gross: 'Valor Bruto',
       profit: 'Lucro',
+      spraying: 'Pulverização',
+      maintenance: 'Manutenção',
+      revision: 'Revisão',
     };
     return bases[base] || base;
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setTempSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const totalPending = commissions
@@ -208,7 +352,9 @@ export default function AdminCommissions() {
 
   const totalAmount = commissions.reduce((sum, c) => sum + Number(c.amount), 0);
 
-  if (loading) {
+  const isAdmin = userRole === 'admin';
+
+  if (loading && commissions.length === 0) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-screen">
@@ -226,12 +372,120 @@ export default function AdminCommissions() {
             <h1 className="text-3xl font-bold">Gestão de Comissões</h1>
             <p className="text-muted-foreground">Gerencie e acompanhe todas as comissões</p>
           </div>
-          <Button onClick={processAllSales} variant="outline" className="gap-2" disabled={loading}>
-            <RefreshCw className="h-4 w-4" />
-            Processar Vendas
-          </Button>
+          {isAdmin && (
+            <Button onClick={processAllSales} variant="outline" className="gap-2" disabled={loading}>
+              <RefreshCw className="h-4 w-4" />
+              Processar Vendas
+            </Button>
+          )}
         </div>
 
+        {/* Área de Filtros */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              <CardTitle>Filtros</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* Filtro de Usuário */}
+              <div className="space-y-2">
+                <Label>Usuário(s)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <User className="mr-2 h-4 w-4" />
+                      {tempSelectedUsers.length === 0
+                        ? 'Todos os usuários'
+                        : tempSelectedUsers.length === 1
+                        ? users.find(u => u.auth_user_id === tempSelectedUsers[0])?.name || 'Usuário'
+                        : `${tempSelectedUsers.length} usuários selecionados`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <div className="max-h-[300px] overflow-y-auto p-2">
+                      {users.map((u) => (
+                        <div
+                          key={u.auth_user_id}
+                          className="flex items-center space-x-2 p-2 hover:bg-accent rounded cursor-pointer"
+                          onClick={() => toggleUserSelection(u.auth_user_id)}
+                        >
+                          <Checkbox
+                            checked={tempSelectedUsers.includes(u.auth_user_id)}
+                            onCheckedChange={() => toggleUserSelection(u.auth_user_id)}
+                          />
+                          <div className="flex items-center gap-2 flex-1">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">
+                                {u.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{u.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Data Início */}
+              <div className="space-y-2">
+                <Label>Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      {tempStartDate ? format(tempStartDate, 'dd/MM/yyyy') : 'Selecione'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempStartDate}
+                      onSelect={setTempStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Data Fim */}
+              <div className="space-y-2">
+                <Label>Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      {tempEndDate ? format(tempEndDate, 'dd/MM/yyyy') : 'Selecione'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={tempEndDate}
+                      onSelect={setTempEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={applyFilters} className="gap-2">
+                <Filter className="h-4 w-4" />
+                Aplicar Filtros
+              </Button>
+              <Button onClick={clearFilters} variant="outline" className="gap-2">
+                <X className="h-4 w-4" />
+                Limpar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
@@ -303,34 +557,45 @@ export default function AdminCommissions() {
           </Card>
         </div>
 
+        {/* Tabela de Comissões */}
         <Card>
           <CardHeader>
             <CardTitle>Todas as Comissões</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Base</TableHead>
-                  <TableHead>%</TableHead>
-                  <TableHead>Valor da Venda</TableHead>
-                  <TableHead>Comissão</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {commissions.length === 0 ? (
+            {commissions.length === 0 ? (
+              <div className="text-center py-12">
+                <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhuma comissão encontrada</h3>
+                <p className="text-muted-foreground mb-4">
+                  {isAdmin 
+                    ? 'Clique em "Processar Vendas" para gerar comissões das vendas existentes.'
+                    : 'Você ainda não possui comissões registradas no período selecionado.'}
+                </p>
+                {isAdmin && (
+                  <Button onClick={processAllSales} className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    Processar Vendas
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      <p className="mb-2">Nenhuma comissão encontrada.</p>
-                      <p className="text-xs">Clique em "Processar Vendas" para gerar comissões das vendas existentes.</p>
-                    </TableCell>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Base</TableHead>
+                    <TableHead>%</TableHead>
+                    <TableHead>Valor da Venda</TableHead>
+                    <TableHead>Comissão</TableHead>
+                    <TableHead>Recebedor</TableHead>
+                    <TableHead>Status</TableHead>
+                    {isAdmin && <TableHead>Ações</TableHead>}
                   </TableRow>
-                ) : (
-                  commissions.map((commission) => {
+                </TableHeader>
+                <TableBody>
+                  {commissions.map((commission) => {
                     const statusInfo = getStatusInfo(commission.pay_status);
                     const StatusIcon = statusInfo.icon;
 
@@ -343,7 +608,9 @@ export default function AdminCommissions() {
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">
-                            {commission.sales?.clients?.farm_name || 'Cliente não informado'}
+                            {commission.sales?.clients?.farm_name || 
+                             commission.sales?.clients?.contact_name || 
+                             'Cliente não informado'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -367,26 +634,38 @@ export default function AdminCommissions() {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {commission.receiver?.name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{commission.receiver?.name || 'Usuário'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <Badge className={statusInfo.color}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusInfo.label}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(commission)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(commission)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
