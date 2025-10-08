@@ -47,8 +47,9 @@ export function ClientAutocomplete({ value, onChange, userRole, userId }: Client
         .select('id, farm_name, contact_name')
         .order('farm_name');
 
-      // Admin vê todos os clientes, outros usuários veem apenas os seus
-      if (userRole !== 'admin' && userId) {
+      // Admin e técnicos veem todos os clientes
+      // Sellers veem apenas seus clientes ou clientes que eles criaram (owner_user_id)
+      if (userRole === 'seller' && userId) {
         query = query.or(`seller_auth_id.eq.${userId},owner_user_id.eq.${userId}`);
       }
 

@@ -96,7 +96,9 @@ export default function Sales() {
     try {
       let query = supabase.from('clients').select('id, farm_name, contact_name');
       
-      if (userRole === 'seller' || userRole === 'technician') {
+      // Admin e técnicos veem todos os clientes
+      // Sellers veem apenas seus clientes ou clientes que eles criaram (owner_user_id)
+      if (userRole === 'seller' && user?.id) {
         query = query.or(`seller_auth_id.eq.${user?.id},owner_user_id.eq.${user?.id}`);
       }
 
