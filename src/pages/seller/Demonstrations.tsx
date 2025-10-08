@@ -397,11 +397,13 @@ export default function Demonstrations() {
 
 
   const handleUpdateStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
+    console.log('[DEBUG] handleUpdateStatus chamado com:', { id, status });
     if (status === 'cancelled') {
       setItemToCancel({ id, type: 'demo' });
       setCancelDialogOpen(true);
       return;
     }
+    console.log('[DEBUG] Definindo confirmAction com status:', status);
     setConfirmAction({ id, status, type: 'demo' });
     setConfirmDialogOpen(true);
   };
@@ -412,17 +414,28 @@ export default function Demonstrations() {
       return;
     }
 
+    console.log('[DEBUG] handleCancelWithReason - itemToCancel:', itemToCancel);
+    console.log('[DEBUG] handleCancelWithReason - cancelReason:', cancelReason);
+
     try {
       const table = itemToCancel.type === 'demo' ? 'demonstrations' : 'services';
+      const updateData = { 
+        status: 'cancelled' as const,
+        cancellation_reason: cancelReason.trim()
+      };
+      
+      console.log('[DEBUG] handleCancelWithReason - table:', table);
+      console.log('[DEBUG] handleCancelWithReason - updateData:', updateData);
+      
       const { error } = await supabase
         .from(table)
-        .update({ 
-          status: 'cancelled',
-          cancellation_reason: cancelReason.trim()
-        })
+        .update(updateData)
         .eq('id', itemToCancel.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[DEBUG] Erro do Supabase no cancelamento:', error);
+        throw error;
+      }
 
       toast.success(`${itemToCancel.type === 'demo' ? 'Demonstração' : 'Serviço'} cancelado com sucesso!`);
       
@@ -432,7 +445,8 @@ export default function Demonstrations() {
         fetchServices();
       }
     } catch (error: any) {
-      console.error('Error cancelling:', error);
+      console.error('[DEBUG] Error cancelling:', error);
+      console.error('[DEBUG] Error completo:', JSON.stringify(error, null, 2));
       toast.error(error.message || 'Erro ao cancelar');
     } finally {
       setCancelDialogOpen(false);
@@ -444,18 +458,30 @@ export default function Demonstrations() {
   const executeUpdateStatus = async () => {
     if (!confirmAction) return;
     
+    console.log('[DEBUG] executeUpdateStatus - confirmAction:', confirmAction);
+    console.log('[DEBUG] executeUpdateStatus - status recebido:', confirmAction.status);
+    console.log('[DEBUG] executeUpdateStatus - tipo do status:', typeof confirmAction.status);
+    
     try {
+      const updateData = { status: 'completed' as const };
+      console.log('[DEBUG] executeUpdateStatus - dados para update:', updateData);
+      
       const { error } = await supabase
         .from('demonstrations')
-        .update({ status: 'completed' })
+        .update(updateData)
         .eq('id', confirmAction.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[DEBUG] Erro do Supabase:', error);
+        throw error;
+      }
 
+      console.log('[DEBUG] Update realizado com sucesso!');
       toast.success('Demonstração concluída!');
       fetchDemonstrations();
     } catch (error: any) {
-      console.error('Error updating status:', error);
+      console.error('[DEBUG] Error updating status:', error);
+      console.error('[DEBUG] Error completo:', JSON.stringify(error, null, 2));
       toast.error(error.message || 'Erro ao atualizar status');
     } finally {
       setConfirmDialogOpen(false);
