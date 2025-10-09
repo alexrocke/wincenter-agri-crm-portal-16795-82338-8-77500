@@ -44,6 +44,7 @@ export default function Opportunities() {
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [sellers, setSellers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     client_id: '',
     stage: 'lead',
@@ -63,7 +64,10 @@ export default function Opportunities() {
     fetchOpportunities();
     fetchClients();
     fetchProducts();
-  }, [user]);
+    if (userRole === 'admin') {
+      fetchSellers();
+    }
+  }, [user, userRole]);
 
   const fetchClients = async () => {
     try {
@@ -93,6 +97,22 @@ export default function Opportunities() {
       setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, auth_user_id, name')
+        .in('role', ['seller', 'admin'])
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) throw error;
+      setSellers(data || []);
+    } catch (error) {
+      console.error('Error fetching sellers:', error);
     }
   };
 
@@ -383,6 +403,7 @@ export default function Opportunities() {
                     onChange={(value) => setFormData({ ...formData, client_id: value })}
                     userRole={userRole}
                     userId={user?.id}
+                    sellers={sellers}
                   />
                 </div>
                 <div className="space-y-2">
