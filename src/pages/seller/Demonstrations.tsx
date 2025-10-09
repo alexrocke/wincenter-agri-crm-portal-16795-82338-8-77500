@@ -538,7 +538,7 @@ export default function Demonstrations() {
       fetchDemonstrations();
     } catch (error: any) {
       console.error('Error completing demonstration:', error);
-      toast.error('Erro ao concluir demonstração');
+      toast.error(`Erro ao concluir demonstração: ${error?.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -587,7 +587,7 @@ export default function Demonstrations() {
       fetchServices();
     } catch (error: any) {
       console.error('Error completing service:', error);
-      toast.error('Erro ao concluir serviço');
+      toast.error(`Erro ao concluir serviço: ${error?.message || 'Erro desconhecido'}`);
     } finally {
       setSubmittingServiceId(null);
     }
