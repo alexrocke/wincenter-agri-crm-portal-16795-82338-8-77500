@@ -119,7 +119,7 @@ export default function Reports() {
       const { data: sellers } = await supabase
         .from('users')
         .select('id, name, email, auth_user_id')
-        .eq('role', 'seller')
+        .in('role', ['seller', 'admin', 'technician'])
         .eq('status', 'active');
 
       if (sellers && sellers.length > 0) {

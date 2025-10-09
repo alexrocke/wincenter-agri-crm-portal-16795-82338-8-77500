@@ -105,7 +105,7 @@ export default function Opportunities() {
       const { data, error } = await supabase
         .from('users')
         .select('id, auth_user_id, name')
-        .in('role', ['seller', 'admin'])
+        .in('role', ['seller', 'admin', 'technician'])
         .eq('status', 'active')
         .order('name');
 
