@@ -547,6 +547,7 @@ export default function Demonstrations() {
     setSubmittingServiceId(id);
 
     try {
+      // Concluir serviço - a venda será criada automaticamente pelo trigger do banco
       const { error } = await supabase
         .from('services')
         .update({ status: 'completed' })
@@ -554,36 +555,7 @@ export default function Demonstrations() {
 
       if (error) throw error;
 
-      const service = services.find(s => s.id === id);
-      if (service && service.total_value) {
-        const saleData = {
-          client_id: service.client_id,
-          seller_auth_id: user?.id,
-          sold_at: new Date().toISOString(),
-          status: 'closed' as const,
-          gross_value: service.total_value,
-          total_cost: 0,
-          estimated_profit: service.total_value,
-          payment_received: false,
-          service_id: service.id,
-          region: null,
-          tax_percent: null,
-        };
-
-        const { error: saleError } = await supabase
-          .from('sales')
-          .insert([saleData]);
-
-        if (saleError) {
-          console.error('Error creating sale from service:', saleError);
-          toast.error('Serviço concluído, mas erro ao criar venda automática');
-        } else {
-          toast.success('Serviço concluído e venda criada automaticamente!');
-        }
-      } else {
-        toast.success('Serviço concluído!');
-      }
-
+      toast.success('Serviço concluído e venda criada automaticamente!');
       fetchServices();
     } catch (error: any) {
       console.error('Error completing service:', error);
