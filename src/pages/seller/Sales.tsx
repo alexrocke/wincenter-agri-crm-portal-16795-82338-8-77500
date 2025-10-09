@@ -257,6 +257,11 @@ export default function Sales() {
       return;
     }
 
+    if (totals.gross <= 0) {
+      toast.error('O valor total da venda não pode ser zero');
+      return;
+    }
+
     try {
       // Criar a venda
       const saleData: any = {
@@ -266,6 +271,9 @@ export default function Sales() {
         status: formData.status,
         tax_percent: formData.tax_percent ? Number(formData.tax_percent) : null,
         region: formData.region || null,
+        gross_value: Number(totals.gross),
+        total_cost: Number(totals.cost),
+        estimated_profit: Number(totals.profit),
         payment_method_1: formData.payment_method_1 || null,
         payment_method_2: formData.payment_method_2 || null,
         payment_received: formData.payment_received,
