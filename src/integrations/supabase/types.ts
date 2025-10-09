@@ -879,6 +879,10 @@ export type Database = {
         }
         Returns: string
       }
+      format_currency: {
+        Args: { amount: number }
+        Returns: string
+      }
       get_admin_user_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
