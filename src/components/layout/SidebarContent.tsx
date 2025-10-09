@@ -81,6 +81,34 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6">
+          {userRole === 'admin' && (
+            <div>
+              <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Administração
+              </h3>
+              <nav className="space-y-1">
+                {adminLinks.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                      )
+                    }
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          )}
+
           <div>
             <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {userRole === 'technician' ? 'Técnico' : 'Vendedor'}
@@ -111,34 +139,6 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
               ))}
             </nav>
           </div>
-
-          {userRole === 'admin' && (
-            <div>
-              <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Administração
-              </h3>
-              <nav className="space-y-1">
-                {adminLinks.map((link) => (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    onClick={handleNavClick}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-accent text-accent-foreground'
-                          : 'text-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                      )
-                    }
-                  >
-                    <link.icon className="h-4 w-4" />
-                    {link.label}
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-          )}
         </div>
       </div>
 
