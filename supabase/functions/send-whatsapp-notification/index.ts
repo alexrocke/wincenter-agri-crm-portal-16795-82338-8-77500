@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
       'service_maintenance',
       'service_revision',
       'service_spraying',
-      'demonstration'
+      'demonstration',
+      'sale',
+      'commission'
     ];
 
     if (!notification.category || !allowedCategories.includes(notification.category)) {
@@ -100,7 +102,9 @@ Deno.serve(async (req) => {
       'service_maintenance': '🔧 Manutenção',
       'service_revision': '🔍 Revisão',
       'service_spraying': '🚁 Pulverização',
-      'demonstration': '📊 Demonstração'
+      'demonstration': '📊 Demonstração',
+      'sale': '💰 Venda',
+      'commission': '💵 Comissão'
     };
 
     const categoryLabel = categoryLabels[notification.category] || notification.category;

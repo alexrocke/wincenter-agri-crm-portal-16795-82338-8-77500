@@ -880,20 +880,13 @@ export type Database = {
         Returns: undefined
       }
       create_notification: {
-        Args:
-          | {
-              p_category?: string
-              p_kind: Database["public"]["Enums"]["notification_kind"]
-              p_message: string
-              p_title: string
-              p_user_auth_id: string
-            }
-          | {
-              p_kind: Database["public"]["Enums"]["notification_kind"]
-              p_message: string
-              p_title: string
-              p_user_auth_id: string
-            }
+        Args: {
+          p_category?: string
+          p_kind: Database["public"]["Enums"]["notification_kind"]
+          p_message: string
+          p_title: string
+          p_user_auth_id: string
+        }
         Returns: string
       }
       format_currency: {
