@@ -339,16 +339,32 @@ export default function Demonstrations() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validações específicas com mensagens claras
+    if (!formData.client_id || formData.client_id.trim() === '') {
+      toast.error('Por favor, selecione um cliente');
+      return;
+    }
+    
     if (!selectedDate) {
       toast.error('Selecione uma data e hora');
       return;
     }
+    
+    if (formData.demo_types.length === 0) {
+      toast.error('Selecione pelo menos um tipo de demonstração');
+      return;
+    }
 
     try {
-      // Auto-adicionar o vendedor como responsável se não for admin
-      const assignedUsers = userRole === 'admin' 
+      // Auto-adicionar o vendedor como responsável se nenhum for selecionado
+      const assignedUsers = formData.assigned_users.length > 0 
         ? formData.assigned_users 
-        : (formData.assigned_users.length > 0 ? formData.assigned_users : [user?.id].filter(Boolean));
+        : [user?.id].filter(Boolean);
+
+      if (assignedUsers.length === 0) {
+        toast.error('Selecione pelo menos um responsável');
+        return;
+      }
 
       const demoData: any = {
         client_id: formData.client_id,
@@ -412,16 +428,37 @@ export default function Demonstrations() {
   const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validações específicas com mensagens claras
+    if (!serviceFormData.client_id || serviceFormData.client_id.trim() === '') {
+      toast.error('Por favor, selecione um cliente');
+      return;
+    }
+    
     if (!serviceFormData.date) {
       toast.error('Selecione uma data');
       return;
     }
+    
+    if (!serviceFormData.service_type) {
+      toast.error('Selecione o tipo de serviço');
+      return;
+    }
 
     try {
+      // Auto-adicionar o vendedor como responsável se nenhum for selecionado
+      const assignedUsers = serviceFormData.assigned_users.length > 0 
+        ? serviceFormData.assigned_users 
+        : [user?.id].filter(Boolean);
+
+      if (assignedUsers.length === 0) {
+        toast.error('Selecione pelo menos um responsável');
+        return;
+      }
+
       // Não incluir total_value pois é uma coluna gerada automaticamente pelo banco
       const serviceData: any = {
         client_id: serviceFormData.client_id,
-        assigned_users: serviceFormData.assigned_users,
+        assigned_users: assignedUsers,
         service_type: serviceFormData.service_type,
         date: new Date(serviceFormData.date).toISOString(),
         notes: serviceFormData.notes || null,
@@ -1281,7 +1318,7 @@ export default function Demonstrations() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Cliente *</Label>
+                  <Label>Cliente <span className="text-red-500">*</span></Label>
                   <Button 
                     type="button" 
                     variant="outline" 
@@ -1327,7 +1364,7 @@ export default function Demonstrations() {
               )}
 
               <div className="space-y-2">
-                <Label>Tipo de Demonstração</Label>
+                <Label>Tipo de Demonstração <span className="text-red-500">*</span></Label>
                 <div className="grid grid-cols-2 gap-2">
                   {['semeadura', 'herbicida', 'inseticida', 'fungicida'].map((type) => (
                     <label key={type} className="flex items-center gap-2 cursor-pointer border rounded-md p-2">
@@ -1372,7 +1409,7 @@ export default function Demonstrations() {
               </div>
 
               <div className="space-y-2">
-                <Label>Data e Hora *</Label>
+                <Label>Data e Hora <span className="text-red-500">*</span></Label>
                 <Input
                   type="datetime-local"
                   value={selectedDate}
@@ -1417,7 +1454,7 @@ export default function Demonstrations() {
             </DialogHeader>
             <form onSubmit={handleServiceSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Cliente *</Label>
+                <Label>Cliente <span className="text-red-500">*</span></Label>
                 <ClientAutocomplete
                   value={serviceFormData.client_id}
                   onChange={(value) => setServiceFormData({ ...serviceFormData, client_id: value })}
@@ -1427,7 +1464,7 @@ export default function Demonstrations() {
               </div>
 
               <div className="space-y-2">
-                <Label>Tipo de Serviço *</Label>
+                <Label>Tipo de Serviço <span className="text-red-500">*</span></Label>
                 <RadioGroup
                   value={serviceFormData.service_type}
                   onValueChange={(value: 'maintenance' | 'revision' | 'spraying') => 
@@ -1527,7 +1564,7 @@ export default function Demonstrations() {
               </div>
 
               <div className="space-y-2">
-                <Label>Data e Hora *</Label>
+                <Label>Data e Hora <span className="text-red-500">*</span></Label>
                 <Input
                   type="datetime-local"
                   value={serviceFormData.date}
