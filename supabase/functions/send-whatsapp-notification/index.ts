@@ -141,14 +141,41 @@ Deno.serve(async (req) => {
 
     if (!n8nResponse.ok) {
       const errorText = await n8nResponse.text();
-      console.error('❌ Erro ao enviar para n8n:', errorText);
-      throw new Error(`Erro n8n: ${n8nResponse.status} - ${errorText}`);
+      console.error('⚠️ Falha ao enviar para n8n (não bloqueante):', errorText);
+      
+      // Retornar sucesso parcial - não bloqueia o fluxo
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Notificação processada, mas WhatsApp falhou',
+          whatsapp_sent: false,
+          error: errorText
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('✅ Mensagem enviada com sucesso para n8n');
 
+    // Marcar notificação como enviada
+    const { error: updateError } = await supabase
+      .from('notifications')
+      .update({ 
+        whatsapp_sent: true, 
+        whatsapp_sent_at: new Date().toISOString() 
+      })
+      .eq('id', notification_id);
+
+    if (updateError) {
+      console.error('⚠️ Erro ao marcar notificação como enviada:', updateError);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, message: 'Notificação enviada para WhatsApp' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Notificação enviada para WhatsApp',
+        whatsapp_sent: true
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

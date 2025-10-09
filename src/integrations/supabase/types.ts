@@ -351,6 +351,8 @@ export type Database = {
           read: boolean
           title: string | null
           user_auth_id: string
+          whatsapp_sent: boolean | null
+          whatsapp_sent_at: string | null
         }
         Insert: {
           category?: string | null
@@ -361,6 +363,8 @@ export type Database = {
           read?: boolean
           title?: string | null
           user_auth_id: string
+          whatsapp_sent?: boolean | null
+          whatsapp_sent_at?: string | null
         }
         Update: {
           category?: string | null
@@ -371,6 +375,8 @@ export type Database = {
           read?: boolean
           title?: string | null
           user_auth_id?: string
+          whatsapp_sent?: boolean | null
+          whatsapp_sent_at?: string | null
         }
         Relationships: []
       }
