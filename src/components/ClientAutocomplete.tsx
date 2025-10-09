@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
+import { ClientFormDialog } from './ClientFormDialog';
 
 interface Client {
   id: string;
@@ -28,12 +29,14 @@ interface ClientAutocompleteProps {
   onChange: (value: string) => void;
   userRole?: string;
   userId?: string;
+  sellers?: Array<{ id: string; auth_user_id: string; name: string }>;
 }
 
-export function ClientAutocomplete({ value, onChange, userRole, userId }: ClientAutocompleteProps) {
+export function ClientAutocomplete({ value, onChange, userRole, userId, sellers }: ClientAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
+  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -65,56 +68,80 @@ export function ClientAutocomplete({ value, onChange, userRole, userId }: Client
 
   const selectedClient = clients.find((client) => client.id === value);
 
+  const handleClientCreated = (clientId: string) => {
+    fetchClients();
+    onChange(clientId);
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          {selectedClient
-            ? `${selectedClient.farm_name} - ${selectedClient.contact_name}`
-            : "Selecione um cliente..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Buscar cliente..." />
-          <CommandList>
-            <CommandEmpty>
-              {loading ? 'Carregando...' : 'Nenhum cliente encontrado.'}
-            </CommandEmpty>
-            <CommandGroup>
-              {clients.map((client) => (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {selectedClient
+              ? `${selectedClient.farm_name} - ${selectedClient.contact_name}`
+              : "Selecione um cliente..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar cliente..." />
+            <CommandList>
+              <CommandEmpty>
+                {loading ? 'Carregando...' : 'Nenhum cliente encontrado.'}
+              </CommandEmpty>
+              <CommandGroup>
                 <CommandItem
-                  key={client.id}
-                  value={`${client.farm_name} ${client.contact_name}`}
                   onSelect={() => {
-                    onChange(client.id);
                     setOpen(false);
+                    setNewClientDialogOpen(true);
                   }}
+                  className="border-b mb-2 pb-2"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === client.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{client.farm_name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {client.contact_name}
-                    </span>
-                  </div>
+                  <Plus className="mr-2 h-4 w-4 text-primary" />
+                  <span className="font-medium text-primary">Criar novo cliente</span>
                 </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                {clients.map((client) => (
+                  <CommandItem
+                    key={client.id}
+                    value={`${client.farm_name} ${client.contact_name}`}
+                    onSelect={() => {
+                      onChange(client.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === client.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{client.farm_name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {client.contact_name}
+                      </span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      <ClientFormDialog
+        open={newClientDialogOpen}
+        onOpenChange={setNewClientDialogOpen}
+        onClientCreated={handleClientCreated}
+        sellers={sellers}
+      />
+    </>
   );
 }

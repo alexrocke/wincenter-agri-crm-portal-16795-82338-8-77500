@@ -382,6 +382,7 @@ export default function Sales() {
                       onChange={(value) => setFormData({ ...formData, client_id: value })}
                       userRole={userRole}
                       userId={user?.id}
+                      sellers={sellers}
                     />
                   </div>
                   {userRole === 'admin' && (
