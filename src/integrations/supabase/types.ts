@@ -343,6 +343,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          category: string | null
           created_at: string
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -352,6 +353,7 @@ export type Database = {
           user_auth_id: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -361,6 +363,7 @@ export type Database = {
           user_auth_id: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
