@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MapPin, Leaf, Mail, Phone, MessageCircle, Calendar, Edit, Eye, User, DollarSign, Package } from 'lucide-react';
+import { Plus, Search, MapPin, Leaf, Mail, Phone, MessageCircle, Calendar, Edit, Eye, User, DollarSign, Package, Smartphone } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -69,10 +69,24 @@ interface Sale {
   estimated_profit: number;
 }
 
+interface DroneInfo {
+  id: string;
+  name: string;
+  login: string;
+  password: string;
+  controller_serial: string;
+  drone_serial: string;
+  controller_version: string;
+  drone_version: string;
+  purchase_date: string;
+  created_at: string;
+}
+
 interface ClientHistory {
   visits: Visit[];
   demonstrations: Demonstration[];
   sales: Sale[];
+  devices: DroneInfo[];
 }
 
 export default function Clients() {
@@ -90,7 +104,8 @@ export default function Clients() {
   const [clientHistory, setClientHistory] = useState<ClientHistory>({
     visits: [],
     demonstrations: [],
-    sales: []
+    sales: [],
+    devices: []
   });
   const [loadingHistory, setLoadingHistory] = useState(false);
   
@@ -117,6 +132,18 @@ export default function Clients() {
     scheduled_at: '',
     objective: '',
     notes: '',
+  });
+
+  const [deviceDialogOpen, setDeviceDialogOpen] = useState(false);
+  const [deviceFormData, setDeviceFormData] = useState({
+    name: '',
+    login: '',
+    password: '',
+    controller_serial: '',
+    drone_serial: '',
+    controller_version: '',
+    drone_version: '',
+    purchase_date: '',
   });
 
   useEffect(() => {
@@ -424,10 +451,20 @@ export default function Clients() {
 
       if (salesError) throw salesError;
 
+      // Fetch devices
+      const { data: devices, error: devicesError } = await supabase
+        .from('client_drone_info' as any)
+        .select('*')
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false });
+
+      if (devicesError) throw devicesError;
+
       setClientHistory({
         visits: visits || [],
         demonstrations: demonstrations || [],
-        sales: sales || []
+        sales: sales || [],
+        devices: (devices as any) || []
       });
     } catch (error: any) {
       console.error('Error fetching client history:', error);
@@ -489,6 +526,52 @@ export default function Clients() {
       cancelled: 'Cancelada',
     };
     return labels[status] || status;
+  };
+
+  const handleAddDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClientForHistory) return;
+
+    try {
+      const deviceData = {
+        client_id: selectedClientForHistory.id,
+        name: deviceFormData.name,
+        login: deviceFormData.login || null,
+        password: deviceFormData.password || null,
+        controller_serial: deviceFormData.controller_serial || null,
+        drone_serial: deviceFormData.drone_serial || null,
+        controller_version: deviceFormData.controller_version || null,
+        drone_version: deviceFormData.drone_version || null,
+        purchase_date: deviceFormData.purchase_date || null,
+      };
+
+      const { error } = await supabase
+        .from('client_drone_info' as any)
+        .insert([deviceData]);
+
+      if (error) throw error;
+
+      toast.success('Dispositivo adicionado com sucesso!');
+      setDeviceDialogOpen(false);
+      setDeviceFormData({
+        name: '',
+        login: '',
+        password: '',
+        controller_serial: '',
+        drone_serial: '',
+        controller_version: '',
+        drone_version: '',
+        purchase_date: '',
+      });
+      
+      // Refresh devices list
+      if (selectedClientForHistory) {
+        handleViewHistory(selectedClientForHistory);
+      }
+    } catch (error: any) {
+      console.error('Error adding device:', error);
+      toast.error('Erro ao adicionar dispositivo: ' + error.message);
+    }
   };
 
   if (loading) {
@@ -1143,7 +1226,7 @@ export default function Clients() {
 
                 {/* History Tabs */}
                 <Tabs defaultValue="visits" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="visits">
                       <Calendar className="h-4 w-4 mr-2" />
                       Visitas ({clientHistory.visits.length})
@@ -1155,6 +1238,10 @@ export default function Clients() {
                     <TabsTrigger value="sales">
                       <DollarSign className="h-4 w-4 mr-2" />
                       Vendas ({clientHistory.sales.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="devices">
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      Dispositivos ({clientHistory.devices.length})
                     </TabsTrigger>
                   </TabsList>
 
@@ -1267,6 +1354,170 @@ export default function Clients() {
                                   }).format(sale.estimated_profit)}
                                 </span>
                               </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="devices" className="space-y-4">
+                    <div className="flex justify-end mb-4">
+                      <Dialog open={deviceDialogOpen} onOpenChange={setDeviceDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Adicionar Dispositivo
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Adicionar Dispositivo</DialogTitle>
+                          </DialogHeader>
+                          <form onSubmit={handleAddDevice} className="space-y-4">
+                            <div>
+                              <Label htmlFor="device-name">Produto *</Label>
+                              <Input
+                                id="device-name"
+                                value={deviceFormData.name}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-login">🔑 Login</Label>
+                              <Input
+                                id="device-login"
+                                value={deviceFormData.login}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-password">🔐 Senha</Label>
+                              <Input
+                                id="device-password"
+                                type="password"
+                                value={deviceFormData.password}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
+                              <Input
+                                id="device-controller-serial"
+                                value={deviceFormData.controller_serial}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
+                              <Input
+                                id="device-drone-serial"
+                                value={deviceFormData.drone_serial}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
+                              <Input
+                                id="device-controller-version"
+                                value={deviceFormData.controller_version}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
+                              <Input
+                                id="device-drone-version"
+                                value={deviceFormData.drone_version}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
+                              <Input
+                                id="device-purchase-date"
+                                type="date"
+                                value={deviceFormData.purchase_date}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
+                                Cancelar
+                              </Button>
+                              <Button type="submit">Adicionar</Button>
+                            </div>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    {clientHistory.devices.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-center text-muted-foreground">
+                          Nenhum dispositivo registrado
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      clientHistory.devices.map((device) => (
+                        <Card key={device.id}>
+                          <CardContent className="pt-6">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="font-medium text-lg">{device.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Criado em: {format(new Date(device.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 mt-4">
+                                {device.login && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🔑 Login</p>
+                                    <p className="text-sm font-medium">{device.login}</p>
+                                  </div>
+                                )}
+                                {device.password && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🔐 Senha</p>
+                                    <p className="text-sm font-medium">••••••••</p>
+                                  </div>
+                                )}
+                                {device.controller_serial && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🎮 Nº Série Controle</p>
+                                    <p className="text-sm font-medium">{device.controller_serial}</p>
+                                  </div>
+                                )}
+                                {device.drone_serial && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🚁 Nº Série Drone</p>
+                                    <p className="text-sm font-medium">{device.drone_serial}</p>
+                                  </div>
+                                )}
+                                {device.controller_version && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">📡 Versão Controle</p>
+                                    <p className="text-sm font-medium">{device.controller_version}</p>
+                                  </div>
+                                )}
+                                {device.drone_version && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🛠️ Versão Drone</p>
+                                    <p className="text-sm font-medium">{device.drone_version}</p>
+                                  </div>
+                                )}
+                                {device.purchase_date && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">🗓️ Data da Compra</p>
+                                    <p className="text-sm font-medium">
+                                      {format(new Date(device.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
