@@ -94,10 +94,10 @@ export default function TechnicalSupport() {
     city: "",
     property_name: "",
     reported_defect: "",
-    total_value: 0,
-    under_warranty: false,
-    status: "open",
-    notes: "",
+      total_value: 0,
+      under_warranty: false,
+      status: "scheduled",
+      notes: "",
     images: [] as string[],
     client_signature: "",
     technical_checklist: "",
@@ -382,7 +382,7 @@ export default function TechnicalSupport() {
       reported_defect: "",
       total_value: 0,
       under_warranty: false,
-      status: "open",
+      status: "scheduled",
       notes: "",
       images: [],
       client_signature: "",
@@ -435,10 +435,8 @@ export default function TechnicalSupport() {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      open: { label: "Aberto", variant: "default" as const, className: "" },
-      in_progress: { label: "Em Andamento", variant: "default" as const, className: "bg-warning text-warning-foreground" },
+      scheduled: { label: "Agendado", variant: "default" as const, className: "" },
       completed: { label: "Concluído", variant: "default" as const, className: "bg-success text-success-foreground" },
-      awaiting_part: { label: "Aguardando Peça", variant: "default" as const, className: "bg-secondary text-secondary-foreground" },
       cancelled: { label: "Cancelado", variant: "destructive" as const, className: "" },
     };
 
@@ -513,10 +511,9 @@ export default function TechnicalSupport() {
 
   const stats = {
     total: filteredServices.length,
-    open: filteredServices.filter(s => s.status === "open").length,
-    in_progress: filteredServices.filter(s => s.status === "in_progress").length,
+    scheduled: filteredServices.filter(s => s.status === "scheduled").length,
     completed: filteredServices.filter(s => s.status === "completed").length,
-    awaiting_part: filteredServices.filter(s => s.status === "awaiting_part").length,
+    cancelled: filteredServices.filter(s => s.status === "cancelled").length,
   };
 
   return (
@@ -609,10 +606,8 @@ export default function TechnicalSupport() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="open">Aberto</SelectItem>
-                        <SelectItem value="in_progress">Em Andamento</SelectItem>
+                        <SelectItem value="scheduled">Agendado</SelectItem>
                         <SelectItem value="completed">Concluído</SelectItem>
-                        <SelectItem value="awaiting_part">Aguardando Peça</SelectItem>
                         <SelectItem value="cancelled">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -923,7 +918,7 @@ export default function TechnicalSupport() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total</CardDescription>
@@ -932,14 +927,8 @@ export default function TechnicalSupport() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Abertos</CardDescription>
-            <CardTitle className="text-3xl text-primary">{stats.open}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Em Andamento</CardDescription>
-            <CardTitle className="text-3xl text-warning">{stats.in_progress}</CardTitle>
+            <CardDescription>Agendados</CardDescription>
+            <CardTitle className="text-3xl text-primary">{stats.scheduled}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -950,8 +939,8 @@ export default function TechnicalSupport() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Aguardando Peça</CardDescription>
-            <CardTitle className="text-3xl text-secondary">{stats.awaiting_part}</CardTitle>
+            <CardDescription>Cancelados</CardDescription>
+            <CardTitle className="text-3xl text-destructive">{stats.cancelled}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -974,10 +963,8 @@ export default function TechnicalSupport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="open">Aberto</SelectItem>
-                  <SelectItem value="in_progress">Em Andamento</SelectItem>
+                  <SelectItem value="scheduled">Agendado</SelectItem>
                   <SelectItem value="completed">Concluído</SelectItem>
-                  <SelectItem value="awaiting_part">Aguardando Peça</SelectItem>
                   <SelectItem value="cancelled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
