@@ -78,6 +78,8 @@ export default function Services() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [systemSearchResults, setSystemSearchResults] = useState<SystemProduct[]>([]);
+  const [systemSearchLoading, setSystemSearchLoading] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -130,6 +132,43 @@ useEffect(() => {
   const totalPerHa = baseValue + productsValue;
   setFormData(prev => ({ ...prev, value_per_hectare: totalPerHa.toFixed(2) }));
 }, [products, formData.service_base_value]);
+
+// Busca de produtos no servidor conforme o usuário digita (2+ letras)
+useEffect(() => {
+  const q = productSearchQuery.trim();
+  let cancelled = false;
+
+  if (q.length < 2) {
+    setSystemSearchResults([]);
+    setSystemSearchLoading(false);
+    return;
+  }
+
+  setSystemSearchLoading(true);
+  const timeout = setTimeout(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, category, price")
+        .eq("status", "active")
+        .or(`name.ilike.%${q}%,sku.ilike.%${q}%`)
+        .order("name")
+        .limit(30);
+      if (error) throw error;
+      if (!cancelled) setSystemSearchResults(data || []);
+    } catch (err) {
+      console.error("Erro na busca de produtos:", err);
+      if (!cancelled) setSystemSearchResults([]);
+    } finally {
+      if (!cancelled) setSystemSearchLoading(false);
+    }
+  }, 300);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(timeout);
+  };
+}, [productSearchQuery]);
 
   // Calcular total de calda baseado na vazão
   const hectares = parseFloat(formData.hectares) || 0;
@@ -188,7 +227,9 @@ useEffect(() => {
   };
 
   const addSystemProduct = (productId: string) => {
-    const systemProduct = systemProducts.find(p => p.id === productId);
+    const inResults = systemSearchResults.find(p => p.id === productId);
+    const inAll = systemProducts.find(p => p.id === productId);
+    const systemProduct = inResults || inAll;
     if (!systemProduct) return;
 
     const currentHectares = parseFloat(formData.hectares) || 0;
@@ -207,10 +248,7 @@ useEffect(() => {
     toast.success(`Produto adicionado! Valor total: R$ ${totalValue.toFixed(2)}`);
   };
 
-  const filteredProducts = systemProducts.filter(p => 
-    p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-    (p.sku && p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()))
-  );
+  const shownProducts = productSearchQuery.trim().length >= 2 ? systemSearchResults : [];
 
   const removeProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
@@ -240,7 +278,6 @@ useEffect(() => {
         city: formData.city || null,
         hectares: parseFloat(formData.hectares),
         value_per_hectare: parseFloat(formData.value_per_hectare),
-        total_value: parseFloat(formData.total_value) || null,
         notes: formData.notes || null,
         created_by: user?.id,
         assigned_users: formData.assigned_users.length > 0 ? formData.assigned_users : [user?.id],
@@ -266,30 +303,33 @@ useEffect(() => {
           .delete()
           .eq("service_id", selectedService.id);
 
-        // Inserir todos os produtos (sistema e manuais)
+        // Inserir apenas produtos do sistema (com product_id)
         if (products.length > 0) {
           const hectares = parseFloat(formData.hectares) || 0;
-          const serviceItems = products.map(p => {
-            const dose = parseFloat(p.dose_per_hectare) || 0;
-            const volumeTotal = hectares * (dose / 1000);
-            const unitPrice = p.unit_price || 0;
-            return {
-              service_id: selectedService.id,
-              product_id: p.product_id || null,
-              product_name: p.name,
-              dose_per_hectare: dose,
-              volume_total: volumeTotal,
-              bottles_qty: null,
-              qty: 1,
-              unit_price: unitPrice,
-              discount_percent: 0,
-            };
-          });
+          const itemsToPersist = products.filter(p => !!p.product_id);
+          if (itemsToPersist.length > 0) {
+            const serviceItems = itemsToPersist.map(p => {
+              const dose = parseFloat(p.dose_per_hectare) || 0;
+              const volumeTotal = hectares * (dose / 1000);
+              const unitPrice = p.unit_price || 0;
+              return {
+                service_id: selectedService.id,
+                product_id: p.product_id,
+                product_name: p.name,
+                dose_per_hectare: dose,
+                volume_total: volumeTotal,
+                bottles_qty: null,
+                qty: 1,
+                unit_price: unitPrice,
+                discount_percent: 0,
+              };
+            });
 
-          const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
-          if (itemsError) {
-            console.error("Erro ao salvar produtos:", itemsError);
-            throw itemsError;
+            const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
+            if (itemsError) {
+              console.error("Erro ao salvar produtos:", itemsError);
+              throw itemsError;
+            }
           }
         }
         
@@ -785,9 +825,13 @@ useEffect(() => {
                             onValueChange={setProductSearchQuery}
                           />
                           <CommandList>
-                            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                            <CommandEmpty>
+                              {productSearchQuery.trim().length < 2
+                                ? "Digite 2+ letras para buscar"
+                                : "Nenhum produto encontrado."}
+                            </CommandEmpty>
                             <CommandGroup>
-                              {filteredProducts.map((p) => (
+                              {shownProducts.map((p) => (
                                 <CommandItem
                                   key={p.id}
                                   value={p.id}
