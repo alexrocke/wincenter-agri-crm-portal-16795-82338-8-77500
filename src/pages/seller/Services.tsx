@@ -424,8 +424,7 @@ useEffect(() => {
           crop: formData.crop || null,
           city: formData.city || null,
           hectares: hectares,
-          value_per_hectare: valuePerHectare, 
-          total_value: total,
+          value_per_hectare: valuePerHectare,
           notes: formData.notes || null,
         })
         .eq("id", serviceId);
