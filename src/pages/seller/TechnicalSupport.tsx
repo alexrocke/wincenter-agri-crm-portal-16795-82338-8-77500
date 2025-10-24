@@ -210,8 +210,11 @@ export default function TechnicalSupport() {
         }
       }
 
+      // Remover campos que não devem ser enviados diretamente
+      const { total_value, ...formDataWithoutTotal } = formData;
+      
       const serviceData = {
-        ...formData,
+        ...formDataWithoutTotal,
         date: formData.date.toISOString(),
         service_type: "maintenance" as const,
         created_by: user?.id,
@@ -470,9 +473,13 @@ export default function TechnicalSupport() {
         .getPublicUrl(filePath);
 
       return publicUrl;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading file:", error);
-      toast.error("Erro ao fazer upload do arquivo");
+      if (error.statusCode === '413') {
+        toast.error("Arquivo muito grande. Máximo 50MB por arquivo.");
+      } else {
+        toast.error("Erro ao fazer upload do arquivo");
+      }
       return null;
     }
   };
