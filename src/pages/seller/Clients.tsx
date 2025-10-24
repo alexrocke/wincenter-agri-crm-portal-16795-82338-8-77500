@@ -1362,166 +1362,259 @@ export default function Clients() {
                   </TabsContent>
 
                   <TabsContent value="devices" className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                      <Dialog open={deviceDialogOpen} onOpenChange={setDeviceDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Adicionar Dispositivo
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Adicionar Dispositivo</DialogTitle>
-                          </DialogHeader>
-                          <form onSubmit={handleAddDevice} className="space-y-4">
-                            <div>
-                              <Label htmlFor="device-name">Produto *</Label>
-                              <Input
-                                id="device-name"
-                                value={deviceFormData.name}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
-                                required
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-login">🔑 Login</Label>
-                              <Input
-                                id="device-login"
-                                value={deviceFormData.login}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-password">🔐 Senha</Label>
-                              <Input
-                                id="device-password"
-                                type="password"
-                                value={deviceFormData.password}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
-                              <Input
-                                id="device-controller-serial"
-                                value={deviceFormData.controller_serial}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
-                              <Input
-                                id="device-drone-serial"
-                                value={deviceFormData.drone_serial}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
-                              <Input
-                                id="device-controller-version"
-                                value={deviceFormData.controller_version}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
-                              <Input
-                                id="device-drone-version"
-                                value={deviceFormData.drone_version}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
-                              <Input
-                                id="device-purchase-date"
-                                type="date"
-                                value={deviceFormData.purchase_date}
-                                onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
-                                Cancelar
-                              </Button>
-                              <Button type="submit">Adicionar</Button>
-                            </div>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-
                     {clientHistory.devices.length === 0 ? (
                       <Card>
-                        <CardContent className="py-8 text-center text-muted-foreground">
-                          Nenhum dispositivo registrado
+                        <CardContent className="py-8">
+                          <div className="text-center text-muted-foreground mb-4">
+                            Nenhum dispositivo registrado
+                          </div>
+                          <div className="flex justify-center">
+                            <Dialog open={deviceDialogOpen} onOpenChange={setDeviceDialogOpen}>
+                              <DialogTrigger asChild>
+                                <Button>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Adicionar Dispositivo
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Adicionar Dispositivo</DialogTitle>
+                                </DialogHeader>
+                                <form onSubmit={handleAddDevice} className="space-y-4">
+                                  <div>
+                                    <Label htmlFor="device-name">Produto *</Label>
+                                    <Input
+                                      id="device-name"
+                                      value={deviceFormData.name}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-login">🔑 Login</Label>
+                                    <Input
+                                      id="device-login"
+                                      value={deviceFormData.login}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-password">🔐 Senha</Label>
+                                    <Input
+                                      id="device-password"
+                                      type="password"
+                                      value={deviceFormData.password}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
+                                    <Input
+                                      id="device-controller-serial"
+                                      value={deviceFormData.controller_serial}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
+                                    <Input
+                                      id="device-drone-serial"
+                                      value={deviceFormData.drone_serial}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
+                                    <Input
+                                      id="device-controller-version"
+                                      value={deviceFormData.controller_version}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
+                                    <Input
+                                      id="device-drone-version"
+                                      value={deviceFormData.drone_version}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
+                                    <Input
+                                      id="device-purchase-date"
+                                      type="date"
+                                      value={deviceFormData.purchase_date}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
+                                      Cancelar
+                                    </Button>
+                                    <Button type="submit">Adicionar</Button>
+                                  </div>
+                                </form>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
                         </CardContent>
                       </Card>
                     ) : (
-                      clientHistory.devices.map((device) => (
-                        <Card key={device.id}>
-                          <CardContent className="pt-6">
-                            <div className="space-y-3">
-                              <div className="flex items-start justify-between">
+                      <>
+                        <div className="flex justify-end">
+                          <Dialog open={deviceDialogOpen} onOpenChange={setDeviceDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Adicionar Dispositivo
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Adicionar Dispositivo</DialogTitle>
+                              </DialogHeader>
+                              <form onSubmit={handleAddDevice} className="space-y-4">
                                 <div>
-                                  <p className="font-medium text-lg">{device.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Criado em: {format(new Date(device.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                  </p>
+                                  <Label htmlFor="device-name">Produto *</Label>
+                                  <Input
+                                    id="device-name"
+                                    value={deviceFormData.name}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
+                                    required
+                                  />
                                 </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3 mt-4">
-                                {device.login && (
+                                <div>
+                                  <Label htmlFor="device-login">🔑 Login</Label>
+                                  <Input
+                                    id="device-login"
+                                    value={deviceFormData.login}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-password">🔐 Senha</Label>
+                                  <Input
+                                    id="device-password"
+                                    type="password"
+                                    value={deviceFormData.password}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
+                                  <Input
+                                    id="device-controller-serial"
+                                    value={deviceFormData.controller_serial}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
+                                  <Input
+                                    id="device-drone-serial"
+                                    value={deviceFormData.drone_serial}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
+                                  <Input
+                                    id="device-controller-version"
+                                    value={deviceFormData.controller_version}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
+                                  <Input
+                                    id="device-drone-version"
+                                    value={deviceFormData.drone_version}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
+                                  <Input
+                                    id="device-purchase-date"
+                                    type="date"
+                                    value={deviceFormData.purchase_date}
+                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
+                                    Cancelar
+                                  </Button>
+                                  <Button type="submit">Adicionar</Button>
+                                </div>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                        {clientHistory.devices.map((device) => (
+                          <Card key={device.id}>
+                            <CardContent className="pt-6">
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between">
                                   <div>
-                                    <p className="text-xs text-muted-foreground">🔑 Login</p>
-                                    <p className="text-sm font-medium">{device.login}</p>
-                                  </div>
-                                )}
-                                {device.password && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">🔐 Senha</p>
-                                    <p className="text-sm font-medium">••••••••</p>
-                                  </div>
-                                )}
-                                {device.controller_serial && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">🎮 Nº Série Controle</p>
-                                    <p className="text-sm font-medium">{device.controller_serial}</p>
-                                  </div>
-                                )}
-                                {device.drone_serial && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">🚁 Nº Série Drone</p>
-                                    <p className="text-sm font-medium">{device.drone_serial}</p>
-                                  </div>
-                                )}
-                                {device.controller_version && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">📡 Versão Controle</p>
-                                    <p className="text-sm font-medium">{device.controller_version}</p>
-                                  </div>
-                                )}
-                                {device.drone_version && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">🛠️ Versão Drone</p>
-                                    <p className="text-sm font-medium">{device.drone_version}</p>
-                                  </div>
-                                )}
-                                {device.purchase_date && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">🗓️ Data da Compra</p>
-                                    <p className="text-sm font-medium">
-                                      {format(new Date(device.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                                    <p className="font-medium text-lg">{device.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      Criado em: {format(new Date(device.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                                     </p>
                                   </div>
-                                )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                  {device.login && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🔑 Login</p>
+                                      <p className="text-sm font-medium">{device.login}</p>
+                                    </div>
+                                  )}
+                                  {device.password && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🔐 Senha</p>
+                                      <p className="text-sm font-medium">••••••••</p>
+                                    </div>
+                                  )}
+                                  {device.controller_serial && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🎮 Nº Série Controle</p>
+                                      <p className="text-sm font-medium">{device.controller_serial}</p>
+                                    </div>
+                                  )}
+                                  {device.drone_serial && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🚁 Nº Série Drone</p>
+                                      <p className="text-sm font-medium">{device.drone_serial}</p>
+                                    </div>
+                                  )}
+                                  {device.controller_version && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">📡 Versão Controle</p>
+                                      <p className="text-sm font-medium">{device.controller_version}</p>
+                                    </div>
+                                  )}
+                                  {device.drone_version && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🛠️ Versão Drone</p>
+                                      <p className="text-sm font-medium">{device.drone_version}</p>
+                                    </div>
+                                  )}
+                                  {device.purchase_date && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">🗓️ Data da Compra</p>
+                                      <p className="text-sm font-medium">
+                                        {format(new Date(device.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </>
                     )}
                   </TabsContent>
                 </Tabs>
