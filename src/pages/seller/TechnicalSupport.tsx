@@ -20,6 +20,22 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  cost: number;
+}
+
+interface ProductItem {
+  product_id: string;
+  product_name: string;
+  unit_price: number;
+  qty: number;
+  discount_percent: number;
+}
+
 interface TechnicalService {
   id: string;
   client_id: string;
@@ -56,6 +72,8 @@ export default function TechnicalSupport() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<TechnicalService | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productItems, setProductItems] = useState<ProductItem[]>([]);
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -91,6 +109,7 @@ export default function TechnicalSupport() {
 
   useEffect(() => {
     fetchServices();
+    fetchProducts();
   }, [user]);
 
   useEffect(() => {
@@ -123,6 +142,21 @@ export default function TechnicalSupport() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, price, stock, cost")
+        .eq("status", "active")
+        .order("name");
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar produtos:", error);
     }
   };
 
@@ -167,6 +201,15 @@ export default function TechnicalSupport() {
         return;
       }
 
+      // Validar estoque dos produtos
+      for (const item of productItems) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product && product.stock < item.qty) {
+          toast.error(`Estoque insuficiente para ${item.product_name}`);
+          return;
+        }
+      }
+
       const serviceData = {
         ...formData,
         date: formData.date.toISOString(),
@@ -184,12 +227,83 @@ export default function TechnicalSupport() {
         if (error) throw error;
         toast.success("Atendimento atualizado com sucesso!");
       } else {
-        const { error } = await supabase
+        // Criar serviço
+        const { data: newService, error: serviceError } = await supabase
           .from("services")
-          .insert([serviceData]);
+          .insert([serviceData])
+          .select()
+          .single();
 
-        if (error) throw error;
-        toast.success("Atendimento criado com sucesso!");
+        if (serviceError) throw serviceError;
+
+        // Se tem produtos, processar
+        if (productItems.length > 0) {
+          if (formData.under_warranty) {
+            // Garantia: apenas baixar estoque
+            for (const item of productItems) {
+              const product = products.find(p => p.id === item.product_id);
+              if (!product) continue;
+              
+              const { error: stockError } = await supabase
+                .from('products')
+                .update({ stock: product.stock - item.qty })
+                .eq('id', item.product_id);
+              
+              if (stockError) throw stockError;
+            }
+            toast.success("Atendimento criado e estoque atualizado!");
+          } else {
+            // Não é garantia: criar venda
+            const totalGross = productItems.reduce((sum, item) => {
+              const itemTotal = item.unit_price * item.qty;
+              const discount = itemTotal * (item.discount_percent / 100);
+              return sum + (itemTotal - discount);
+            }, 0);
+
+            const totalCost = productItems.reduce((sum, item) => {
+              const product = products.find(p => p.id === item.product_id);
+              return sum + ((product?.cost || 0) * item.qty);
+            }, 0);
+
+            // Criar venda
+            const { data: newSale, error: saleError } = await supabase
+              .from("sales")
+              .insert([{
+                client_id: formData.client_id,
+                seller_auth_id: user?.id,
+                service_id: newService.id,
+                gross_value: totalGross,
+                total_cost: totalCost,
+                estimated_profit: totalGross - totalCost,
+                status: 'closed',
+                sold_at: formData.date.toISOString(),
+                payment_received: false
+              }])
+              .select()
+              .single();
+
+            if (saleError) throw saleError;
+
+            // Criar itens da venda
+            const saleItems = productItems.map(item => ({
+              sale_id: newSale.id,
+              product_id: item.product_id,
+              qty: item.qty,
+              unit_price: item.unit_price,
+              discount_percent: item.discount_percent
+            }));
+
+            const { error: itemsError } = await supabase
+              .from("sale_items")
+              .insert(saleItems);
+
+            if (itemsError) throw itemsError;
+
+            toast.success("Atendimento criado e venda gerada com sucesso!");
+          }
+        } else {
+          toast.success("Atendimento criado com sucesso!");
+        }
       }
 
       setDialogOpen(false);
@@ -275,8 +389,45 @@ export default function TechnicalSupport() {
       client_present: false,
       assigned_users: [],
     });
+    setProductItems([]);
     setIsEditing(false);
     setSelectedService(null);
+  };
+
+  const addProductItem = () => {
+    if (products.length === 0) {
+      toast.error("Nenhum produto disponível");
+      return;
+    }
+    
+    const firstProduct = products[0];
+    setProductItems([...productItems, {
+      product_id: firstProduct.id,
+      product_name: firstProduct.name,
+      unit_price: firstProduct.price,
+      qty: 1,
+      discount_percent: 0
+    }]);
+  };
+
+  const removeProductItem = (index: number) => {
+    setProductItems(productItems.filter((_, i) => i !== index));
+  };
+
+  const updateProductItem = (index: number, field: keyof ProductItem, value: any) => {
+    const newItems = [...productItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Se mudou o produto, atualizar nome e preço
+    if (field === 'product_id') {
+      const product = products.find(p => p.id === value);
+      if (product) {
+        newItems[index].product_name = product.name;
+        newItems[index].unit_price = product.price;
+      }
+    }
+    
+    setProductItems(newItems);
   };
 
   const getStatusBadge = (status: string) => {
@@ -302,7 +453,7 @@ export default function TechnicalSupport() {
     return categoryMap[category] || category;
   };
 
-  const uploadImage = async (file: File) => {
+  const uploadFile = async (file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -320,17 +471,17 @@ export default function TechnicalSupport() {
 
       return publicUrl;
     } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Erro ao fazer upload da imagem");
+      console.error("Error uploading file:", error);
+      toast.error("Erro ao fazer upload do arquivo");
       return null;
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    const uploadPromises = Array.from(files).map(file => uploadImage(file));
+    const uploadPromises = Array.from(files).map(file => uploadFile(file));
     const urls = await Promise.all(uploadPromises);
     const validUrls = urls.filter(url => url !== null) as string[];
 
@@ -339,7 +490,7 @@ export default function TechnicalSupport() {
       images: [...prev.images, ...validUrls]
     }));
 
-    toast.success(`${validUrls.length} imagem(ns) carregada(s)`);
+    toast.success(`${validUrls.length} arquivo(s) carregado(s)`);
   };
 
   const removeImage = (index: number) => {
@@ -386,8 +537,9 @@ export default function TechnicalSupport() {
             </DialogHeader>
             
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="general">Dados Gerais</TabsTrigger>
+                <TabsTrigger value="products">Produtos</TabsTrigger>
                 <TabsTrigger value="equipment">Equipamento</TabsTrigger>
                 <TabsTrigger value="checklist">Checklist</TabsTrigger>
               </TabsList>
@@ -549,6 +701,119 @@ export default function TechnicalSupport() {
                 </div>
               </TabsContent>
 
+              <TabsContent value="products" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Label>Produtos Utilizados na Assistência</Label>
+                    <Button type="button" onClick={addProductItem} size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar Produto
+                    </Button>
+                  </div>
+
+                  {productItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum produto adicionado
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {productItems.map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg">
+                          <div className="col-span-4 space-y-1">
+                            <Label className="text-xs">Produto</Label>
+                            <Select
+                              value={item.product_id}
+                              onValueChange={(value) => updateProductItem(index, 'product_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name} (Est: {product.stock})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="col-span-2 space-y-1">
+                            <Label className="text-xs">Qtd</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.qty}
+                              onChange={(e) => updateProductItem(index, 'qty', parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+
+                          <div className="col-span-2 space-y-1">
+                            <Label className="text-xs">Preço Unit.</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.unit_price}
+                              onChange={(e) => updateProductItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="col-span-2 space-y-1">
+                            <Label className="text-xs">Desc. %</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={item.discount_percent}
+                              onChange={(e) => updateProductItem(index, 'discount_percent', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="col-span-1 space-y-1">
+                            <Label className="text-xs">Total</Label>
+                            <p className="text-sm font-bold">
+                              R$ {((item.unit_price * item.qty) * (1 - item.discount_percent / 100)).toFixed(2)}
+                            </p>
+                          </div>
+
+                          <div className="col-span-1">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => removeProductItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                        <span className="font-semibold">Total dos Produtos:</span>
+                        <span className="text-lg font-bold text-primary">
+                          R$ {productItems.reduce((sum, item) => {
+                            const itemTotal = item.unit_price * item.qty;
+                            const discount = itemTotal * (item.discount_percent / 100);
+                            return sum + (itemTotal - discount);
+                          }, 0).toFixed(2)}
+                        </span>
+                      </div>
+
+                      {formData.under_warranty ? (
+                        <p className="text-sm text-warning bg-warning/10 p-2 rounded">
+                          ⚠️ Garantia: Os produtos serão apenas baixados do estoque, sem gerar venda.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-success bg-success/10 p-2 rounded">
+                          ✓ Será gerada uma venda automaticamente com estes produtos.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
               <TabsContent value="equipment" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -579,13 +844,13 @@ export default function TechnicalSupport() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Upload de Imagens (peças quebradas, erros, etc.)</Label>
+                    <Label>Upload de Imagens e Vídeos</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="file"
                         multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
+                        accept="image/*,video/*"
+                        onChange={handleFileUpload}
                         className="cursor-pointer"
                       />
                       <Button type="button" variant="outline" size="icon">
