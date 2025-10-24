@@ -44,6 +44,7 @@ interface SystemProduct {
   name: string;
   sku?: string;
   category?: string;
+  price: number;
 }
 
 export default function Services() {
@@ -82,7 +83,7 @@ export default function Services() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, category")
+        .select("id, name, sku, category, price")
         .eq("status", "active")
         .order("name");
 
@@ -175,12 +176,17 @@ export default function Services() {
     const systemProduct = systemProducts.find(p => p.id === productId);
     if (!systemProduct) return;
 
+    const currentHectares = parseFloat(formData.hectares) || 0;
+    const totalValue = systemProduct.price * currentHectares;
+    
     setProducts(prev => [...prev, {
       id: crypto.randomUUID(),
       product_id: systemProduct.id,
-      name: systemProduct.name,
+      name: `${systemProduct.name} - R$ ${totalValue.toFixed(2)} (${systemProduct.price}/ha × ${currentHectares} ha)`,
       dose_per_hectare: "",
     }]);
+    
+    toast.success(`Produto adicionado! Valor total: R$ ${totalValue.toFixed(2)}`);
   };
 
   const removeProduct = (id: string) => {
