@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_drone_info: {
+        Row: {
+          client_id: string
+          controller_serial: string | null
+          controller_version: string | null
+          created_at: string
+          drone_serial: string | null
+          drone_version: string | null
+          id: string
+          login: string | null
+          name: string | null
+          password: string | null
+          purchase_date: string | null
+        }
+        Insert: {
+          client_id: string
+          controller_serial?: string | null
+          controller_version?: string | null
+          created_at?: string
+          drone_serial?: string | null
+          drone_version?: string | null
+          id?: string
+          login?: string | null
+          name?: string | null
+          password?: string | null
+          purchase_date?: string | null
+        }
+        Update: {
+          client_id?: string
+          controller_serial?: string | null
+          controller_version?: string | null
+          created_at?: string
+          drone_serial?: string | null
+          drone_version?: string | null
+          id?: string
+          login?: string | null
+          name?: string | null
+          password?: string | null
+          purchase_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_drone_info_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_drone_info_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -672,11 +729,14 @@ export type Database = {
           hectares: number | null
           id: string
           notes: string | null
+          product_used: string | null
+          reported_defect: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status: Database["public"]["Enums"]["service_status"]
           total_value: number | null
           updated_at: string
           value_per_hectare: number | null
+          warranty: boolean | null
         }
         Insert: {
           assigned_users?: string[] | null
@@ -689,11 +749,14 @@ export type Database = {
           hectares?: number | null
           id?: string
           notes?: string | null
+          product_used?: string | null
+          reported_defect?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
           total_value?: number | null
           updated_at?: string
           value_per_hectare?: number | null
+          warranty?: boolean | null
         }
         Update: {
           assigned_users?: string[] | null
@@ -706,11 +769,14 @@ export type Database = {
           hectares?: number | null
           id?: string
           notes?: string | null
+          product_used?: string | null
+          reported_defect?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
           total_value?: number | null
           updated_at?: string
           value_per_hectare?: number | null
+          warranty?: boolean | null
         }
         Relationships: [
           {
@@ -754,6 +820,59 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_users: string[]
+          client_id: string | null
+          created_at: string
+          due_at: string
+          id: string
+          notes: string | null
+          priority: string
+          related_entity_id: string | null
+          responsible_auth_id: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_users?: string[]
+          client_id?: string | null
+          created_at?: string
+          due_at: string
+          id?: string
+          notes?: string | null
+          priority?: string
+          related_entity_id?: string | null
+          responsible_auth_id: string
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_users?: string[]
+          client_id?: string | null
+          created_at?: string
+          due_at?: string
+          id?: string
+          notes?: string | null
+          priority?: string
+          related_entity_id?: string | null
+          responsible_auth_id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {
@@ -889,24 +1008,28 @@ export type Database = {
         }
         Returns: string
       }
-      format_currency: {
-        Args: { amount: number }
+      create_task: {
+        Args: {
+          p_assigned_users: string[]
+          p_client_id: string
+          p_due_at: string
+          p_notes: string
+          p_priority: string
+          p_related_entity_id: string
+          p_responsible_auth_id: string
+          p_type: string
+        }
         Returns: string
       }
+      format_currency: { Args: { amount: number }; Returns: string }
       get_admin_user_ids: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           auth_user_id: string
         }[]
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      recalc_sale_totals: {
-        Args: { p_sale: string }
-        Returns: undefined
-      }
+      is_admin: { Args: never; Returns: boolean }
+      recalc_sale_totals: { Args: { p_sale: string }; Returns: undefined }
     }
     Enums: {
       commission_base:

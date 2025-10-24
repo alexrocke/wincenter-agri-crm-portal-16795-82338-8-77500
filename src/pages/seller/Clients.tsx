@@ -71,6 +71,7 @@ interface Sale {
 
 interface DroneInfo {
   id: string;
+  client_id: string;
   name: string;
   login: string;
   password: string;
@@ -1668,27 +1669,37 @@ export default function Clients() {
                           {clientHistory.devices.map((device) => (
                             <Card key={device.id}>
                               <CardContent className="pt-6">
-                                <div className="flex items-start justify-between mb-4">
-                                  <div>
-                                    <p className="font-medium text-lg">{device.name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      Criado em: {format(new Date(device.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                    </p>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <span className="text-xl">🚁</span>
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">{device.name}</p>
+                                      {device.purchase_date && (
+                                        <p className="text-sm text-muted-foreground">
+                                          Comprado em {format(new Date(device.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
+                                  
                                   <div className="flex gap-2">
                                     <Button
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleViewDevice(device)}
                                     >
-                                      <Eye className="h-4 w-4" />
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Visualizar
                                     </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleEditDevice(device)}
                                     >
-                                      <Edit className="h-4 w-4" />
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Editar
                                     </Button>
                                     {userRole === 'admin' && (
                                       <Button
@@ -1700,52 +1711,6 @@ export default function Clients() {
                                       </Button>
                                     )}
                                   </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {device.login && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🔑 Login</p>
-                                      <p className="text-sm font-medium">{device.login}</p>
-                                    </div>
-                                  )}
-                                  {device.password && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🔐 Senha</p>
-                                      <p className="text-sm font-medium">{device.password}</p>
-                                    </div>
-                                  )}
-                                  {device.controller_serial && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🎮 Nº Série Controle</p>
-                                      <p className="text-sm font-medium">{device.controller_serial}</p>
-                                    </div>
-                                  )}
-                                  {device.drone_serial && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🚁 Nº Série Drone</p>
-                                      <p className="text-sm font-medium">{device.drone_serial}</p>
-                                    </div>
-                                  )}
-                                  {device.controller_version && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">📡 Versão Controle</p>
-                                      <p className="text-sm font-medium">{device.controller_version}</p>
-                                    </div>
-                                  )}
-                                  {device.drone_version && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🛠️ Versão Drone</p>
-                                      <p className="text-sm font-medium">{device.drone_version}</p>
-                                    </div>
-                                  )}
-                                  {device.purchase_date && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">🗓️ Data da Compra</p>
-                                      <p className="text-sm font-medium">
-                                        {format(new Date(device.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
                               </CardContent>
                             </Card>
@@ -1767,54 +1732,83 @@ export default function Clients() {
               <DialogTitle>Detalhes do Dispositivo</DialogTitle>
             </DialogHeader>
             {selectedDevice && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Produto</Label>
-                  <p className="text-sm font-medium mt-1">{selectedDevice.name}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>🔑 Login</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.login || '-'}</p>
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 pb-4 border-b">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-2xl">🚁</span>
                   </div>
                   <div>
-                    <Label>🔐 Senha</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.password || '-'}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>🎮 Nº Série Controle</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.controller_serial || '-'}</p>
-                  </div>
-                  <div>
-                    <Label>🚁 Nº Série Drone</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.drone_serial || '-'}</p>
+                    <p className="font-semibold text-lg">{selectedDevice.name}</p>
+                    {selectedDevice.purchase_date && (
+                      <p className="text-sm text-muted-foreground">
+                        Comprado em {format(new Date(selectedDevice.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>📡 Versão Controle</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.controller_version || '-'}</p>
-                  </div>
-                  <div>
-                    <Label>🛠️ Versão Drone</Label>
-                    <p className="text-sm font-medium mt-1">{selectedDevice.drone_version || '-'}</p>
-                  </div>
-                </div>
-                {selectedDevice.purchase_date && (
-                  <div>
-                    <Label>🗓️ Data da Compra</Label>
-                    <p className="text-sm font-medium mt-1">
-                      {format(new Date(selectedDevice.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
-                    </p>
+
+                {(selectedDevice.login || selectedDevice.password) && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Credenciais de Acesso</h4>
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                      {selectedDevice.login && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">🔑 Login</Label>
+                          <p className="font-mono mt-1">{selectedDevice.login}</p>
+                        </div>
+                      )}
+                      {selectedDevice.password && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">🔐 Senha</Label>
+                          <p className="font-mono mt-1">{selectedDevice.password}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div>
-                  <Label>⏰ Criado em</Label>
-                  <p className="text-sm font-medium mt-1">
-                    {format(new Date(selectedDevice.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </p>
+
+                {(selectedDevice.drone_serial || selectedDevice.controller_serial) && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Números de Série</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedDevice.drone_serial && (
+                        <div className="p-3 border rounded-lg">
+                          <Label className="text-xs text-muted-foreground">🚁 Serial Drone</Label>
+                          <p className="font-mono mt-1 text-sm">{selectedDevice.drone_serial}</p>
+                        </div>
+                      )}
+                      {selectedDevice.controller_serial && (
+                        <div className="p-3 border rounded-lg">
+                          <Label className="text-xs text-muted-foreground">🎮 Serial Controle</Label>
+                          <p className="font-mono mt-1 text-sm">{selectedDevice.controller_serial}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedDevice.drone_version || selectedDevice.controller_version) && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Versões</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedDevice.drone_version && (
+                        <div className="p-3 border rounded-lg">
+                          <Label className="text-xs text-muted-foreground">🛠️ Versão Drone</Label>
+                          <p className="mt-1 text-sm">{selectedDevice.drone_version}</p>
+                        </div>
+                      )}
+                      {selectedDevice.controller_version && (
+                        <div className="p-3 border rounded-lg">
+                          <Label className="text-xs text-muted-foreground">📡 Versão Controle</Label>
+                          <p className="mt-1 text-sm">{selectedDevice.controller_version}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="pt-4 border-t text-sm text-muted-foreground">
+                  Criado em {format(new Date(selectedDevice.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 </div>
               </div>
             )}
