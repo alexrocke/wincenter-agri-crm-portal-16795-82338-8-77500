@@ -110,13 +110,21 @@ export default function Services() {
     }
   };
 
-  // Calcular valor total automaticamente
-  useEffect(() => {
-    const hectares = parseFloat(formData.hectares) || 0;
-    const valuePerHectare = parseFloat(formData.value_per_hectare) || 0;
-    const total = hectares * valuePerHectare;
-    setFormData(prev => ({ ...prev, total_value: total.toFixed(2) }));
-  }, [formData.hectares, formData.value_per_hectare]);
+// Calcular valor total automaticamente
+useEffect(() => {
+  const hectares = parseFloat(formData.hectares) || 0;
+  const valuePerHectare = parseFloat(formData.value_per_hectare) || 0;
+  const total = hectares * valuePerHectare;
+  setFormData(prev => ({ ...prev, total_value: total.toFixed(2) }));
+}, [formData.hectares, formData.value_per_hectare]);
+
+// Atualizar automaticamente o valor/ha baseado nos produtos do sistema
+useEffect(() => {
+  const sumPerHa = products.reduce((sum, p) => sum + (p.unit_price || 0), 0);
+  if (!isNaN(sumPerHa) && sumPerHa > 0) {
+    setFormData(prev => ({ ...prev, value_per_hectare: sumPerHa.toFixed(2) }));
+  }
+}, [products]);
 
   // Calcular total de calda baseado na vazão
   const hectares = parseFloat(formData.hectares) || 0;
@@ -219,6 +227,7 @@ export default function Services() {
         city: formData.city || null,
         hectares: parseFloat(formData.hectares),
         value_per_hectare: parseFloat(formData.value_per_hectare),
+        total_value: parseFloat(formData.total_value) || null,
         notes: formData.notes || null,
         created_by: user?.id,
         assigned_users: formData.assigned_users.length > 0 ? formData.assigned_users : [user?.id],
@@ -246,24 +255,27 @@ export default function Services() {
 
         if (products.length > 0) {
           const hectares = parseFloat(formData.hectares) || 0;
-          const serviceItems = products.map(p => {
-            const dose = parseFloat(p.dose_per_hectare) || 0;
-            const volumeTotal = hectares * (dose / 1000); // Converter mL para L
-            const unitPrice = p.unit_price || 0;
-            return {
-              service_id: selectedService.id,
-              product_id: p.product_id || null,
-              product_name: p.name,
-              dose_per_hectare: dose,
-              volume_total: volumeTotal,
-              bottles_qty: null,
-              qty: hectares,
-              unit_price: unitPrice,
-              discount_percent: 0,
-            };
-          });
+          const serviceItems = products
+            .filter(p => !!p.product_id) // salvar apenas itens do sistema
+            .map(p => {
+              const dose = parseFloat(p.dose_per_hectare) || 0;
+              const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+              const unitPrice = p.unit_price || 0;
+              return {
+                service_id: selectedService.id,
+                product_id: p.product_id!,
+                product_name: p.name,
+                dose_per_hectare: dose,
+                volume_total: volumeTotal,
+                bottles_qty: null,
+                qty: 1,
+                unit_price: unitPrice,
+                discount_percent: 0,
+              };
+            });
 
-          await supabase.from("service_items").insert(serviceItems);
+          const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
+          if (itemsError) throw itemsError;
         }
         
         toast.success("Pulverização atualizada com sucesso!");
@@ -272,7 +284,7 @@ export default function Services() {
           .from("services")
           .insert([serviceData])
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
 
@@ -289,13 +301,14 @@ export default function Services() {
               dose_per_hectare: dose,
               volume_total: volumeTotal,
               bottles_qty: null,
-              qty: hectares,
+              qty: 1,
               unit_price: unitPrice,
               discount_percent: 0,
             };
           });
 
-          await supabase.from("service_items").insert(serviceItems);
+          const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
+          if (itemsError) throw itemsError;
         }
         
         toast.success("Pulverização criada com sucesso!");
@@ -314,31 +327,59 @@ export default function Services() {
     if (!selectedService) return;
 
     try {
-      // Atualizar status para completed
+      const serviceId = selectedService.id;
+      const hectares = parseFloat(formData.hectares) || 0;
+      const valuePerHectare = parseFloat(formData.value_per_hectare) || 0;
+      const total = parseFloat(formData.total_value) || (hectares * valuePerHectare);
+
+      // Persistir itens de serviço (produtos)
+      await supabase.from("service_items").delete().eq("service_id", serviceId);
+      if (products.length > 0) {
+        const serviceItems = products.map(p => {
+          const dose = parseFloat(p.dose_per_hectare) || 0;
+          const volumeTotal = hectares * (dose / 1000);
+          const unitPrice = p.unit_price || 0;
+          return {
+            service_id: serviceId,
+            product_id: p.product_id || null,
+            product_name: p.name,
+            dose_per_hectare: dose,
+            volume_total: volumeTotal,
+            bottles_qty: null,
+            qty: 1,
+            unit_price: unitPrice,
+            discount_percent: 0,
+          };
+        });
+        const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
+        if (itemsError) throw itemsError;
+      }
+
+      // Atualizar serviço com valores atuais e concluir
       const { error: updateError } = await supabase
         .from("services")
-        .update({ status: "completed" })
-        .eq("id", selectedService.id);
-
+        .update({ 
+          status: "completed", 
+          value_per_hectare: valuePerHectare, 
+          total_value: total 
+        })
+        .eq("id", serviceId);
       if (updateError) throw updateError;
 
-      // Gerar venda automaticamente
-      const saleDescription = `Serviço de pulverização – ${selectedService.crop || 'N/A'} – ${selectedService.city || 'N/A'}`;
-
+      // Gerar venda com o total atual
       const { error: saleError } = await supabase
         .from("sales")
-        .insert([{
+        .insert([{ 
           client_id: selectedService.client_id,
           seller_auth_id: user?.id,
-          service_id: selectedService.id,
-          gross_value: selectedService.total_value || 0,
+          service_id: serviceId,
+          gross_value: total,
           total_cost: 0,
-          estimated_profit: selectedService.total_value || 0,
+          estimated_profit: total,
           status: "closed",
           sold_at: new Date().toISOString(),
           payment_received: false,
         }]);
-
       if (saleError) throw saleError;
 
       toast.success("Venda gerada com base na pulverização concluída!");
