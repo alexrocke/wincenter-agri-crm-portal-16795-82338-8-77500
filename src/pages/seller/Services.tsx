@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -338,11 +339,12 @@ export default function Services() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <AppLayout>
+      <div className="p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">📦 Serviços de Pulverização</h1>
+          <h1 className="text-3xl font-bold">Serviços de Pulverização</h1>
           <p className="text-muted-foreground">Gerencie pulverizações e aplicações</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -863,6 +865,7 @@ export default function Services() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

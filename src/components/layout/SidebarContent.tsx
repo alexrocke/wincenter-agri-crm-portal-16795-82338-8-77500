@@ -34,9 +34,9 @@ const sellerLinks = [
   { to: '/seller/sales', icon: ShoppingCart, label: 'Vendas' },
   { to: '/seller/commissions', icon: DollarSign, label: 'Comissões' },
   { to: '/seller/visits', icon: Calendar, label: 'Visitas' },
-  { to: '/seller/services', icon: Droplet, label: '📦 Serviço' },
-  { to: '/seller/demonstrations', icon: Presentation, label: '🎯 Demonstração' },
-  { to: '/seller/technical-support', icon: Wrench, label: '🧰 Assistência Técnica' },
+  { to: '/seller/services', icon: Droplet, label: 'Serviço' },
+  { to: '/seller/demonstrations', icon: Presentation, label: 'Demonstração' },
+  { to: '/seller/technical-support', icon: Wrench, label: 'Assistência Técnica' },
   { to: '/notifications', icon: Bell, label: 'Notificações' },
 ];
 
