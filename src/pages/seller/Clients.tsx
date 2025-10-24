@@ -1376,86 +1376,92 @@ export default function Clients() {
                                   Adicionar Dispositivo
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-md">
-                                <DialogHeader>
-                                  <DialogTitle>Adicionar Dispositivo</DialogTitle>
-                                </DialogHeader>
-                                <form onSubmit={handleAddDevice} className="space-y-4">
-                                  <div>
-                                    <Label htmlFor="device-name">Produto *</Label>
-                                    <Input
-                                      id="device-name"
-                                      value={deviceFormData.name}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-login">🔑 Login</Label>
-                                    <Input
-                                      id="device-login"
-                                      value={deviceFormData.login}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-password">🔐 Senha</Label>
-                                    <Input
-                                      id="device-password"
-                                      type="password"
-                                      value={deviceFormData.password}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
-                                    <Input
-                                      id="device-controller-serial"
-                                      value={deviceFormData.controller_serial}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
-                                    <Input
-                                      id="device-drone-serial"
-                                      value={deviceFormData.drone_serial}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
-                                    <Input
-                                      id="device-controller-version"
-                                      value={deviceFormData.controller_version}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
-                                    <Input
-                                      id="device-drone-version"
-                                      value={deviceFormData.drone_version}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
-                                    <Input
-                                      id="device-purchase-date"
-                                      type="date"
-                                      value={deviceFormData.purchase_date}
-                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
-                                    />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
-                                      Cancelar
-                                    </Button>
-                                    <Button type="submit">Adicionar</Button>
-                                  </div>
-                                </form>
-                              </DialogContent>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Adicionar Dispositivo</DialogTitle>
+                          </DialogHeader>
+                          <form onSubmit={handleAddDevice} className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="device-name">Produto *</Label>
+                              <Input
+                                id="device-name"
+                                value={deviceFormData.name}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
+                                required
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="device-login">🔑 Login</Label>
+                                <Input
+                                  id="device-login"
+                                  value={deviceFormData.login}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="device-password">🔐 Senha</Label>
+                                <Input
+                                  id="device-password"
+                                  type="password"
+                                  value={deviceFormData.password}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
+                                <Input
+                                  id="device-controller-serial"
+                                  value={deviceFormData.controller_serial}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
+                                <Input
+                                  id="device-drone-serial"
+                                  value={deviceFormData.drone_serial}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
+                                <Input
+                                  id="device-controller-version"
+                                  value={deviceFormData.controller_version}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
+                                <Input
+                                  id="device-drone-version"
+                                  value={deviceFormData.drone_version}
+                                  onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
+                              <Input
+                                id="device-purchase-date"
+                                type="date"
+                                value={deviceFormData.purchase_date}
+                                onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-4">
+                              <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
+                                Cancelar
+                              </Button>
+                              <Button type="submit">Adicionar</Button>
+                            </div>
+                          </form>
+                        </DialogContent>
                             </Dialog>
                           </div>
                         </CardContent>
@@ -1470,12 +1476,12 @@ export default function Clients() {
                                 Adicionar Dispositivo
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-md">
+                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle>Adicionar Dispositivo</DialogTitle>
                               </DialogHeader>
                               <form onSubmit={handleAddDevice} className="space-y-4">
-                                <div>
+                                <div className="space-y-2">
                                   <Label htmlFor="device-name">Produto *</Label>
                                   <Input
                                     id="device-name"
@@ -1484,56 +1490,62 @@ export default function Clients() {
                                     required
                                   />
                                 </div>
-                                <div>
-                                  <Label htmlFor="device-login">🔑 Login</Label>
-                                  <Input
-                                    id="device-login"
-                                    value={deviceFormData.login}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
-                                  />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-login">🔑 Login</Label>
+                                    <Input
+                                      id="device-login"
+                                      value={deviceFormData.login}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-password">🔐 Senha</Label>
+                                    <Input
+                                      id="device-password"
+                                      type="password"
+                                      value={deviceFormData.password}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label htmlFor="device-password">🔐 Senha</Label>
-                                  <Input
-                                    id="device-password"
-                                    type="password"
-                                    value={deviceFormData.password}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
-                                  />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
+                                    <Input
+                                      id="device-controller-serial"
+                                      value={deviceFormData.controller_serial}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
+                                    <Input
+                                      id="device-drone-serial"
+                                      value={deviceFormData.drone_serial}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label htmlFor="device-controller-serial">🎮 Nº Série Controle</Label>
-                                  <Input
-                                    id="device-controller-serial"
-                                    value={deviceFormData.controller_serial}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
-                                  />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
+                                    <Input
+                                      id="device-controller-version"
+                                      value={deviceFormData.controller_version}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
+                                    <Input
+                                      id="device-drone-version"
+                                      value={deviceFormData.drone_version}
+                                      onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label htmlFor="device-drone-serial">🚁 Nº Série Drone</Label>
-                                  <Input
-                                    id="device-drone-serial"
-                                    value={deviceFormData.drone_serial}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="device-controller-version">📡 Versão Controle</Label>
-                                  <Input
-                                    id="device-controller-version"
-                                    value={deviceFormData.controller_version}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="device-drone-version">🛠️ Versão Drone</Label>
-                                  <Input
-                                    id="device-drone-version"
-                                    value={deviceFormData.drone_version}
-                                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
-                                  />
-                                </div>
-                                <div>
+                                <div className="space-y-2">
                                   <Label htmlFor="device-purchase-date">🗓️ Data da Compra</Label>
                                   <Input
                                     id="device-purchase-date"
@@ -1542,7 +1554,7 @@ export default function Clients() {
                                     onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
                                   />
                                 </div>
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-2 pt-4">
                                   <Button type="button" variant="outline" onClick={() => setDeviceDialogOpen(false)}>
                                     Cancelar
                                   </Button>
