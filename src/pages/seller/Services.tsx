@@ -679,15 +679,15 @@ useEffect(() => {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Vazão L/ha</p>
-                      <p className="text-lg font-bold text-primary">{vazaoPerHa.toFixed(3)} L/ha</p>
+                      <p className="text-lg font-bold text-primary">{vazaoPerHa.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} L/ha</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Hectares</p>
-                      <p className="text-lg font-bold text-primary">{hectares} ha</p>
+                      <p className="text-lg font-bold text-primary">{hectares.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ha</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Total de Calda</p>
-                      <p className="text-xl font-bold text-green-600">{totalCalda.toFixed(3)} L</p>
+                      <p className="text-xl font-bold text-green-600">{totalCalda.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} L</p>
                     </div>
                   </div>
                 </div>
