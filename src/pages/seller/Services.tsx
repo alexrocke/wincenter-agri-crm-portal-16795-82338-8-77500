@@ -63,6 +63,7 @@ export default function Services() {
     city: "",
     hectares: "",
     vazao_per_hectare: "", // Vazão L/ha
+    service_base_value: "", // Valor base do serviço
     value_per_hectare: "",
     total_value: "",
     notes: "",
@@ -118,13 +119,13 @@ useEffect(() => {
   setFormData(prev => ({ ...prev, total_value: total.toFixed(2) }));
 }, [formData.hectares, formData.value_per_hectare]);
 
-// Atualizar automaticamente o valor/ha baseado nos produtos do sistema
+// Atualizar automaticamente o valor/ha somando valor base + produtos
 useEffect(() => {
-  const sumPerHa = products.reduce((sum, p) => sum + (p.unit_price || 0), 0);
-  if (!isNaN(sumPerHa) && sumPerHa > 0) {
-    setFormData(prev => ({ ...prev, value_per_hectare: sumPerHa.toFixed(2) }));
-  }
-}, [products]);
+  const baseValue = parseFloat(formData.service_base_value) || 0;
+  const productsValue = products.reduce((sum, p) => sum + (p.unit_price || 0), 0);
+  const totalPerHa = baseValue + productsValue;
+  setFormData(prev => ({ ...prev, value_per_hectare: totalPerHa.toFixed(2) }));
+}, [products, formData.service_base_value]);
 
   // Calcular total de calda baseado na vazão
   const hectares = parseFloat(formData.hectares) || 0;
@@ -162,6 +163,7 @@ useEffect(() => {
       city: "",
       hectares: "",
       vazao_per_hectare: "",
+      service_base_value: "",
       value_per_hectare: "",
       total_value: "",
       notes: "",
@@ -392,40 +394,42 @@ useEffect(() => {
     }
   };
 
-  const handleEdit = (service: Service) => {
+  const handleEdit = async (service: Service) => {
     setSelectedService(service);
+    
+    // Carregar produtos primeiro para calcular o valor base do serviço
+    const { data: serviceItems } = await supabase
+      .from("service_items")
+      .select("*, products:product_id(name)")
+      .eq("service_id", service.id);
+
+    const loadedProducts: ProductItem[] = (serviceItems || []).map((item: any) => ({
+      id: crypto.randomUUID(),
+      product_id: item.product_id || undefined,
+      name: item.products?.name || item.product_name,
+      dose_per_hectare: item.dose_per_hectare?.toString() || "",
+      unit_price: item.unit_price || 0,
+    }));
+
+    // Calcular valor dos produtos
+    const productsValue = loadedProducts.reduce((sum, p) => sum + (p.unit_price || 0), 0);
+    const serviceBaseValue = (service.value_per_hectare || 0) - productsValue;
+
     setFormData({
       client_id: service.client_id,
       date: service.date,
       crop: service.crop || "",
       city: service.city || "",
       hectares: service.hectares?.toString() || "",
-      vazao_per_hectare: "", // Can be added later if needed
+      vazao_per_hectare: "",
+      service_base_value: serviceBaseValue.toFixed(2),
       value_per_hectare: service.value_per_hectare?.toString() || "",
       total_value: service.total_value?.toString() || "",
       notes: service.notes || "",
       assigned_users: (service as any).assigned_users || [],
     });
 
-    // Carregar produtos
-    const fetchProducts = async () => {
-      const { data } = await supabase
-        .from("service_items")
-        .select("*")
-        .eq("service_id", service.id);
-
-      if (data) {
-        setProducts(data.map(item => ({
-          id: item.id,
-          product_id: item.product_id,
-          name: item.product_name || "",
-          dose_per_hectare: item.dose_per_hectare?.toString() || "",
-          unit_price: item.unit_price || 0,
-        })));
-      }
-    };
-
-    fetchProducts();
+    setProducts(loadedProducts);
     setIsDialogOpen(true);
   };
 
@@ -633,15 +637,30 @@ useEffect(() => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Valor por Hectare (R$) *</Label>
+                    <Label>Valor Base do Serviço (R$/ha)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.service_base_value}
+                      onChange={(e) => setFormData(prev => ({ ...prev, service_base_value: e.target.value }))}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Valor por Hectare (R$) * (Auto-calculado)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.value_per_hectare}
-                      onChange={(e) => setFormData(prev => ({ ...prev, value_per_hectare: e.target.value }))}
+                      readOnly
+                      disabled
                       placeholder="0.00"
-                      required
+                      className="bg-muted"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      = Valor Base ({formData.service_base_value || '0'}) + Produtos ({products.reduce((sum, p) => sum + (p.unit_price || 0), 0).toFixed(2)})
+                    </p>
                   </div>
 
                   <div className="space-y-2">
