@@ -295,6 +295,8 @@ export type Database = {
         Row: {
           assigned_users: string[] | null
           cancellation_reason: string | null
+          city: string | null
+          client_evaluation: string | null
           client_id: string | null
           created_at: string | null
           crop: string | null
@@ -302,8 +304,10 @@ export type Database = {
           demo_types: string[] | null
           hectares: number | null
           id: string
+          images: string[] | null
           notes: string | null
           products: string[] | null
+          property_name: string | null
           status: Database["public"]["Enums"]["demo_status"]
           weather_city: string | null
           weather_description: string | null
@@ -316,6 +320,8 @@ export type Database = {
         Insert: {
           assigned_users?: string[] | null
           cancellation_reason?: string | null
+          city?: string | null
+          client_evaluation?: string | null
           client_id?: string | null
           created_at?: string | null
           crop?: string | null
@@ -323,8 +329,10 @@ export type Database = {
           demo_types?: string[] | null
           hectares?: number | null
           id?: string
+          images?: string[] | null
           notes?: string | null
           products?: string[] | null
+          property_name?: string | null
           status?: Database["public"]["Enums"]["demo_status"]
           weather_city?: string | null
           weather_description?: string | null
@@ -337,6 +345,8 @@ export type Database = {
         Update: {
           assigned_users?: string[] | null
           cancellation_reason?: string | null
+          city?: string | null
+          client_evaluation?: string | null
           client_id?: string | null
           created_at?: string | null
           crop?: string | null
@@ -344,8 +354,10 @@ export type Database = {
           demo_types?: string[] | null
           hectares?: number | null
           id?: string
+          images?: string[] | null
           notes?: string | null
           products?: string[] | null
+          property_name?: string | null
           status?: Database["public"]["Enums"]["demo_status"]
           weather_city?: string | null
           weather_description?: string | null
@@ -721,19 +733,39 @@ export type Database = {
         Row: {
           assigned_users: string[] | null
           cancellation_reason: string | null
+          city: string | null
           client_id: string
+          client_present: boolean | null
+          client_signature: string | null
           created_at: string
           created_by: string | null
+          crop: string | null
           date: string
+          equipment_model: string | null
+          equipment_serial: string | null
+          equipment_year: number | null
           fixed_value: number | null
+          followup_objective: string | null
+          followup_results: string | null
           hectares: number | null
           id: string
+          images: string[] | null
+          installment_dates: Json | null
+          installments: number | null
+          invoice_number: string | null
+          invoiced: boolean | null
           notes: string | null
+          payment_method_1: string | null
+          payment_method_2: string | null
           product_used: string | null
+          property_name: string | null
           reported_defect: string | null
+          service_category: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status: Database["public"]["Enums"]["service_status"]
+          technical_checklist: string | null
           total_value: number | null
+          under_warranty: boolean | null
           updated_at: string
           value_per_hectare: number | null
           warranty: boolean | null
@@ -741,19 +773,39 @@ export type Database = {
         Insert: {
           assigned_users?: string[] | null
           cancellation_reason?: string | null
+          city?: string | null
           client_id: string
+          client_present?: boolean | null
+          client_signature?: string | null
           created_at?: string
           created_by?: string | null
+          crop?: string | null
           date: string
+          equipment_model?: string | null
+          equipment_serial?: string | null
+          equipment_year?: number | null
           fixed_value?: number | null
+          followup_objective?: string | null
+          followup_results?: string | null
           hectares?: number | null
           id?: string
+          images?: string[] | null
+          installment_dates?: Json | null
+          installments?: number | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
           notes?: string | null
+          payment_method_1?: string | null
+          payment_method_2?: string | null
           product_used?: string | null
+          property_name?: string | null
           reported_defect?: string | null
+          service_category?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
+          technical_checklist?: string | null
           total_value?: number | null
+          under_warranty?: boolean | null
           updated_at?: string
           value_per_hectare?: number | null
           warranty?: boolean | null
@@ -761,19 +813,39 @@ export type Database = {
         Update: {
           assigned_users?: string[] | null
           cancellation_reason?: string | null
+          city?: string | null
           client_id?: string
+          client_present?: boolean | null
+          client_signature?: string | null
           created_at?: string
           created_by?: string | null
+          crop?: string | null
           date?: string
+          equipment_model?: string | null
+          equipment_serial?: string | null
+          equipment_year?: number | null
           fixed_value?: number | null
+          followup_objective?: string | null
+          followup_results?: string | null
           hectares?: number | null
           id?: string
+          images?: string[] | null
+          installment_dates?: Json | null
+          installments?: number | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
           notes?: string | null
+          payment_method_1?: string | null
+          payment_method_2?: string | null
           product_used?: string | null
+          property_name?: string | null
           reported_defect?: string | null
+          service_category?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
+          technical_checklist?: string | null
           total_value?: number | null
+          under_warranty?: boolean | null
           updated_at?: string
           value_per_hectare?: number | null
           warranty?: boolean | null
