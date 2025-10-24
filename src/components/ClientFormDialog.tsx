@@ -32,7 +32,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
     relationship_status: 'lead',
     crops: '',
     location_link: '',
-    owner_user_id: '',
+    owner_user_id: undefined as string | undefined,
   });
 
   const resetForm = () => {
@@ -50,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
       relationship_status: 'lead',
       crops: '',
       location_link: '',
-      owner_user_id: '',
+      owner_user_id: undefined,
     });
   };
 
@@ -248,7 +248,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
             <div className="space-y-2">
               <Label htmlFor="owner_user_id">Responsável (Opcional)</Label>
               <Select
-                value={formData.owner_user_id}
+                value={formData.owner_user_id || undefined}
                 onValueChange={(value) => setFormData({ ...formData, owner_user_id: value })}
               >
                 <SelectTrigger className="bg-background">
