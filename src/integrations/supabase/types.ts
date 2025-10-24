@@ -731,31 +731,43 @@ export type Database = {
       }
       service_items: {
         Row: {
+          bottles_qty: number | null
           created_at: string
           discount_percent: number
+          dose_per_hectare: number | null
           id: string
           product_id: string
+          product_name: string | null
           qty: number
           service_id: string
           unit_price: number
+          volume_total: number | null
         }
         Insert: {
+          bottles_qty?: number | null
           created_at?: string
           discount_percent?: number
+          dose_per_hectare?: number | null
           id?: string
           product_id: string
+          product_name?: string | null
           qty?: number
           service_id: string
           unit_price?: number
+          volume_total?: number | null
         }
         Update: {
+          bottles_qty?: number | null
           created_at?: string
           discount_percent?: number
+          dose_per_hectare?: number | null
           id?: string
           product_id?: string
+          product_name?: string | null
           qty?: number
           service_id?: string
           unit_price?: number
+          volume_total?: number | null
         }
         Relationships: [
           {
