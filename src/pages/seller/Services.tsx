@@ -37,6 +37,7 @@ interface ProductItem {
   product_id?: string; // ID do produto do banco (opcional)
   name: string;
   dose_per_hectare: string; // mL/ha
+  unit_price?: number; // Preço unitário por hectare
 }
 
 interface SystemProduct {
@@ -184,6 +185,7 @@ export default function Services() {
       product_id: systemProduct.id,
       name: `${systemProduct.name} - R$ ${totalValue.toFixed(2)} (${systemProduct.price}/ha × ${currentHectares} ha)`,
       dose_per_hectare: "",
+      unit_price: systemProduct.price, // Armazenar o preço
     }]);
     
     toast.success(`Produto adicionado! Valor total: R$ ${totalValue.toFixed(2)}`);
@@ -247,6 +249,7 @@ export default function Services() {
           const serviceItems = products.map(p => {
             const dose = parseFloat(p.dose_per_hectare) || 0;
             const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+            const unitPrice = p.unit_price || 0;
             return {
               service_id: selectedService.id,
               product_id: p.product_id || null,
@@ -254,8 +257,8 @@ export default function Services() {
               dose_per_hectare: dose,
               volume_total: volumeTotal,
               bottles_qty: null,
-              qty: 1,
-              unit_price: 0,
+              qty: hectares,
+              unit_price: unitPrice,
               discount_percent: 0,
             };
           });
@@ -278,6 +281,7 @@ export default function Services() {
           const serviceItems = products.map(p => {
             const dose = parseFloat(p.dose_per_hectare) || 0;
             const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+            const unitPrice = p.unit_price || 0;
             return {
               service_id: newService.id,
               product_id: p.product_id || null,
@@ -285,8 +289,8 @@ export default function Services() {
               dose_per_hectare: dose,
               volume_total: volumeTotal,
               bottles_qty: null,
-              qty: 1,
-              unit_price: 0,
+              qty: hectares,
+              unit_price: unitPrice,
               discount_percent: 0,
             };
           });
@@ -375,6 +379,7 @@ export default function Services() {
           product_id: item.product_id,
           name: item.product_name || "",
           dose_per_hectare: item.dose_per_hectare?.toString() || "",
+          unit_price: item.unit_price || 0,
         })));
       }
     };

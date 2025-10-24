@@ -826,6 +826,12 @@ export type Database = {
           updated_at: string
           value_per_hectare: number | null
           warranty: boolean | null
+          weather_city: string | null
+          weather_description: string | null
+          weather_fetched_at: string | null
+          weather_humidity: number | null
+          weather_temperature: number | null
+          weather_wind_speed: number | null
         }
         Insert: {
           assigned_users?: string[] | null
@@ -866,6 +872,12 @@ export type Database = {
           updated_at?: string
           value_per_hectare?: number | null
           warranty?: boolean | null
+          weather_city?: string | null
+          weather_description?: string | null
+          weather_fetched_at?: string | null
+          weather_humidity?: number | null
+          weather_temperature?: number | null
+          weather_wind_speed?: number | null
         }
         Update: {
           assigned_users?: string[] | null
@@ -906,6 +918,12 @@ export type Database = {
           updated_at?: string
           value_per_hectare?: number | null
           warranty?: boolean | null
+          weather_city?: string | null
+          weather_description?: string | null
+          weather_fetched_at?: string | null
+          weather_humidity?: number | null
+          weather_temperature?: number | null
+          weather_wind_speed?: number | null
         }
         Relationships: [
           {
