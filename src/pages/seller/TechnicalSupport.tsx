@@ -280,15 +280,15 @@ export default function TechnicalSupport() {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      open: { label: "Aberto", variant: "default" as const },
+      open: { label: "Aberto", variant: "default" as const, className: "" },
       in_progress: { label: "Em Andamento", variant: "default" as const, className: "bg-warning text-warning-foreground" },
       completed: { label: "Concluído", variant: "default" as const, className: "bg-success text-success-foreground" },
       awaiting_part: { label: "Aguardando Peça", variant: "default" as const, className: "bg-secondary text-secondary-foreground" },
-      cancelled: { label: "Cancelado", variant: "destructive" as const },
+      cancelled: { label: "Cancelado", variant: "destructive" as const, className: "" },
     };
 
     const config = statusMap[status as keyof typeof statusMap] || { label: status, variant: "secondary" as const, className: "" };
-    return <Badge variant={config.variant} className={config.className || ""}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   const getCategoryLabel = (category: string) => {
@@ -396,7 +396,7 @@ export default function TechnicalSupport() {
                     <Label>Cliente *</Label>
                     <ClientAutocomplete
                       value={formData.client_id}
-                      onSelect={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
+                      onChange={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
                     />
                   </div>
 

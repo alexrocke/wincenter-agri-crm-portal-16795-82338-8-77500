@@ -269,14 +269,14 @@ export default function Services() {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      scheduled: { label: "Agendada", variant: "default" as const },
+      scheduled: { label: "Agendada", variant: "default" as const, className: "" },
       completed: { label: "Concluída", variant: "default" as const, className: "bg-success text-success-foreground" },
-      cancelled: { label: "Cancelada", variant: "destructive" as const },
+      cancelled: { label: "Cancelada", variant: "destructive" as const, className: "" },
       pending_payment: { label: "Pendente Pagamento", variant: "default" as const, className: "bg-warning text-warning-foreground" },
     };
 
     const config = statusMap[status as keyof typeof statusMap] || { label: status, variant: "secondary" as const, className: "" };
-    return <Badge variant={config.variant} className={config.className || ""}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   const uploadImage = async (file: File) => {
@@ -364,7 +364,7 @@ export default function Services() {
                 <Label>Cliente *</Label>
                 <ClientAutocomplete
                   value={formData.client_id}
-                  onSelect={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
+                  onChange={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
                 />
               </div>
 

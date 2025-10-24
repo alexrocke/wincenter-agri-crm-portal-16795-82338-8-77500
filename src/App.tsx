@@ -26,7 +26,9 @@ import Opportunities from "./pages/seller/Opportunities";
 import Sales from "./pages/seller/Sales";
 import Commissions from "./pages/seller/Commissions";
 import Visits from "./pages/seller/Visits";
-import Demonstrations from "./pages/seller/Demonstrations";
+import Services from "./pages/seller/Services";
+import DemonstrationsNew from "./pages/seller/DemonstrationsNew";
+import TechnicalSupport from "./pages/seller/TechnicalSupport";
 import SellerProducts from "./pages/seller/Products";
 import NotFound from "./pages/NotFound";
 
@@ -225,10 +227,26 @@ const App = () => (
               }
             />
             <Route
+              path="/seller/services"
+              element={
+                <ProtectedRoute>
+                  <Services />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/seller/demonstrations"
               element={
                 <ProtectedRoute>
-                  <Demonstrations />
+                  <DemonstrationsNew />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/technical-support"
+              element={
+                <ProtectedRoute>
+                  <TechnicalSupport />
                 </ProtectedRoute>
               }
             />

@@ -251,13 +251,13 @@ export default function DemonstrationsNew() {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      scheduled: { label: "Agendada", variant: "default" as const },
+      scheduled: { label: "Agendada", variant: "default" as const, className: "" },
       completed: { label: "Realizada", variant: "default" as const, className: "bg-success text-success-foreground" },
-      cancelled: { label: "Cancelada", variant: "destructive" as const },
+      cancelled: { label: "Cancelada", variant: "destructive" as const, className: "" },
     };
 
     const config = statusMap[status as keyof typeof statusMap] || { label: status, variant: "secondary" as const, className: "" };
-    return <Badge variant={config.variant} className={config.className || ""}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   const toggleDemoType = (type: string) => {
@@ -354,7 +354,7 @@ export default function DemonstrationsNew() {
                 <Label>Cliente *</Label>
                 <ClientAutocomplete
                   value={formData.client_id}
-                  onSelect={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
+                  onChange={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
                 />
               </div>
 
@@ -500,11 +500,9 @@ export default function DemonstrationsNew() {
                 )}
               </div>
 
-              {formData.city && (
-                <div className="md:col-span-2">
-                  <WeatherForecast city={formData.city} />
-                </div>
-              )}
+              <div className="md:col-span-2">
+                <WeatherForecast showCard={false} selectedDate={formData.date.toISOString()} />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
