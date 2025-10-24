@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, CheckCircle, Search } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 import { WeatherForecast, WeatherData } from "@/components/WeatherForecast";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Service {
   id: string;
@@ -74,6 +76,8 @@ export default function Services() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [systemProducts, setSystemProducts] = useState<SystemProduct[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
 
   useEffect(() => {
     fetchServices();
@@ -195,11 +199,18 @@ useEffect(() => {
       product_id: systemProduct.id,
       name: `${systemProduct.name} - R$ ${totalValue.toFixed(2)} (${systemProduct.price}/ha × ${currentHectares} ha)`,
       dose_per_hectare: "",
-      unit_price: systemProduct.price, // Armazenar o preço
+      unit_price: systemProduct.price,
     }]);
     
+    setProductSearchOpen(false);
+    setProductSearchQuery("");
     toast.success(`Produto adicionado! Valor total: R$ ${totalValue.toFixed(2)}`);
   };
+
+  const filteredProducts = systemProducts.filter(p => 
+    p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+    (p.sku && p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()))
+  );
 
   const removeProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
@@ -224,7 +235,7 @@ useEffect(() => {
         client_id: formData.client_id,
         service_type: "spraying" as const,
         date: formData.date,
-        status: "scheduled" as const,
+        status: (selectedService?.status as "scheduled" | "completed" | "cancelled") || "scheduled" as const,
         crop: formData.crop || null,
         city: formData.city || null,
         hectares: parseFloat(formData.hectares),
@@ -249,35 +260,37 @@ useEffect(() => {
 
         if (error) throw error;
 
-        // Atualizar produtos
+        // Deletar produtos antigos
         await supabase
           .from("service_items")
           .delete()
           .eq("service_id", selectedService.id);
 
+        // Inserir todos os produtos (sistema e manuais)
         if (products.length > 0) {
           const hectares = parseFloat(formData.hectares) || 0;
-          const serviceItems = products
-            .filter(p => !!p.product_id) // salvar apenas itens do sistema
-            .map(p => {
-              const dose = parseFloat(p.dose_per_hectare) || 0;
-              const volumeTotal = hectares * (dose / 1000); // Converter mL para L
-              const unitPrice = p.unit_price || 0;
-              return {
-                service_id: selectedService.id,
-                product_id: p.product_id!,
-                product_name: p.name,
-                dose_per_hectare: dose,
-                volume_total: volumeTotal,
-                bottles_qty: null,
-                qty: 1,
-                unit_price: unitPrice,
-                discount_percent: 0,
-              };
-            });
+          const serviceItems = products.map(p => {
+            const dose = parseFloat(p.dose_per_hectare) || 0;
+            const volumeTotal = hectares * (dose / 1000);
+            const unitPrice = p.unit_price || 0;
+            return {
+              service_id: selectedService.id,
+              product_id: p.product_id || null,
+              product_name: p.name,
+              dose_per_hectare: dose,
+              volume_total: volumeTotal,
+              bottles_qty: null,
+              qty: 1,
+              unit_price: unitPrice,
+              discount_percent: 0,
+            };
+          });
 
           const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
-          if (itemsError) throw itemsError;
+          if (itemsError) {
+            console.error("Erro ao salvar produtos:", itemsError);
+            throw itemsError;
+          }
         }
         
         toast.success("Pulverização atualizada com sucesso!");
@@ -294,7 +307,7 @@ useEffect(() => {
           const hectares = parseFloat(formData.hectares) || 0;
           const serviceItems = products.map(p => {
             const dose = parseFloat(p.dose_per_hectare) || 0;
-            const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+            const volumeTotal = hectares * (dose / 1000);
             const unitPrice = p.unit_price || 0;
             return {
               service_id: newService.id,
@@ -310,7 +323,10 @@ useEffect(() => {
           });
 
           const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
-          if (itemsError) throw itemsError;
+          if (itemsError) {
+            console.error("Erro ao salvar produtos:", itemsError);
+            throw itemsError;
+          }
         }
         
         toast.success("Pulverização criada com sucesso!");
@@ -334,7 +350,7 @@ useEffect(() => {
       const valuePerHectare = parseFloat(formData.value_per_hectare) || 0;
       const total = parseFloat(formData.total_value) || (hectares * valuePerHectare);
 
-      // Persistir itens de serviço (produtos)
+      // Persistir itens de serviço (produtos) antes de concluir
       await supabase.from("service_items").delete().eq("service_id", serviceId);
       if (products.length > 0) {
         const serviceItems = products.map(p => {
@@ -354,19 +370,29 @@ useEffect(() => {
           };
         });
         const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error("Erro ao salvar produtos:", itemsError);
+          throw itemsError;
+        }
       }
 
-      // Atualizar serviço com valores atuais e concluir
+      // Atualizar serviço com valores atuais e marcar como completo
       const { error: updateError } = await supabase
         .from("services")
         .update({ 
-          status: "completed", 
+          status: "completed",
+          crop: formData.crop || null,
+          city: formData.city || null,
+          hectares: hectares,
           value_per_hectare: valuePerHectare, 
-          total_value: total 
+          total_value: total,
+          notes: formData.notes || null,
         })
         .eq("id", serviceId);
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Erro ao atualizar serviço:", updateError);
+        throw updateError;
+      }
 
       // Gerar venda com o total atual
       const { error: saleError } = await supabase
@@ -382,7 +408,10 @@ useEffect(() => {
           sold_at: new Date().toISOString(),
           payment_received: false,
         }]);
-      if (saleError) throw saleError;
+      if (saleError) {
+        console.error("Erro ao criar venda:", saleError);
+        throw saleError;
+      }
 
       toast.success("Venda gerada com base na pulverização concluída!");
       fetchServices();
@@ -741,22 +770,42 @@ useEffect(() => {
                 <div className="flex justify-between items-center gap-2">
                   <h3 className="font-semibold text-lg">Produtos Utilizados / Cálculo de Calda</h3>
                   <div className="flex gap-2">
-                    <select
-                      className="border rounded px-3 py-1 text-sm"
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addSystemProduct(e.target.value);
-                          e.target.value = "";
-                        }
-                      }}
-                    >
-                      <option value="">Adicionar do Sistema</option>
-                      {systemProducts.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} {p.sku ? `(${p.sku})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="sm">
+                          <Search className="h-4 w-4 mr-2" />
+                          Adicionar do Sistema
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="end">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Buscar produto..." 
+                            value={productSearchQuery}
+                            onValueChange={setProductSearchQuery}
+                          />
+                          <CommandList>
+                            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredProducts.map((p) => (
+                                <CommandItem
+                                  key={p.id}
+                                  value={p.id}
+                                  onSelect={() => addSystemProduct(p.id)}
+                                  className="cursor-pointer"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{p.name}</span>
+                                    {p.sku && <span className="text-xs text-muted-foreground">{p.sku}</span>}
+                                    <span className="text-sm text-primary">R$ {p.price.toFixed(2)}/ha</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Button type="button" onClick={addProduct} size="sm" variant="outline">
                       <Plus className="h-4 w-4 mr-2" />
                       Manual
