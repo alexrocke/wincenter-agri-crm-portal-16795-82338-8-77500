@@ -104,8 +104,8 @@ export function ClientAutocomplete({ value, onChange, userRole, userId, sellers 
                   }}
                   className="border-b mb-2 pb-2"
                 >
-                  <Plus className="mr-2 h-4 w-4 text-primary" />
-                  <span className="font-medium text-primary">Criar novo cliente</span>
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span className="font-medium">Criar novo cliente</span>
                 </CommandItem>
                 {clients.map((client) => (
                   <CommandItem
