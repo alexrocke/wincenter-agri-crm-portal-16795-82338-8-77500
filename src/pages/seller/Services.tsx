@@ -52,6 +52,7 @@ export default function Services() {
     crop: "",
     city: "",
     hectares: "",
+    vazao_per_hectare: "", // Vazão L/ha
     value_per_hectare: "",
     total_value: "",
     notes: "",
@@ -72,13 +73,10 @@ export default function Services() {
     setFormData(prev => ({ ...prev, total_value: total.toFixed(2) }));
   }, [formData.hectares, formData.value_per_hectare]);
 
-  // Calcular totais de calda
-  const totalLitersPerHectare = products.reduce((sum, p) => {
-    const dose = parseFloat(p.dose_per_hectare) || 0;
-    return sum + (dose / 1000); // Converter mL para L
-  }, 0);
-  
-  const totalCalda = (parseFloat(formData.hectares) || 0) * totalLitersPerHectare;
+  // Calcular total de calda baseado na vazão
+  const hectares = parseFloat(formData.hectares) || 0;
+  const vazaoPerHa = parseFloat(formData.vazao_per_hectare) || 0;
+  const totalCalda = hectares * vazaoPerHa;
 
   const fetchServices = async () => {
     try {
@@ -110,6 +108,7 @@ export default function Services() {
       crop: "",
       city: "",
       hectares: "",
+      vazao_per_hectare: "",
       value_per_hectare: "",
       total_value: "",
       notes: "",
@@ -287,6 +286,7 @@ export default function Services() {
       crop: service.crop || "",
       city: service.city || "",
       hectares: service.hectares?.toString() || "",
+      vazao_per_hectare: "", // Can be added later if needed
       value_per_hectare: service.value_per_hectare?.toString() || "",
       total_value: service.total_value?.toString() || "",
       notes: service.notes || "",
@@ -504,6 +504,18 @@ export default function Services() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Vazão L/ha *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.vazao_per_hectare}
+                      onChange={(e) => setFormData(prev => ({ ...prev, vazao_per_hectare: e.target.value }))}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Valor por Hectare (R$) *</Label>
                     <Input
                       type="number"
@@ -515,7 +527,7 @@ export default function Services() {
                     />
                   </div>
 
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label>Valor Total (R$)</Label>
                     <Input
                       type="number"
@@ -524,6 +536,23 @@ export default function Services() {
                       readOnly
                       className="bg-muted font-semibold text-lg"
                     />
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Vazão L/ha</p>
+                      <p className="text-lg font-bold text-primary">{vazaoPerHa.toFixed(3)} L/ha</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Hectares</p>
+                      <p className="text-lg font-bold text-primary">{hectares} ha</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total de Calda</p>
+                      <p className="text-xl font-bold text-green-600">{totalCalda.toFixed(3)} L</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -596,24 +625,6 @@ export default function Services() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                    
-                    <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span>Total L/ha:</span>
-                        <span className="font-mono font-semibold">{totalLitersPerHectare.toFixed(3)} L/ha</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span>Hectares:</span>
-                        <span className="font-mono font-semibold">{formData.hectares || 0} ha</span>
-                      </div>
-                      <div className="h-px bg-border my-2" />
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-base">Total de Calda:</span>
-                        <span className="text-2xl font-bold text-primary">
-                          {totalCalda.toFixed(3)} L
-                        </span>
-                      </div>
                     </div>
                   </div>
                 ) : (
