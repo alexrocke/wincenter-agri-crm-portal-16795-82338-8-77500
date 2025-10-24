@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MapPin, Leaf, Mail, Phone, MessageCircle, Calendar, Edit, Eye, User, DollarSign, Package, Smartphone } from 'lucide-react';
+import { Plus, Search, MapPin, Leaf, Mail, Phone, MessageCircle, Calendar, Edit, Eye, User, DollarSign, Package, Smartphone, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -135,6 +135,9 @@ export default function Clients() {
   });
 
   const [deviceDialogOpen, setDeviceDialogOpen] = useState(false);
+  const [deviceViewDialogOpen, setDeviceViewDialogOpen] = useState(false);
+  const [deviceEditDialogOpen, setDeviceEditDialogOpen] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<DroneInfo | null>(null);
   const [deviceFormData, setDeviceFormData] = useState({
     name: '',
     login: '',
@@ -571,6 +574,103 @@ export default function Clients() {
     } catch (error: any) {
       console.error('Error adding device:', error);
       toast.error('Erro ao adicionar dispositivo: ' + error.message);
+    }
+  };
+
+  const handleViewDevice = (device: DroneInfo) => {
+    setSelectedDevice(device);
+    setDeviceViewDialogOpen(true);
+  };
+
+  const handleEditDevice = (device: DroneInfo) => {
+    setSelectedDevice(device);
+    setDeviceFormData({
+      name: device.name || '',
+      login: device.login || '',
+      password: device.password || '',
+      controller_serial: device.controller_serial || '',
+      drone_serial: device.drone_serial || '',
+      controller_version: device.controller_version || '',
+      drone_version: device.drone_version || '',
+      purchase_date: device.purchase_date || '',
+    });
+    setDeviceEditDialogOpen(true);
+  };
+
+  const handleUpdateDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDevice) return;
+
+    try {
+      const deviceData = {
+        name: deviceFormData.name,
+        login: deviceFormData.login || null,
+        password: deviceFormData.password || null,
+        controller_serial: deviceFormData.controller_serial || null,
+        drone_serial: deviceFormData.drone_serial || null,
+        controller_version: deviceFormData.controller_version || null,
+        drone_version: deviceFormData.drone_version || null,
+        purchase_date: deviceFormData.purchase_date || null,
+      };
+
+      const { error } = await supabase
+        .from('client_drone_info' as any)
+        .update(deviceData)
+        .eq('id', selectedDevice.id);
+
+      if (error) throw error;
+
+      toast.success('Dispositivo atualizado com sucesso!');
+      setDeviceEditDialogOpen(false);
+      setSelectedDevice(null);
+      setDeviceFormData({
+        name: '',
+        login: '',
+        password: '',
+        controller_serial: '',
+        drone_serial: '',
+        controller_version: '',
+        drone_version: '',
+        purchase_date: '',
+      });
+      
+      // Refresh devices list
+      if (selectedClientForHistory) {
+        handleViewHistory(selectedClientForHistory);
+      }
+    } catch (error: any) {
+      console.error('Error updating device:', error);
+      toast.error('Erro ao atualizar dispositivo: ' + error.message);
+    }
+  };
+
+  const handleDeleteDevice = async (deviceId: string) => {
+    if (userRole !== 'admin') {
+      toast.error('Apenas administradores podem excluir dispositivos');
+      return;
+    }
+
+    if (!confirm('Tem certeza que deseja excluir este dispositivo?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('client_drone_info' as any)
+        .delete()
+        .eq('id', deviceId);
+
+      if (error) throw error;
+
+      toast.success('Dispositivo excluído com sucesso!');
+      
+      // Refresh devices list
+      if (selectedClientForHistory) {
+        handleViewHistory(selectedClientForHistory);
+      }
+    } catch (error: any) {
+      console.error('Error deleting device:', error);
+      toast.error('Erro ao excluir dispositivo: ' + error.message);
     }
   };
 
@@ -1564,19 +1664,44 @@ export default function Clients() {
                             </DialogContent>
                           </Dialog>
                         </div>
-                        {clientHistory.devices.map((device) => (
-                          <Card key={device.id}>
-                            <CardContent className="pt-6">
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between">
+                        <div className="space-y-3">
+                          {clientHistory.devices.map((device) => (
+                            <Card key={device.id}>
+                              <CardContent className="pt-6">
+                                <div className="flex items-start justify-between mb-4">
                                   <div>
                                     <p className="font-medium text-lg">{device.name}</p>
                                     <p className="text-sm text-muted-foreground">
                                       Criado em: {format(new Date(device.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                                     </p>
                                   </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleViewDevice(device)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditDevice(device)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    {userRole === 'admin' && (
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => handleDeleteDevice(device.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                <div className="grid grid-cols-2 gap-3">
                                   {device.login && (
                                     <div>
                                       <p className="text-xs text-muted-foreground">🔑 Login</p>
@@ -1586,7 +1711,7 @@ export default function Clients() {
                                   {device.password && (
                                     <div>
                                       <p className="text-xs text-muted-foreground">🔐 Senha</p>
-                                      <p className="text-sm font-medium">••••••••</p>
+                                      <p className="text-sm font-medium">{device.password}</p>
                                     </div>
                                   )}
                                   {device.controller_serial && (
@@ -1622,16 +1747,166 @@ export default function Clients() {
                                     </div>
                                   )}
                                 </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       </>
                     )}
                   </TabsContent>
                 </Tabs>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Visualização de Dispositivo */}
+        <Dialog open={deviceViewDialogOpen} onOpenChange={setDeviceViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detalhes do Dispositivo</DialogTitle>
+            </DialogHeader>
+            {selectedDevice && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Produto</Label>
+                  <p className="text-sm font-medium mt-1">{selectedDevice.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>🔑 Login</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.login || '-'}</p>
+                  </div>
+                  <div>
+                    <Label>🔐 Senha</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.password || '-'}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>🎮 Nº Série Controle</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.controller_serial || '-'}</p>
+                  </div>
+                  <div>
+                    <Label>🚁 Nº Série Drone</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.drone_serial || '-'}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>📡 Versão Controle</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.controller_version || '-'}</p>
+                  </div>
+                  <div>
+                    <Label>🛠️ Versão Drone</Label>
+                    <p className="text-sm font-medium mt-1">{selectedDevice.drone_version || '-'}</p>
+                  </div>
+                </div>
+                {selectedDevice.purchase_date && (
+                  <div>
+                    <Label>🗓️ Data da Compra</Label>
+                    <p className="text-sm font-medium mt-1">
+                      {format(new Date(selectedDevice.purchase_date), "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <Label>⏰ Criado em</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {format(new Date(selectedDevice.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Edição de Dispositivo */}
+        <Dialog open={deviceEditDialogOpen} onOpenChange={setDeviceEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Dispositivo</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateDevice} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-device-name">Produto *</Label>
+                <Input
+                  id="edit-device-name"
+                  value={deviceFormData.name}
+                  onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-login">🔑 Login</Label>
+                  <Input
+                    id="edit-device-login"
+                    value={deviceFormData.login}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, login: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-password">🔐 Senha</Label>
+                  <Input
+                    id="edit-device-password"
+                    value={deviceFormData.password}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, password: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-controller-serial">🎮 Nº Série Controle</Label>
+                  <Input
+                    id="edit-device-controller-serial"
+                    value={deviceFormData.controller_serial}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_serial: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-drone-serial">🚁 Nº Série Drone</Label>
+                  <Input
+                    id="edit-device-drone-serial"
+                    value={deviceFormData.drone_serial}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_serial: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-controller-version">📡 Versão Controle</Label>
+                  <Input
+                    id="edit-device-controller-version"
+                    value={deviceFormData.controller_version}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, controller_version: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-device-drone-version">🛠️ Versão Drone</Label>
+                  <Input
+                    id="edit-device-drone-version"
+                    value={deviceFormData.drone_version}
+                    onChange={(e) => setDeviceFormData({ ...deviceFormData, drone_version: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-device-purchase-date">🗓️ Data da Compra</Label>
+                <Input
+                  id="edit-device-purchase-date"
+                  type="date"
+                  value={deviceFormData.purchase_date}
+                  onChange={(e) => setDeviceFormData({ ...deviceFormData, purchase_date: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setDeviceEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar</Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
