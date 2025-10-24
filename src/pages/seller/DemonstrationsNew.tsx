@@ -13,11 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Cloud } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
-import { WeatherForecast } from "@/components/WeatherForecast";
 
 interface Demonstration {
   id: string;
@@ -64,8 +63,6 @@ export default function DemonstrationsNew() {
     demo_types: [] as string[],
     crop: "",
     city: "",
-    property_name: "",
-    weather_description: "",
     status: "scheduled",
     notes: "",
     images: [] as string[],
@@ -78,7 +75,6 @@ export default function DemonstrationsNew() {
     "Inseticida",
     "Fungicida",
     "Semeadura",
-    "Pulverização",
     "Adubação",
     "Outro"
   ];
@@ -220,8 +216,6 @@ export default function DemonstrationsNew() {
       demo_types: demo.demo_types || [],
       crop: demo.crop || "",
       city: demo.city || "",
-      property_name: demo.property_name || "",
-      weather_description: demo.weather_description || "",
       status: demo.status,
       notes: demo.notes || "",
       images: demo.images || [],
@@ -238,8 +232,6 @@ export default function DemonstrationsNew() {
       demo_types: [],
       crop: "",
       city: "",
-      property_name: "",
-      weather_description: "",
       status: "scheduled",
       notes: "",
       images: [],
@@ -415,24 +407,6 @@ export default function DemonstrationsNew() {
               </div>
 
               <div className="space-y-2">
-                <Label>Propriedade</Label>
-                <Input
-                  value={formData.property_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, property_name: e.target.value }))}
-                  placeholder="Nome da propriedade"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Clima</Label>
-                <Input
-                  value={formData.weather_description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, weather_description: e.target.value }))}
-                  placeholder="Ex: Ensolarado, Nublado, Chuvoso"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
                   value={formData.status}
@@ -500,10 +474,6 @@ export default function DemonstrationsNew() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="md:col-span-2">
-                <WeatherForecast showCard={false} selectedDate={formData.date.toISOString()} />
               </div>
             </div>
 
@@ -670,12 +640,6 @@ export default function DemonstrationsNew() {
                 )}
                 {demo.crop && <p><strong>Cultura:</strong> {demo.crop}</p>}
                 {demo.city && <p><strong>Cidade:</strong> {demo.city}</p>}
-                {demo.weather_description && (
-                  <p className="flex items-center gap-1">
-                    <Cloud className="h-4 w-4" />
-                    {demo.weather_description}
-                  </p>
-                )}
               </div>
 
               <div className="flex gap-2">
@@ -747,18 +711,6 @@ export default function DemonstrationsNew() {
                   <div>
                     <Label className="text-muted-foreground">Cidade</Label>
                     <p className="font-medium">{selectedDemo.city}</p>
-                  </div>
-                )}
-                {selectedDemo.property_name && (
-                  <div>
-                    <Label className="text-muted-foreground">Propriedade</Label>
-                    <p className="font-medium">{selectedDemo.property_name}</p>
-                  </div>
-                )}
-                {selectedDemo.weather_description && (
-                  <div>
-                    <Label className="text-muted-foreground">Clima</Label>
-                    <p className="font-medium">{selectedDemo.weather_description}</p>
                   </div>
                 )}
               </div>
