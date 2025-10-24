@@ -34,8 +34,16 @@ interface Service {
 
 interface ProductItem {
   id: string;
+  product_id?: string; // ID do produto do banco (opcional)
   name: string;
   dose_per_hectare: string; // mL/ha
+}
+
+interface SystemProduct {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: string;
 }
 
 export default function Services() {
@@ -56,14 +64,49 @@ export default function Services() {
     value_per_hectare: "",
     total_value: "",
     notes: "",
+    assigned_users: [] as string[],
   });
 
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [systemProducts, setSystemProducts] = useState<SystemProduct[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchServices();
+    fetchSystemProducts();
+    fetchUsers();
   }, [user]);
+
+  const fetchSystemProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, category")
+        .eq("status", "active")
+        .order("name");
+
+      if (error) throw error;
+      setSystemProducts(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("auth_user_id, name, role")
+        .eq("status", "active")
+        .order("name");
+
+      if (error) throw error;
+      setAllUsers(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+    }
+  };
 
   // Calcular valor total automaticamente
   useEffect(() => {
@@ -112,15 +155,30 @@ export default function Services() {
       value_per_hectare: "",
       total_value: "",
       notes: "",
+      assigned_users: [],
     });
     setProducts([]);
+    setWeather(null);
     setSelectedService(null);
   };
 
   const addProduct = () => {
     setProducts(prev => [...prev, {
       id: crypto.randomUUID(),
+      product_id: undefined,
       name: "",
+      dose_per_hectare: "",
+    }]);
+  };
+
+  const addSystemProduct = (productId: string) => {
+    const systemProduct = systemProducts.find(p => p.id === productId);
+    if (!systemProduct) return;
+
+    setProducts(prev => [...prev, {
+      id: crypto.randomUUID(),
+      product_id: systemProduct.id,
+      name: systemProduct.name,
       dose_per_hectare: "",
     }]);
   };
@@ -153,10 +211,15 @@ export default function Services() {
         city: formData.city || null,
         hectares: parseFloat(formData.hectares),
         value_per_hectare: parseFloat(formData.value_per_hectare),
-        total_value: parseFloat(formData.total_value),
         notes: formData.notes || null,
         created_by: user?.id,
-        assigned_users: [user?.id],
+        assigned_users: formData.assigned_users.length > 0 ? formData.assigned_users : [user?.id],
+        weather_temperature: weather?.temperature || null,
+        weather_humidity: weather?.humidity || null,
+        weather_wind_speed: weather?.windSpeed || null,
+        weather_description: weather?.description || null,
+        weather_city: formData.city || null,
+        weather_fetched_at: weather ? new Date().toISOString() : null,
       };
 
       if (selectedService) {
@@ -180,7 +243,7 @@ export default function Services() {
             const volumeTotal = hectares * (dose / 1000); // Converter mL para L
             return {
               service_id: selectedService.id,
-              product_id: '00000000-0000-0000-0000-000000000000',
+              product_id: p.product_id || null,
               product_name: p.name,
               dose_per_hectare: dose,
               volume_total: volumeTotal,
@@ -211,7 +274,7 @@ export default function Services() {
             const volumeTotal = hectares * (dose / 1000); // Converter mL para L
             return {
               service_id: newService.id,
-              product_id: '00000000-0000-0000-0000-000000000000',
+              product_id: p.product_id || null,
               product_name: p.name,
               dose_per_hectare: dose,
               volume_total: volumeTotal,
@@ -290,6 +353,7 @@ export default function Services() {
       value_per_hectare: service.value_per_hectare?.toString() || "",
       total_value: service.total_value?.toString() || "",
       notes: service.notes || "",
+      assigned_users: (service as any).assigned_users || [],
     });
 
     // Carregar produtos
@@ -302,6 +366,7 @@ export default function Services() {
       if (data) {
         setProducts(data.map(item => ({
           id: item.id,
+          product_id: item.product_id,
           name: item.product_name || "",
           dose_per_hectare: item.dose_per_hectare?.toString() || "",
         })));
@@ -567,14 +632,65 @@ export default function Services() {
                 />
               </div>
 
+              {/* Seção: Usuários Atribuídos */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold text-lg">Usuários Responsáveis</h3>
+                <div className="space-y-2">
+                  <Label>Selecione os Responsáveis</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {allUsers.map(u => (
+                      <label key={u.auth_user_id} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.assigned_users.includes(u.auth_user_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({
+                                ...prev,
+                                assigned_users: [...prev.assigned_users, u.auth_user_id]
+                              }));
+                            } else {
+                              setFormData(prev => ({
+                                ...prev,
+                                assigned_users: prev.assigned_users.filter(id => id !== u.auth_user_id)
+                              }));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{u.name} ({u.role})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Seção 2: Produtos / Cálculo de Calda */}
               <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <h3 className="font-semibold text-lg">Produtos Utilizados / Cálculo de Calda</h3>
-                  <Button type="button" onClick={addProduct} size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Produto
-                  </Button>
+                  <div className="flex gap-2">
+                    <select
+                      className="border rounded px-3 py-1 text-sm"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          addSystemProduct(e.target.value);
+                          e.target.value = "";
+                        }
+                      }}
+                    >
+                      <option value="">Adicionar do Sistema</option>
+                      {systemProducts.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} {p.sku ? `(${p.sku})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="button" onClick={addProduct} size="sm" variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Manual
+                    </Button>
+                  </div>
                 </div>
 
                 {products.length > 0 ? (
