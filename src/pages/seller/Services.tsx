@@ -469,14 +469,14 @@ export default function Services() {
               <div className="space-y-2">
                 <Label>Forma de Pagamento 2 (Opcional)</Label>
                 <Select
-                  value={formData.payment_method_2}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method_2: value }))}
+                  value={formData.payment_method_2 || undefined}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method_2: value === 'none' ? '' : value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     <SelectItem value="pix">Pix</SelectItem>
                     <SelectItem value="dinheiro">Dinheiro</SelectItem>
                     <SelectItem value="cheque">Cheque</SelectItem>
