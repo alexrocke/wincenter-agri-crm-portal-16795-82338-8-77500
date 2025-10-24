@@ -14,6 +14,7 @@ import { Plus, Edit, Eye, Trash2, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
+import { WeatherForecast, WeatherData } from "@/components/WeatherForecast";
 
 interface Service {
   id: string;
@@ -34,9 +35,8 @@ interface Service {
 interface ProductItem {
   id: string;
   name: string;
-  dose_per_hectare: string;
+  liters_per_hectare: string;
   volume_total: number;
-  bottles_qty: string;
 }
 
 export default function Services() {
@@ -59,6 +59,7 @@ export default function Services() {
   });
 
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   useEffect(() => {
     fetchServices();
@@ -76,8 +77,8 @@ export default function Services() {
   useEffect(() => {
     const hectares = parseFloat(formData.hectares) || 0;
     setProducts(prev => prev.map(product => {
-      const dosePerHectare = parseFloat(product.dose_per_hectare) || 0;
-      const volumeTotal = hectares * (dosePerHectare / 1000);
+      const litersPerHectare = parseFloat(product.liters_per_hectare) || 0;
+      const volumeTotal = hectares * litersPerHectare;
       return { ...product, volume_total: volumeTotal };
     }));
   }, [formData.hectares]);
@@ -124,9 +125,8 @@ export default function Services() {
     setProducts(prev => [...prev, {
       id: crypto.randomUUID(),
       name: "",
-      dose_per_hectare: "",
+      liters_per_hectare: "",
       volume_total: 0,
-      bottles_qty: "",
     }]);
   };
 
@@ -138,10 +138,10 @@ export default function Services() {
     setProducts(prev => prev.map(product => {
       if (product.id === id) {
         const updated = { ...product, [field]: value };
-        if (field === 'dose_per_hectare') {
+        if (field === 'liters_per_hectare') {
           const hectares = parseFloat(formData.hectares) || 0;
-          const dosePerHectare = parseFloat(value) || 0;
-          updated.volume_total = hectares * (dosePerHectare / 1000);
+          const litersPerHectare = parseFloat(value) || 0;
+          updated.volume_total = hectares * litersPerHectare;
         }
         return updated;
       }
@@ -194,9 +194,9 @@ export default function Services() {
             service_id: selectedService.id,
             product_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID para produtos de texto livre
             product_name: p.name,
-            dose_per_hectare: parseFloat(p.dose_per_hectare) || 0,
+            dose_per_hectare: parseFloat(p.liters_per_hectare) || 0,
             volume_total: p.volume_total,
-            bottles_qty: p.bottles_qty ? parseInt(p.bottles_qty) : null,
+            bottles_qty: null,
             qty: 1,
             unit_price: 0,
             discount_percent: 0,
@@ -220,9 +220,9 @@ export default function Services() {
             service_id: newService.id,
             product_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID para produtos de texto livre
             product_name: p.name,
-            dose_per_hectare: parseFloat(p.dose_per_hectare) || 0,
+            dose_per_hectare: parseFloat(p.liters_per_hectare) || 0,
             volume_total: p.volume_total,
-            bottles_qty: p.bottles_qty ? parseInt(p.bottles_qty) : null,
+            bottles_qty: null,
             qty: 1,
             unit_price: 0,
             discount_percent: 0,
@@ -308,9 +308,8 @@ export default function Services() {
         setProducts(data.map(item => ({
           id: item.id,
           name: item.product_name || "",
-          dose_per_hectare: item.dose_per_hectare?.toString() || "",
+          liters_per_hectare: item.dose_per_hectare?.toString() || "",
           volume_total: item.volume_total || 0,
-          bottles_qty: item.bottles_qty?.toString() || "",
         })));
       }
     };
@@ -499,15 +498,6 @@ export default function Services() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Cidade</Label>
-                    <Input
-                      value={formData.city}
-                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                      placeholder="Cidade da aplicação"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Hectares Aplicados *</Label>
                     <Input
                       type="number"
@@ -544,6 +534,16 @@ export default function Services() {
                 </div>
               </div>
 
+              {/* Seção: Clima */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold text-lg">Previsão do Tempo</h3>
+                <WeatherForecast 
+                  selectedDate={formData.date}
+                  onWeatherChange={setWeather}
+                  showCard={false}
+                />
+              </div>
+
               {/* Seção 2: Produtos / Cálculo de Calda */}
               <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
                 <div className="flex justify-between items-center">
@@ -560,16 +560,19 @@ export default function Services() {
                       <table className="w-full border-collapse">
                         <thead>
                           <tr className="border-b">
+                            <th className="text-center p-2 font-medium w-12">#</th>
                             <th className="text-left p-2 font-medium">Produto / Defensivo</th>
-                            <th className="text-left p-2 font-medium">Dose (mL/ha)</th>
+                            <th className="text-left p-2 font-medium">Litros/ha</th>
                             <th className="text-left p-2 font-medium">Volume Total (L)</th>
-                            <th className="text-left p-2 font-medium">Nº Frascos</th>
                             <th className="text-center p-2 font-medium w-20">Ações</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {products.map((product) => (
+                          {products.map((product, index) => (
                             <tr key={product.id} className="border-b">
+                              <td className="p-2 text-center font-semibold text-primary">
+                                {index + 1}
+                              </td>
                               <td className="p-2">
                                 <Input
                                   value={product.name}
@@ -581,8 +584,8 @@ export default function Services() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={product.dose_per_hectare}
-                                  onChange={(e) => updateProduct(product.id, 'dose_per_hectare', e.target.value)}
+                                  value={product.liters_per_hectare}
+                                  onChange={(e) => updateProduct(product.id, 'liters_per_hectare', e.target.value)}
                                   placeholder="0.00"
                                 />
                               </td>
@@ -592,15 +595,7 @@ export default function Services() {
                                   step="0.001"
                                   value={product.volume_total.toFixed(3)}
                                   readOnly
-                                  className="bg-muted"
-                                />
-                              </td>
-                              <td className="p-2">
-                                <Input
-                                  type="number"
-                                  value={product.bottles_qty}
-                                  onChange={(e) => updateProduct(product.id, 'bottles_qty', e.target.value)}
-                                  placeholder="0"
+                                  className="bg-muted font-semibold"
                                 />
                               </td>
                               <td className="p-2 text-center">
