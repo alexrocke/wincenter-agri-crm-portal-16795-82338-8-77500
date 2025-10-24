@@ -389,7 +389,7 @@ export default function TechnicalSupport() {
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="general">Dados Gerais</TabsTrigger>
                 <TabsTrigger value="equipment">Equipamento</TabsTrigger>
-                <TabsTrigger value="checklist">Checklist/Assinatura</TabsTrigger>
+                <TabsTrigger value="checklist">Checklist</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-4">
