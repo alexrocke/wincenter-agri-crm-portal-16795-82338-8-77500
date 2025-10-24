@@ -834,11 +834,12 @@ useEffect(() => {
                               {shownProducts.map((p) => (
                                 <CommandItem
                                   key={p.id}
-                                  value={p.id}
-                                  onSelect={() => addSystemProduct(p.id)}
-                                  className="cursor-pointer"
+                                  value={p.name}
+                                  onSelect={() => {
+                                    addSystemProduct(p.id);
+                                  }}
                                 >
-                                  <div className="flex flex-col">
+                                  <div className="flex flex-col w-full">
                                     <span className="font-medium">{p.name}</span>
                                     {p.sku && <span className="text-xs text-muted-foreground">{p.sku}</span>}
                                     <span className="text-sm text-primary">R$ {p.price.toFixed(2)}/ha</span>
