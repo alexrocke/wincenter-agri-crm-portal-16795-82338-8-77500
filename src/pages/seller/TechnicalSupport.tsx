@@ -113,6 +113,12 @@ export default function TechnicalSupport() {
   }, [user]);
 
   useEffect(() => {
+    if (isEditing && selectedService) {
+      fetchServiceItems(selectedService.id);
+    }
+  }, [isEditing, selectedService]);
+
+  useEffect(() => {
     applyFilters();
   }, [services, filterStatus, filterClient, filterCity, filterCategory, filterDateFrom, filterDateTo]);
 
@@ -157,6 +163,29 @@ export default function TechnicalSupport() {
       setProducts(data || []);
     } catch (error: any) {
       console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  const fetchServiceItems = async (serviceId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("service_items")
+        .select("*, products(name)")
+        .eq("service_id", serviceId);
+
+      if (error) throw error;
+      
+      const items = (data || []).map(item => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || "",
+        unit_price: item.unit_price,
+        qty: item.qty,
+        discount_percent: item.discount_percent
+      }));
+      
+      setProductItems(items);
+    } catch (error: any) {
+      console.error("Erro ao carregar itens do serviço:", error);
     }
   };
 
@@ -228,6 +257,32 @@ export default function TechnicalSupport() {
           .eq("id", selectedService.id);
 
         if (error) throw error;
+
+        // Deletar itens antigos e inserir novos
+        const { error: deleteError } = await supabase
+          .from("service_items")
+          .delete()
+          .eq("service_id", selectedService.id);
+
+        if (deleteError) throw deleteError;
+
+        // Inserir novos itens se houver
+        if (productItems.length > 0) {
+          const serviceItems = productItems.map(item => ({
+            service_id: selectedService.id,
+            product_id: item.product_id,
+            qty: item.qty,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent
+          }));
+
+          const { error: itemsError } = await supabase
+            .from("service_items")
+            .insert(serviceItems);
+
+          if (itemsError) throw itemsError;
+        }
+
         toast.success("Atendimento atualizado com sucesso!");
       } else {
         // Criar serviço
@@ -239,8 +294,23 @@ export default function TechnicalSupport() {
 
         if (serviceError) throw serviceError;
 
-        // Se tem produtos, processar
+        // Salvar produtos do serviço
         if (productItems.length > 0) {
+          const serviceItems = productItems.map(item => ({
+            service_id: newService.id,
+            product_id: item.product_id,
+            qty: item.qty,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent
+          }));
+
+          const { error: serviceItemsError } = await supabase
+            .from("service_items")
+            .insert(serviceItems);
+
+          if (serviceItemsError) throw serviceItemsError;
+
+          // Processar baixa de estoque ou venda
           if (formData.under_warranty) {
             // Garantia: apenas baixar estoque
             for (const item of productItems) {

@@ -729,6 +729,51 @@ export type Database = {
           },
         ]
       }
+      service_items: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          product_id: string
+          qty: number
+          service_id: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          product_id: string
+          qty?: number
+          service_id: string
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          product_id?: string
+          qty?: number
+          service_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           assigned_users: string[] | null
