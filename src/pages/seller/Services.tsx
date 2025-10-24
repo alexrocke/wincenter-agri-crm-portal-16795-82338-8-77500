@@ -35,8 +35,7 @@ interface Service {
 interface ProductItem {
   id: string;
   name: string;
-  liters_per_hectare: string;
-  volume_total: number;
+  dose_per_hectare: string; // mL/ha
 }
 
 export default function Services() {
@@ -73,15 +72,13 @@ export default function Services() {
     setFormData(prev => ({ ...prev, total_value: total.toFixed(2) }));
   }, [formData.hectares, formData.value_per_hectare]);
 
-  // Calcular volume total por produto quando hectares mudam
-  useEffect(() => {
-    const hectares = parseFloat(formData.hectares) || 0;
-    setProducts(prev => prev.map(product => {
-      const litersPerHectare = parseFloat(product.liters_per_hectare) || 0;
-      const volumeTotal = hectares * litersPerHectare;
-      return { ...product, volume_total: volumeTotal };
-    }));
-  }, [formData.hectares]);
+  // Calcular totais de calda
+  const totalLitersPerHectare = products.reduce((sum, p) => {
+    const dose = parseFloat(p.dose_per_hectare) || 0;
+    return sum + (dose / 1000); // Converter mL para L
+  }, 0);
+  
+  const totalCalda = (parseFloat(formData.hectares) || 0) * totalLitersPerHectare;
 
   const fetchServices = async () => {
     try {
@@ -125,8 +122,7 @@ export default function Services() {
     setProducts(prev => [...prev, {
       id: crypto.randomUUID(),
       name: "",
-      liters_per_hectare: "",
-      volume_total: 0,
+      dose_per_hectare: "",
     }]);
   };
 
@@ -135,21 +131,10 @@ export default function Services() {
   };
 
   const updateProduct = (id: string, field: string, value: string) => {
-    setProducts(prev => prev.map(product => {
-      if (product.id === id) {
-        const updated = { ...product, [field]: value };
-        if (field === 'liters_per_hectare') {
-          const hectares = parseFloat(formData.hectares) || 0;
-          const litersPerHectare = parseFloat(value) || 0;
-          updated.volume_total = hectares * litersPerHectare;
-        }
-        return updated;
-      }
-      return product;
-    }));
+    setProducts(prev => prev.map(product => 
+      product.id === id ? { ...product, [field]: value } : product
+    ));
   };
-
-  const totalCalda = products.reduce((sum, p) => sum + p.volume_total, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,17 +175,22 @@ export default function Services() {
           .eq("service_id", selectedService.id);
 
         if (products.length > 0) {
-          const serviceItems = products.map(p => ({
-            service_id: selectedService.id,
-            product_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID para produtos de texto livre
-            product_name: p.name,
-            dose_per_hectare: parseFloat(p.liters_per_hectare) || 0,
-            volume_total: p.volume_total,
-            bottles_qty: null,
-            qty: 1,
-            unit_price: 0,
-            discount_percent: 0,
-          }));
+          const hectares = parseFloat(formData.hectares) || 0;
+          const serviceItems = products.map(p => {
+            const dose = parseFloat(p.dose_per_hectare) || 0;
+            const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+            return {
+              service_id: selectedService.id,
+              product_id: '00000000-0000-0000-0000-000000000000',
+              product_name: p.name,
+              dose_per_hectare: dose,
+              volume_total: volumeTotal,
+              bottles_qty: null,
+              qty: 1,
+              unit_price: 0,
+              discount_percent: 0,
+            };
+          });
 
           await supabase.from("service_items").insert(serviceItems);
         }
@@ -216,17 +206,22 @@ export default function Services() {
         if (error) throw error;
 
         if (products.length > 0 && newService) {
-          const serviceItems = products.map(p => ({
-            service_id: newService.id,
-            product_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID para produtos de texto livre
-            product_name: p.name,
-            dose_per_hectare: parseFloat(p.liters_per_hectare) || 0,
-            volume_total: p.volume_total,
-            bottles_qty: null,
-            qty: 1,
-            unit_price: 0,
-            discount_percent: 0,
-          }));
+          const hectares = parseFloat(formData.hectares) || 0;
+          const serviceItems = products.map(p => {
+            const dose = parseFloat(p.dose_per_hectare) || 0;
+            const volumeTotal = hectares * (dose / 1000); // Converter mL para L
+            return {
+              service_id: newService.id,
+              product_id: '00000000-0000-0000-0000-000000000000',
+              product_name: p.name,
+              dose_per_hectare: dose,
+              volume_total: volumeTotal,
+              bottles_qty: null,
+              qty: 1,
+              unit_price: 0,
+              discount_percent: 0,
+            };
+          });
 
           await supabase.from("service_items").insert(serviceItems);
         }
@@ -308,8 +303,7 @@ export default function Services() {
         setProducts(data.map(item => ({
           id: item.id,
           name: item.product_name || "",
-          liters_per_hectare: item.dose_per_hectare?.toString() || "",
-          volume_total: item.volume_total || 0,
+          dose_per_hectare: item.dose_per_hectare?.toString() || "",
         })));
       }
     };
@@ -558,12 +552,11 @@ export default function Services() {
                   <div className="space-y-3">
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse">
-                        <thead>
+                         <thead>
                           <tr className="border-b">
                             <th className="text-center p-2 font-medium w-12">#</th>
                             <th className="text-left p-2 font-medium">Produto / Defensivo</th>
-                            <th className="text-left p-2 font-medium">Litros/ha</th>
-                            <th className="text-left p-2 font-medium">Volume Total (L)</th>
+                            <th className="text-left p-2 font-medium">mL/ha</th>
                             <th className="text-center p-2 font-medium w-20">Ações</th>
                           </tr>
                         </thead>
@@ -584,18 +577,9 @@ export default function Services() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={product.liters_per_hectare}
-                                  onChange={(e) => updateProduct(product.id, 'liters_per_hectare', e.target.value)}
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td className="p-2">
-                                <Input
-                                  type="number"
-                                  step="0.001"
-                                  value={product.volume_total.toFixed(3)}
-                                  readOnly
-                                  className="bg-muted font-semibold"
+                                  value={product.dose_per_hectare}
+                                  onChange={(e) => updateProduct(product.id, 'dose_per_hectare', e.target.value)}
+                                  placeholder="0"
                                 />
                               </td>
                               <td className="p-2 text-center">
@@ -614,9 +598,22 @@ export default function Services() {
                       </table>
                     </div>
                     
-                    <div className="flex justify-end items-center gap-2 p-3 bg-primary/5 rounded-lg">
-                      <span className="font-semibold">Total de Calda:</span>
-                      <span className="text-xl font-bold text-primary">{totalCalda.toFixed(3)} L</span>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span>Total L/ha:</span>
+                        <span className="font-mono font-semibold">{totalLitersPerHectare.toFixed(3)} L/ha</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span>Hectares:</span>
+                        <span className="font-mono font-semibold">{formData.hectares || 0} ha</span>
+                      </div>
+                      <div className="h-px bg-border my-2" />
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-base">Total de Calda:</span>
+                        <span className="text-2xl font-bold text-primary">
+                          {totalCalda.toFixed(3)} L
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ) : (
