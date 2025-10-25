@@ -968,6 +968,38 @@ export type Database = {
         }
         Relationships: []
       }
+      task_updates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          task_id: string
+          user_auth_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          task_id: string
+          user_auth_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_auth_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_updates_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_users: string[]
@@ -980,6 +1012,7 @@ export type Database = {
           related_entity_id: string | null
           responsible_auth_id: string
           status: string
+          title: string
           type: string
           updated_at: string
         }
@@ -994,6 +1027,7 @@ export type Database = {
           related_entity_id?: string | null
           responsible_auth_id: string
           status?: string
+          title?: string
           type: string
           updated_at?: string
         }
@@ -1008,6 +1042,7 @@ export type Database = {
           related_entity_id?: string | null
           responsible_auth_id?: string
           status?: string
+          title?: string
           type?: string
           updated_at?: string
         }

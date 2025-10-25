@@ -30,6 +30,7 @@ import Services from "./pages/seller/Services";
 import DemonstrationsNew from "./pages/seller/DemonstrationsNew";
 import TechnicalSupport from "./pages/seller/TechnicalSupport";
 import SellerProducts from "./pages/seller/Products";
+import Tasks from "./pages/seller/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -247,6 +248,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <TechnicalSupport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/tasks"
+              element={
+                <ProtectedRoute>
+                  <Tasks />
                 </ProtectedRoute>
               }
             />

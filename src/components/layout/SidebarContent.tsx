@@ -18,6 +18,7 @@ import {
   ShoppingCart,
   Droplet,
   Wrench,
+  CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const sellerLinks = [
   { to: '/seller/services', icon: Droplet, label: 'Serviço' },
   { to: '/seller/demonstrations', icon: Presentation, label: 'Demonstração' },
   { to: '/seller/technical-support', icon: Wrench, label: 'Assistência Técnica' },
+  { to: '/seller/tasks', icon: CheckSquare, label: 'Tarefas' },
   { to: '/notifications', icon: Bell, label: 'Notificações' },
 ];
 
