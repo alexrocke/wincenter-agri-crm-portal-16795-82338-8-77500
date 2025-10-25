@@ -66,61 +66,56 @@ export default function SellerDashboard() {
           <p className="text-sm text-muted-foreground">Visão geral das suas atividades</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vendas do Mês</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(stats.monthSales)}
-              </div>
-            </CardContent>
-          </Card>
+        <div>
+          <h2 className="text-lg font-semibold mb-3 md:mb-4">Estatísticas</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <Card className="aspect-square">
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <DollarSign className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Vendas do Mês</div>
+                <div className="text-base md:text-xl font-bold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(stats.monthSales)}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(stats.avgTicket)}
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="aspect-square">
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <TrendingUp className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Ticket Médio</div>
+                <div className="text-base md:text-xl font-bold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(stats.avgTicket)}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.conversion}%</div>
-            </CardContent>
-          </Card>
+            <Card className="aspect-square">
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <Target className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Taxa de Conversão</div>
+                <div className="text-base md:text-xl font-bold">{stats.conversion}%</div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Comissões Pendentes</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(stats.pendingCommissions)}
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="aspect-square">
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <DollarSign className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Comissões Pendentes</div>
+                <div className="text-base md:text-xl font-bold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(stats.pendingCommissions)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div>
