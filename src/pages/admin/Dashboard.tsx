@@ -135,11 +135,7 @@ export default function AdminDashboard() {
   return (
     <AppLayout>
       <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">Dashboard Administrativo</h1>
-            <p className="text-muted-foreground">Visão geral de toda a operação</p>
-          </div>
+        <div className="flex flex-col md:flex-row justify-end items-center gap-4">
           <div className="w-full md:w-64">
             <Label htmlFor="seller-filter">Filtrar por Vendedor</Label>
             <Select value={selectedSeller} onValueChange={setSelectedSeller}>
