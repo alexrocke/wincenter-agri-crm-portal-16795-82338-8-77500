@@ -14,6 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -23,7 +29,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Send, Calendar, User, Clock } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Edit, Trash2, Send, Calendar, User, Clock, MoreVertical, History, ChevronDown, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -47,6 +58,10 @@ export function TaskDetailsDialog({
   const queryClient = useQueryClient();
   const [newUpdate, setNewUpdate] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [deleteUpdateId, setDeleteUpdateId] = useState<string | null>(null);
+  const [viewHistoryId, setViewHistoryId] = useState<string | null>(null);
 
   // Buscar atualizações da tarefa
   const { data: updates = [] } = useQuery({
@@ -61,12 +76,34 @@ export function TaskDetailsDialog({
           user:users!task_updates_user_auth_id_fkey(name, email)
         `)
         .eq('task_id', task.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
     enabled: !!task?.id && open,
+  });
+
+  // Buscar histórico de uma atualização específica
+  const { data: updateHistory = [] } = useQuery({
+    queryKey: ['task-update-history', viewHistoryId],
+    queryFn: async () => {
+      if (!viewHistoryId) return [];
+      
+      const { data, error } = await supabase
+        .from('task_update_history')
+        .select(`
+          *,
+          editor:users!task_update_history_edited_by_fkey(name, email)
+        `)
+        .eq('task_update_id', viewHistoryId)
+        .order('edited_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!viewHistoryId,
   });
 
   // Mutation para adicionar atualização
@@ -87,6 +124,69 @@ export function TaskDetailsDialog({
     },
     onError: () => {
       toast.error('Erro ao adicionar atualização');
+    },
+  });
+
+  // Mutation para editar atualização
+  const editUpdateMutation = useMutation({
+    mutationFn: async ({ id, content, oldContent }: { id: string; content: string; oldContent: string }) => {
+      // Salvar histórico
+      const { error: historyError } = await supabase.from('task_update_history').insert({
+        task_update_id: id,
+        old_content: oldContent,
+        edited_by: user?.id,
+      });
+      
+      if (historyError) throw historyError;
+
+      // Buscar edit_count atual
+      const { data: currentUpdate } = await supabase
+        .from('task_updates')
+        .select('edit_count')
+        .eq('id', id)
+        .single();
+
+      // Atualizar conteúdo
+      const { error } = await supabase
+        .from('task_updates')
+        .update({
+          content,
+          updated_at: new Date().toISOString(),
+          edited: true,
+          edit_count: (currentUpdate?.edit_count || 0) + 1,
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
+      setEditingUpdateId(null);
+      setEditContent('');
+      toast.success('Atualização editada!');
+    },
+    onError: () => {
+      toast.error('Erro ao editar atualização');
+    },
+  });
+
+  // Mutation para deletar atualização (soft delete)
+  const deleteUpdateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('task_updates')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
+      setDeleteUpdateId(null);
+      toast.success('Atualização excluída!');
+    },
+    onError: () => {
+      toast.error('Erro ao excluir atualização');
     },
   });
 
@@ -129,9 +229,31 @@ export function TaskDetailsDialog({
     addUpdateMutation.mutate(newUpdate.trim());
   };
 
-  const handleDelete = () => {
+  const handleDeleteClick = () => {
     onDelete(task.id);
     setDeleteDialogOpen(false);
+  };
+
+  const handleEditUpdate = (update: any) => {
+    setEditingUpdateId(update.id);
+    setEditContent(update.content);
+  };
+
+  const handleSaveEdit = (updateId: string, oldContent: string) => {
+    if (!editContent.trim()) {
+      toast.error('Digite um conteúdo');
+      return;
+    }
+    editUpdateMutation.mutate({ id: updateId, content: editContent.trim(), oldContent });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUpdateId(null);
+    setEditContent('');
+  };
+
+  const handleDeleteUpdate = (updateId: string) => {
+    deleteUpdateMutation.mutate(updateId);
   };
 
   const isOverdue = new Date(task.due_at) < new Date() && task.status !== 'completed';
@@ -248,24 +370,120 @@ export function TaskDetailsDialog({
                   </p>
                 ) : (
                   updates.map((update: any) => (
-                    <div key={update.id} className="flex gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {update.user?.name?.[0]?.toUpperCase() || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-sm font-medium">{update.user?.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(update.created_at), "dd/MM/yyyy 'às' HH:mm", {
-                              locale: ptBR,
-                            })}
-                          </span>
+                    <div key={update.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback>
+                            {update.user?.name?.[0]?.toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-baseline gap-2 flex-wrap">
+                                <span className="text-sm font-medium">{update.user?.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(update.created_at), "dd/MM/yyyy 'às' HH:mm", {
+                                    locale: ptBR,
+                                  })}
+                                </span>
+                                {update.edited && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Editado {update.edit_count}x
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {update.user_auth_id === user?.id && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditUpdate(update)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setDeleteUpdateId(update.id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+
+                          {editingUpdateId === update.id ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                rows={3}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveEdit(update.id, update.content)}
+                                  disabled={editUpdateMutation.isPending}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Salvar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelEdit}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {update.content}
+                            </p>
+                          )}
+
+                          {/* Histórico de edições */}
+                          {update.edited && update.edit_count > 0 && (
+                            <Collapsible
+                              open={viewHistoryId === update.id}
+                              onOpenChange={(open) => setViewHistoryId(open ? update.id : null)}
+                            >
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 text-xs">
+                                  <History className="h-3 w-3 mr-1" />
+                                  Ver histórico ({update.edit_count})
+                                  <ChevronDown className="h-3 w-3 ml-1" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-2 space-y-2">
+                                {updateHistory.map((hist: any) => (
+                                  <div key={hist.id} className="bg-muted/50 rounded p-2 text-xs">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                      <span className="font-medium">{hist.editor?.name}</span>
+                                      <span className="text-muted-foreground">
+                                        editou em{' '}
+                                        {format(new Date(hist.edited_at), "dd/MM/yyyy 'às' HH:mm", {
+                                          locale: ptBR,
+                                        })}
+                                      </span>
+                                    </div>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">
+                                      {hist.old_content}
+                                    </p>
+                                  </div>
+                                ))}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {update.content}
-                        </p>
                       </div>
                     </div>
                   ))
@@ -276,7 +494,7 @@ export function TaskDetailsDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de confirmação de exclusão */}
+      {/* Diálogo de confirmação de exclusão da tarefa */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -287,7 +505,28 @@ export function TaskDetailsDialog({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDeleteClick} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmação de exclusão de atualização */}
+      <AlertDialog open={!!deleteUpdateId} onOpenChange={(open) => !open && setDeleteUpdateId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Atualização</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta atualização? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteUpdateId && handleDeleteUpdate(deleteUpdateId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

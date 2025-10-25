@@ -968,26 +968,70 @@ export type Database = {
         }
         Relationships: []
       }
+      task_update_history: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          id: string
+          old_content: string
+          task_update_id: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          id?: string
+          old_content: string
+          task_update_id: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          old_content?: string
+          task_update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_update_history_task_update_id_fkey"
+            columns: ["task_update_id"]
+            isOneToOne: false
+            referencedRelation: "task_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_updates: {
         Row: {
           content: string
           created_at: string
+          deleted_at: string | null
+          edit_count: number | null
+          edited: boolean | null
           id: string
           task_id: string
+          updated_at: string | null
           user_auth_id: string
         }
         Insert: {
           content: string
           created_at?: string
+          deleted_at?: string | null
+          edit_count?: number | null
+          edited?: boolean | null
           id?: string
           task_id: string
+          updated_at?: string | null
           user_auth_id: string
         }
         Update: {
           content?: string
           created_at?: string
+          deleted_at?: string | null
+          edit_count?: number | null
+          edited?: boolean | null
           id?: string
           task_id?: string
+          updated_at?: string | null
           user_auth_id?: string
         }
         Relationships: [
