@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,10 +15,13 @@ export function useOneSignal() {
   const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const initStartedRef = useRef(false);
 
   useEffect(() => {
-    // Só inicializar se tiver usuário logado e não estiver inicializado
-    if (!user || isInitialized) return;
+    // Só inicializar se tiver usuário logado, não estiver inicializado e não tiver começado a inicializar
+    if (!user || isInitialized || initStartedRef.current) return;
+
+    initStartedRef.current = true;
 
     const initOneSignal = async () => {
       try {
@@ -40,6 +43,18 @@ export function useOneSignal() {
         // Inicializar OneSignal
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async (OneSignal: any) => {
+          // Verificar se já foi inicializado
+          try {
+            const alreadyInitialized = OneSignal.User?.PushSubscription?.id;
+            if (alreadyInitialized) {
+              console.log('⚠️ OneSignal already initialized, skipping...');
+              setIsInitialized(true);
+              return;
+            }
+          } catch (e) {
+            // Não foi inicializado ainda, continuar
+          }
+
           await OneSignal.init({
             appId: ONESIGNAL_APP_ID,
             serviceWorkerPath: '/OneSignalSDKWorker.js',
@@ -67,6 +82,9 @@ export function useOneSignal() {
               setPlayerId(currentPlayerId);
               await savePlayerIdToDatabase(currentPlayerId);
             }
+          } else if (permission === false) {
+            // Permissão bloqueada
+            console.warn('❌ Notificações bloqueadas. Usuário precisa ativar manualmente nas configurações do navegador.');
           } else {
             // Solicitar permissão
             console.log('🔔 Requesting notification permission...');
@@ -97,6 +115,7 @@ export function useOneSignal() {
 
       } catch (error) {
         console.error('❌ Error initializing OneSignal:', error);
+        initStartedRef.current = false; // Resetar em caso de erro
       }
     };
 
