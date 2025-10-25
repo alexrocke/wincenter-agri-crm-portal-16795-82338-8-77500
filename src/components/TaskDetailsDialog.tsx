@@ -71,16 +71,25 @@ export function TaskDetailsDialog({
       
       const { data, error } = await supabase
         .from('task_updates')
-        .select(`
-          *,
-          user:users!task_updates_user_auth_id_fkey(name, email)
-        `)
+        .select('*')
         .eq('task_id', task.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+
+      // Buscar nomes dos usuários separadamente (sem FK obrigatória)
+      const ids = Array.from(new Set((data || []).map((u: any) => u.user_auth_id).filter(Boolean)));
+      let usersMap = new Map<string, any>();
+      if (ids.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('auth_user_id, name, email')
+          .in('auth_user_id', ids);
+        (users || []).forEach((u: any) => usersMap.set(u.auth_user_id, u));
+      }
+
+      return (data || []).map((u: any) => ({ ...u, user: usersMap.get(u.user_auth_id) || null }));
     },
     enabled: !!task?.id && open,
   });
@@ -93,15 +102,24 @@ export function TaskDetailsDialog({
       
       const { data, error } = await supabase
         .from('task_update_history')
-        .select(`
-          *,
-          editor:users!task_update_history_edited_by_fkey(name, email)
-        `)
+        .select('*')
         .eq('task_update_id', viewHistoryId)
         .order('edited_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+
+      // Buscar editores separadamente
+      const editorIds = Array.from(new Set((data || []).map((h: any) => h.edited_by).filter(Boolean)));
+      let editorsMap = new Map<string, any>();
+      if (editorIds.length > 0) {
+        const { data: editors } = await supabase
+          .from('users')
+          .select('auth_user_id, name, email')
+          .in('auth_user_id', editorIds);
+        (editors || []).forEach((e: any) => editorsMap.set(e.auth_user_id, e));
+      }
+
+      return (data || []).map((h: any) => ({ ...h, editor: editorsMap.get(h.edited_by) || null }));
     },
     enabled: !!viewHistoryId,
   });
