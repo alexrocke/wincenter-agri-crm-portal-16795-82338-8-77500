@@ -51,6 +51,7 @@ const adminLinks = [
   { to: '/admin/company-costs', icon: Receipt, label: 'Custos' },
   { to: '/admin/commission-rules', icon: Settings, label: 'Regras Comissão' },
   { to: '/admin/commissions', icon: DollarSign, label: 'Gestão Comissões' },
+  { to: '/admin/notifications', icon: Bell, label: 'Notificações' },
   { to: '/admin/users-invites', icon: UserPlus, label: 'Convites' },
   { to: '/admin/site-settings', icon: Sparkles, label: 'Configurações' },
 ];

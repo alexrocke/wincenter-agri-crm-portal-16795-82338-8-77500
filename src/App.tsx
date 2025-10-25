@@ -20,6 +20,7 @@ import AdminCommissions from "./pages/admin/Commissions";
 import AdminSales from "./pages/admin/Sales";
 import UsersInvites from "./pages/admin/UsersInvites";
 import SiteSettings from "./pages/admin/SiteSettings";
+import AdminNotifications from "./pages/admin/Notifications";
 import Notifications from "./pages/Notifications";
 import SellerDashboard from "./pages/seller/Dashboard";
 import Clients from "./pages/seller/Clients";
@@ -160,6 +161,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <SiteSettings />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={
+                <AdminRoute>
+                  <AdminNotifications />
                 </AdminRoute>
               }
             />
