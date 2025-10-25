@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, TrendingUp, Target, Users, Plus } from 'lucide-react';
+import { DollarSign, TrendingUp, Target, Users, Plus, CheckSquare, Wrench, Presentation, MapPin, Briefcase } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SellerDashboard() {
@@ -125,16 +125,57 @@ export default function SellerDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
-            <CardDescription>Acesse rapidamente as funções mais usadas</CardDescription>
+            <CardTitle>Links Rápidos</CardTitle>
+            <CardDescription>Acesse rapidamente as principais funcionalidades</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-3">
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Button
+              onClick={() => navigate('/seller/tasks')}
+              variant="outline"
+              className="w-full"
+            >
+              <CheckSquare className="mr-2 h-4 w-4" />
+              Tarefas
+            </Button>
+            <Button
+              onClick={() => navigate('/seller/technical-support')}
+              variant="outline"
+              className="w-full"
+            >
+              <Wrench className="mr-2 h-4 w-4" />
+              Assistência Técnica
+            </Button>
+            <Button
+              onClick={() => navigate('/seller/demonstrations/new')}
+              variant="outline"
+              className="w-full"
+            >
+              <Presentation className="mr-2 h-4 w-4" />
+              Demonstração
+            </Button>
+            <Button
+              onClick={() => navigate('/seller/visits')}
+              variant="outline"
+              className="w-full"
+            >
+              <MapPin className="mr-2 h-4 w-4" />
+              Visitas
+            </Button>
+            <Button
+              onClick={() => navigate('/seller/services')}
+              variant="outline"
+              className="w-full"
+            >
+              <Briefcase className="mr-2 h-4 w-4" />
+              Serviços
+            </Button>
             <Button
               onClick={() => navigate('/seller/clients')}
+              variant="outline"
               className="w-full"
             >
               <Users className="mr-2 h-4 w-4" />
-              Novo Cliente
+              Clientes
             </Button>
             <Button
               onClick={() => navigate('/seller/opportunities')}
@@ -142,7 +183,7 @@ export default function SellerDashboard() {
               className="w-full"
             >
               <TrendingUp className="mr-2 h-4 w-4" />
-              Nova Oportunidade
+              Oportunidades
             </Button>
             <Button
               onClick={() => navigate('/seller/sales')}
