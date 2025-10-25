@@ -7,7 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Calendar, User, Clock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Calendar, User, Clock, MoreVertical, Edit, Trash2, Eye } from 'lucide-react';
 import { TaskDialog } from '@/components/TaskDialog';
 import { TaskDetailsDialog } from '@/components/TaskDetailsDialog';
 import { toast } from 'sonner';
@@ -44,6 +61,8 @@ export default function Tasks() {
   const [selectedTask, setSelectedTask] = useState<TaskWithUsers | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   // Buscar tarefas
   const { data: tasks = [], isLoading } = useQuery({
@@ -162,8 +181,28 @@ export default function Tasks() {
     setDetailsOpen(true);
   };
 
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date() && selectedTask?.status !== 'completed';
+  const handleDeleteClick = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTaskToDelete(taskId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (taskToDelete) {
+      deleteMutation.mutate(taskToDelete);
+      setTaskToDelete(null);
+    }
+    setDeleteDialogOpen(false);
+  };
+
+  const handleEditClick = (task: TaskWithUsers, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTask(task);
+    setDialogOpen(true);
+  };
+
+  const isOverdue = (dueDate: string, status: string) => {
+    return new Date(dueDate) < new Date() && status !== 'completed';
   };
 
   return (
@@ -225,10 +264,40 @@ export default function Tasks() {
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-lg line-clamp-2">{task.title}</CardTitle>
-                  <Badge variant={getStatusVariant(task.status)} className="shrink-0">
-                    {getStatusLabel(task.status)}
-                  </Badge>
+                  <CardTitle className="text-lg line-clamp-2 flex-1">{task.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={getStatusVariant(task.status)} className="shrink-0">
+                      {getStatusLabel(task.status)}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewTask(task);
+                        }}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Visualizar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleEditClick(task, e)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={(e) => handleDeleteClick(task.id, e)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -254,7 +323,7 @@ export default function Tasks() {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Prazo:</span>
-                    <span className={`font-medium ${isOverdue(task.due_at) ? 'text-destructive' : ''}`}>
+                    <span className={`font-medium ${isOverdue(task.due_at, task.status) ? 'text-destructive' : ''}`}>
                       {format(new Date(task.due_at), 'dd/MM/yyyy', { locale: ptBR })}
                     </span>
                   </div>
@@ -300,6 +369,27 @@ export default function Tasks() {
           setSelectedTask(null);
         }}
       />
+
+      {/* Diálogo de confirmação de exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita e todos os comentários/atualizações serão perdidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
