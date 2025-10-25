@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, TrendingUp, Target, Users, Plus, CheckSquare, Wrench, Presentation, MapPin, Briefcase } from 'lucide-react';
+import { DollarSign, TrendingUp, Target, Users, Plus, CheckSquare, Wrench, Presentation, MapPin, Briefcase, Calendar, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SellerDashboard() {
@@ -17,9 +17,16 @@ export default function SellerDashboard() {
     pendingCommissions: 0,
   });
 
+  const [activities, setActivities] = useState({
+    pendingTasks: 0,
+    scheduledDemos: 0,
+    scheduledServices: 0,
+  });
+
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchActivities();
     }
   }, [user]);
 
@@ -55,6 +62,39 @@ export default function SellerDashboard() {
       });
     } catch (error) {
       // Silently handle dashboard data errors - UI will show empty state
+    }
+  };
+
+  const fetchActivities = async () => {
+    try {
+      // Fetch tarefas pendentes do usuário
+      const { count: tasksCount } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .or(`responsible_auth_id.eq.${user?.id},assigned_users.cs.{${user?.id}}`)
+        .eq('status', 'pending');
+
+      // Fetch demonstrações agendadas
+      const { count: demosCount } = await supabase
+        .from('demonstrations')
+        .select('*', { count: 'exact', head: true })
+        .contains('assigned_users', [user?.id])
+        .eq('status', 'scheduled');
+
+      // Fetch serviços agendados
+      const { count: servicesCount } = await supabase
+        .from('services')
+        .select('*', { count: 'exact', head: true })
+        .or(`created_by.eq.${user?.id},assigned_users.cs.{${user?.id}}`)
+        .eq('status', 'scheduled');
+
+      setActivities({
+        pendingTasks: tasksCount || 0,
+        scheduledDemos: demosCount || 0,
+        scheduledServices: servicesCount || 0,
+      });
+    } catch (error) {
+      // Silently handle activities data errors
     }
   };
 
@@ -113,6 +153,35 @@ export default function SellerDashboard() {
                     currency: 'BRL',
                   }).format(stats.pendingCommissions)}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold mb-3 md:mb-4">Minhas Atividades</h2>
+          <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6">
+            <Card className="aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105" onClick={() => navigate('/seller/tasks')}>
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <CheckSquare className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Tarefas Pendentes</div>
+                <div className="text-xl md:text-2xl font-bold">{activities.pendingTasks}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105" onClick={() => navigate('/seller/demonstrations/new')}>
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <Presentation className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Demos Agendadas</div>
+                <div className="text-xl md:text-2xl font-bold">{activities.scheduledDemos}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105" onClick={() => navigate('/seller/services')}>
+              <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4 text-center">
+                <Briefcase className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                <div className="text-xs md:text-sm text-muted-foreground mb-1">Serviços Agendados</div>
+                <div className="text-xl md:text-2xl font-bold">{activities.scheduledServices}</div>
               </CardContent>
             </Card>
           </div>
