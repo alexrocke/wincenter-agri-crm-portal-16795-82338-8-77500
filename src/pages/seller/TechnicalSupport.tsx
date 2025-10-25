@@ -63,6 +63,12 @@ interface TechnicalService {
   };
 }
 
+interface User {
+  auth_user_id: string;
+  name: string;
+  email: string;
+}
+
 export default function TechnicalSupport() {
   const { user } = useAuth();
   const [services, setServices] = useState<TechnicalService[]>([]);
@@ -74,6 +80,7 @@ export default function TechnicalSupport() {
   const [isEditing, setIsEditing] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -110,6 +117,7 @@ export default function TechnicalSupport() {
   useEffect(() => {
     fetchServices();
     fetchProducts();
+    fetchUsers();
   }, [user]);
 
   useEffect(() => {
@@ -163,6 +171,21 @@ export default function TechnicalSupport() {
       setProducts(data || []);
     } catch (error: any) {
       console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("auth_user_id, name, email")
+        .eq("status", "active")
+        .order("name");
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar usuários:", error);
     }
   };
 
@@ -738,6 +761,37 @@ export default function TechnicalSupport() {
                       onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                       rows={3}
                     />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Usuários Vinculados</Label>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2 bg-background">
+                      {users.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum usuário disponível</p>
+                      ) : (
+                        users.map((u) => (
+                          <div key={u.auth_user_id} className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`user-${u.auth_user_id}`}
+                              checked={formData.assigned_users.includes(u.auth_user_id)}
+                              onCheckedChange={(checked) => {
+                                const current = formData.assigned_users;
+                                const updated = checked
+                                  ? [...current, u.auth_user_id]
+                                  : current.filter((id) => id !== u.auth_user_id);
+                                setFormData(prev => ({ ...prev, assigned_users: updated }));
+                              }}
+                            />
+                            <Label 
+                              htmlFor={`user-${u.auth_user_id}`}
+                              className="font-normal cursor-pointer"
+                            >
+                              {u.name} ({u.email})
+                            </Label>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
 
                   {formData.service_category === "followup" && (
