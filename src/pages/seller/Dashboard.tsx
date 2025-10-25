@@ -123,78 +123,34 @@ export default function SellerDashboard() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Links Rápidos</CardTitle>
-            <CardDescription>Acesse rapidamente as principais funcionalidades</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Button
-              onClick={() => navigate('/seller/tasks')}
-              variant="outline"
-              className="w-full"
-            >
-              <CheckSquare className="mr-2 h-4 w-4" />
-              Tarefas
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/technical-support')}
-              variant="outline"
-              className="w-full"
-            >
-              <Wrench className="mr-2 h-4 w-4" />
-              Assistência Técnica
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/demonstrations/new')}
-              variant="outline"
-              className="w-full"
-            >
-              <Presentation className="mr-2 h-4 w-4" />
-              Demonstração
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/visits')}
-              variant="outline"
-              className="w-full"
-            >
-              <MapPin className="mr-2 h-4 w-4" />
-              Visitas
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/services')}
-              variant="outline"
-              className="w-full"
-            >
-              <Briefcase className="mr-2 h-4 w-4" />
-              Serviços
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/clients')}
-              variant="outline"
-              className="w-full"
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Clientes
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/opportunities')}
-              variant="outline"
-              className="w-full"
-            >
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Oportunidades
-            </Button>
-            <Button
-              onClick={() => navigate('/seller/sales')}
-              variant="outline"
-              className="w-full"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Registrar Venda
-            </Button>
-          </CardContent>
-        </Card>
+        <div>
+          <h2 className="text-lg font-semibold mb-3 md:mb-4">Links Rápidos</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-3 md:gap-4">
+            {[
+              { icon: CheckSquare, label: 'Tarefas', path: '/seller/tasks' },
+              { icon: Wrench, label: 'Assistência', path: '/seller/technical-support' },
+              { icon: Presentation, label: 'Demonstração', path: '/seller/demonstrations/new' },
+              { icon: MapPin, label: 'Visitas', path: '/seller/visits' },
+              { icon: Briefcase, label: 'Serviços', path: '/seller/services' },
+              { icon: Users, label: 'Clientes', path: '/seller/clients' },
+              { icon: TrendingUp, label: 'Oportunidades', path: '/seller/opportunities' },
+              { icon: Plus, label: 'Venda', path: '/seller/sales' },
+            ].map((item) => (
+              <Card
+                key={item.path}
+                className="aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105 active:scale-95"
+                onClick={() => navigate(item.path)}
+              >
+                <CardContent className="flex flex-col items-center justify-center h-full p-3 md:p-4">
+                  <item.icon className="h-6 w-6 md:h-8 md:w-8 mb-2 text-primary" />
+                  <span className="text-xs md:text-sm font-medium text-center leading-tight">
+                    {item.label}
+                  </span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
