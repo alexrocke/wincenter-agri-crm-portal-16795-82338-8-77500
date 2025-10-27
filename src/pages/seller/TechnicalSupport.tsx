@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
@@ -84,6 +84,7 @@ export default function TechnicalSupport() {
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -1350,13 +1351,28 @@ export default function TechnicalSupport() {
                   <Label className="text-muted-foreground">Imagens (antigas)</Label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedService.images.map((url, index) => (
-                      <img
-                        key={index}
-                        src={url}
-                        alt={`Imagem ${index + 1}`}
-                        className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80"
-                        onClick={() => window.open(url, '_blank')}
-                      />
+                      <div key={index} className="relative group">
+                        <img
+                          src={url}
+                          alt={`Imagem ${index + 1}`}
+                          className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80"
+                          onClick={() => setSelectedImageUrl(url)}
+                        />
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `imagem-${index + 1}.jpg`;
+                            link.click();
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1372,6 +1388,37 @@ export default function TechnicalSupport() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!selectedImageUrl} onOpenChange={() => setSelectedImageUrl(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Visualizar Imagem</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <img
+              src={selectedImageUrl || ""}
+              alt="Preview"
+              className="w-full h-auto max-h-[70vh] object-contain"
+            />
+            <Button
+              size="icon"
+              variant="secondary"
+              className="absolute top-2 right-2"
+              onClick={() => {
+                if (selectedImageUrl) {
+                  const link = document.createElement('a');
+                  link.href = selectedImageUrl;
+                  link.download = 'imagem.jpg';
+                  link.click();
+                }
+              }}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       </div>
