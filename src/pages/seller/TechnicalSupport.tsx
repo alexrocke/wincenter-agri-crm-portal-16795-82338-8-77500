@@ -19,6 +19,7 @@ import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, W
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
+import { MediaUpload } from "@/components/MediaUpload";
 
 interface Product {
   id: string;
@@ -81,6 +82,7 @@ export default function TechnicalSupport() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<any[]>([]);
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -306,6 +308,31 @@ export default function TechnicalSupport() {
           if (itemsError) throw itemsError;
         }
 
+        // Atualizar arquivos de mídia - deletar existentes e inserir novos
+        const { error: deleteFilesError } = await supabase
+          .from('service_files')
+          .delete()
+          .eq('service_id', selectedService.id);
+
+        if (deleteFilesError) console.error('Error deleting old files:', deleteFilesError);
+
+        if (mediaFiles.length > 0) {
+          const fileRecords = mediaFiles.map(file => ({
+            service_id: selectedService.id,
+            file_path: file.file_path,
+            file_name: file.file_name,
+            file_type: file.file_type,
+            file_size: file.file_size,
+            uploaded_by: user?.id
+          }));
+
+          const { error: filesError } = await supabase
+            .from('service_files')
+            .insert(fileRecords);
+
+          if (filesError) console.error('Error saving files:', filesError);
+        }
+
         toast.success("Atendimento atualizado com sucesso!");
       } else {
         // Criar serviço
@@ -316,6 +343,26 @@ export default function TechnicalSupport() {
           .single();
 
         if (serviceError) throw serviceError;
+
+        // Salvar arquivos de mídia no banco
+        if (mediaFiles.length > 0) {
+          const fileRecords = mediaFiles.map(file => ({
+            service_id: newService.id,
+            file_path: file.file_path,
+            file_name: file.file_name,
+            file_type: file.file_type,
+            file_size: file.file_size,
+            uploaded_by: user?.id
+          }));
+
+          const { error: filesError } = await supabase
+            .from('service_files')
+            .insert(fileRecords);
+
+          if (filesError) {
+            console.error('Error saving files:', filesError);
+          }
+        }
 
         // Salvar produtos do serviço
         if (productItems.length > 0) {
@@ -429,12 +476,27 @@ export default function TechnicalSupport() {
     }
   };
 
-  const handleView = (service: TechnicalService) => {
+  const handleView = async (service: TechnicalService) => {
     setSelectedService(service);
+    
+    // Carregar arquivos de mídia
+    const { data: files } = await supabase
+      .from('service_files')
+      .select('*')
+      .eq('service_id', service.id);
+    
+    if (files) {
+      const filesWithUrls = files.map(file => ({
+        ...file,
+        url: supabase.storage.from('technical-support').getPublicUrl(file.file_path).data.publicUrl
+      }));
+      setMediaFiles(filesWithUrls);
+    }
+    
     setViewDialogOpen(true);
   };
 
-  const handleEdit = (service: TechnicalService) => {
+  const handleEdit = async (service: TechnicalService) => {
     setSelectedService(service);
     setIsEditing(true);
     setFormData({
@@ -459,6 +521,21 @@ export default function TechnicalSupport() {
       client_present: service.client_present || false,
       assigned_users: service.assigned_users || [],
     });
+    
+    // Carregar arquivos de mídia
+    const { data: files } = await supabase
+      .from('service_files')
+      .select('*')
+      .eq('service_id', service.id);
+    
+    if (files) {
+      const filesWithUrls = files.map(file => ({
+        ...file,
+        url: supabase.storage.from('technical-support').getPublicUrl(file.file_path).data.publicUrl
+      }));
+      setMediaFiles(filesWithUrls);
+    }
+    
     setDialogOpen(true);
   };
 
@@ -486,6 +563,7 @@ export default function TechnicalSupport() {
       assigned_users: [],
     });
     setProductItems([]);
+    setMediaFiles([]);
     setIsEditing(false);
     setSelectedService(null);
   };
@@ -545,57 +623,6 @@ export default function TechnicalSupport() {
       followup: "Acompanhamento",
     };
     return categoryMap[category] || category;
-  };
-
-  const uploadFile = async (file: File) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `technical/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error: any) {
-      console.error("Error uploading file:", error);
-      if (error.statusCode === '413') {
-        toast.error("Arquivo muito grande. Máximo 50MB por arquivo.");
-      } else {
-        toast.error("Erro ao fazer upload do arquivo");
-      }
-      return null;
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const uploadPromises = Array.from(files).map(file => uploadFile(file));
-    const urls = await Promise.all(uploadPromises);
-    const validUrls = urls.filter(url => url !== null) as string[];
-
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...validUrls]
-    }));
-
-    toast.success(`${validUrls.length} arquivo(s) carregado(s)`);
-  };
-
-  const removeImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
   };
 
   if (loading) {
@@ -971,36 +998,11 @@ export default function TechnicalSupport() {
 
                   <div className="space-y-2 md:col-span-2">
                     <Label>Upload de Imagens e Vídeos</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="file"
-                        multiple
-                        accept="image/*,video/*"
-                        onChange={handleFileUpload}
-                        className="cursor-pointer"
-                      />
-                      <Button type="button" variant="outline" size="icon">
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {formData.images.length > 0 && (
-                      <div className="grid grid-cols-4 gap-2 mt-2">
-                        {formData.images.map((url, index) => (
-                          <div key={index} className="relative group">
-                            <img src={url} alt={`Upload ${index + 1}`} className="w-full h-20 object-cover rounded" />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={() => removeImage(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <MediaUpload
+                      serviceId={selectedService?.id}
+                      onFilesChange={setMediaFiles}
+                      existingFiles={mediaFiles}
+                    />
                   </div>
                 </div>
               </TabsContent>
@@ -1344,17 +1346,29 @@ export default function TechnicalSupport() {
 
               {selectedService.images && selectedService.images.length > 0 && (
                 <div>
-                  <Label className="text-muted-foreground">Imagens</Label>
+                  <Label className="text-muted-foreground">Imagens (antigas)</Label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedService.images.map((url, index) => (
                       <img
                         key={index}
                         src={url}
                         alt={`Imagem ${index + 1}`}
-                        className="w-full h-32 object-cover rounded"
+                        className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80"
+                        onClick={() => window.open(url, '_blank')}
                       />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {mediaFiles.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Arquivos de Mídia</Label>
+                  <MediaUpload
+                    serviceId={selectedService.id}
+                    onFilesChange={setMediaFiles}
+                    existingFiles={mediaFiles}
+                  />
                 </div>
               )}
             </div>
