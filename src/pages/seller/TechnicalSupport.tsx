@@ -1362,12 +1362,23 @@ export default function TechnicalSupport() {
                           size="icon"
                           variant="secondary"
                           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `imagem-${index + 1}.jpg`;
-                            link.click();
+                            try {
+                              const response = await fetch(url);
+                              const blob = await response.blob();
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = blobUrl;
+                              link.download = `imagem-${index + 1}.jpg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              window.URL.revokeObjectURL(blobUrl);
+                            } catch (error) {
+                              console.error('Erro ao baixar imagem:', error);
+                              toast.error('Erro ao baixar imagem');
+                            }
                           }}
                         >
                           <Download className="h-4 w-4" />
@@ -1407,12 +1418,23 @@ export default function TechnicalSupport() {
               size="icon"
               variant="secondary"
               className="absolute top-2 right-2"
-              onClick={() => {
+              onClick={async () => {
                 if (selectedImageUrl) {
-                  const link = document.createElement('a');
-                  link.href = selectedImageUrl;
-                  link.download = 'imagem.jpg';
-                  link.click();
+                  try {
+                    const response = await fetch(selectedImageUrl);
+                    const blob = await response.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = 'imagem.jpg';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(blobUrl);
+                  } catch (error) {
+                    console.error('Erro ao baixar imagem:', error);
+                    toast.error('Erro ao baixar imagem');
+                  }
                 }
               }}
             >
