@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 import { MediaUpload } from "@/components/MediaUpload";
+import { MediaViewer } from "@/components/MediaViewer";
 
 interface Product {
   id: string;
@@ -1363,12 +1364,10 @@ export default function TechnicalSupport() {
 
               {mediaFiles.length > 0 && (
                 <div>
-                  <Label className="text-muted-foreground">Arquivos de Mídia</Label>
-                  <MediaUpload
-                    serviceId={selectedService.id}
-                    onFilesChange={setMediaFiles}
-                    existingFiles={mediaFiles}
-                  />
+                  <Label className="text-muted-foreground">Fotos e Vídeos</Label>
+                  <div className="mt-2">
+                    <MediaViewer files={mediaFiles} />
+                  </div>
                 </div>
               )}
             </div>
