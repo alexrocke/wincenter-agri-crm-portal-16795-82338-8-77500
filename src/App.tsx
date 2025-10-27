@@ -72,10 +72,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+    <Toaster />
+    <Sonner />
+    <BrowserRouter>
         <AuthProvider>
           <ThemeProvider>
             <Routes>
@@ -277,7 +276,6 @@ const App = () => (
           </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
-    </>
   </QueryClientProvider>
 );
 
