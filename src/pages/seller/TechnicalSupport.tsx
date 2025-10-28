@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench, Download } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench, Download, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
@@ -85,6 +85,12 @@ export default function TechnicalSupport() {
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  
+  // Estados para diálogo de conclusão
+  const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
+  const [serviceToComplete, setServiceToComplete] = useState<TechnicalService | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -475,6 +481,94 @@ export default function TechnicalSupport() {
     } catch (error: any) {
       toast.error("Erro ao excluir atendimento");
       console.error(error);
+    }
+  };
+
+  const openConcludeDialog = async (service: TechnicalService) => {
+    setServiceToComplete(service);
+    setPaymentMethods([]);
+    setOtherPaymentMethod("");
+    
+    // Carregar produtos do serviço
+    await fetchServiceItems(service.id);
+    
+    setConcludeDialogOpen(true);
+  };
+
+  const handleConclude = async () => {
+    if (!serviceToComplete) return;
+
+    // Validações
+    if (paymentMethods.length === 0) {
+      toast.error("Selecione pelo menos uma forma de pagamento");
+      return;
+    }
+
+    if (paymentMethods.includes("outro") && !otherPaymentMethod.trim()) {
+      toast.error("Informe a outra forma de pagamento");
+      return;
+    }
+
+    try {
+      const serviceId = serviceToComplete.id;
+      const totalValue = serviceToComplete.total_value || 0;
+
+      // Preparar formas de pagamento
+      const finalPaymentMethods = paymentMethods.map(m => 
+        m === "outro" ? otherPaymentMethod : m
+      );
+      const payment_method_1 = finalPaymentMethods[0] || null;
+      const payment_method_2 = finalPaymentMethods[1] || null;
+
+      // Atualizar serviço para concluído
+      const { error: updateError } = await supabase
+        .from("services")
+        .update({ 
+          status: "completed",
+        })
+        .eq("id", serviceId);
+        
+      if (updateError) {
+        console.error("Erro ao atualizar serviço:", updateError);
+        throw updateError;
+      }
+
+      // Calcular custos dos produtos
+      const totalCost = productItems.reduce((sum, item) => {
+        const product = products.find(p => p.id === item.product_id);
+        return sum + ((product?.cost || 0) * item.qty);
+      }, 0);
+
+      // Gerar venda automaticamente
+      const { error: saleError } = await supabase
+        .from("sales")
+        .insert([{ 
+          client_id: serviceToComplete.client_id,
+          seller_auth_id: user?.id,
+          service_id: serviceId,
+          gross_value: totalValue,
+          total_cost: totalCost,
+          estimated_profit: totalValue - totalCost,
+          status: "closed",
+          sold_at: new Date().toISOString(),
+          payment_received: false,
+          payment_method_1: payment_method_1,
+          payment_method_2: payment_method_2,
+        }]);
+        
+      if (saleError) {
+        console.error("Erro ao criar venda:", saleError);
+        throw saleError;
+      }
+
+      toast.success("Atendimento concluído e venda gerada com sucesso!");
+      fetchServices();
+      setConcludeDialogOpen(false);
+      setServiceToComplete(null);
+      setProductItems([]);
+    } catch (error) {
+      console.error("Erro ao concluir atendimento:", error);
+      toast.error("Erro ao concluir atendimento");
     }
   };
 
@@ -1206,7 +1300,18 @@ export default function TechnicalSupport() {
                 )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {service.status === "scheduled" && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => openConcludeDialog(service)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Concluir
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => handleView(service)}>
                   <Eye className="h-4 w-4 mr-1" />
                   Visualizar
@@ -1441,6 +1546,105 @@ export default function TechnicalSupport() {
               <Download className="h-4 w-4" />
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Conclusão */}
+      <Dialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Concluir Atendimento Técnico</DialogTitle>
+          </DialogHeader>
+          
+          {serviceToComplete && (
+            <div className="space-y-6">
+              {/* Info do Serviço */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <p><strong>Cliente:</strong> {serviceToComplete.clients?.contact_name}</p>
+                <p><strong>Data:</strong> {format(new Date(serviceToComplete.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                {serviceToComplete.service_category && (
+                  <p><strong>Tipo:</strong> {getCategoryLabel(serviceToComplete.service_category)}</p>
+                )}
+                {serviceToComplete.equipment_model && (
+                  <p><strong>Equipamento:</strong> {serviceToComplete.equipment_model}</p>
+                )}
+                {serviceToComplete.total_value !== undefined && (
+                  <p className="text-lg font-semibold text-primary">
+                    Valor: R$ {serviceToComplete.total_value.toFixed(2)}
+                  </p>
+                )}
+              </div>
+
+              {/* Formas de Pagamento */}
+              <div className="space-y-3">
+                <Label>Formas de Pagamento * <span className="text-xs text-muted-foreground">(selecione uma ou mais)</span></Label>
+                <div className="space-y-2">
+                  {["pix", "dinheiro", "cartao", "outro"].map((method) => (
+                    <label key={method} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentMethods.includes(method)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPaymentMethods([...paymentMethods, method]);
+                          } else {
+                            setPaymentMethods(paymentMethods.filter(m => m !== method));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="capitalize">{method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {paymentMethods.includes("outro") && (
+                  <div className="space-y-2 ml-6">
+                    <Label>Especifique a forma de pagamento</Label>
+                    <Input
+                      value={otherPaymentMethod}
+                      onChange={(e) => setOtherPaymentMethod(e.target.value)}
+                      placeholder="Ex: Boleto, Cheque..."
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Resumo */}
+              <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                <h4 className="font-semibold mb-3">Resumo</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-lg font-bold text-primary pt-2 border-t">
+                    <span>Valor do Atendimento:</span>
+                    <span>R$ {(serviceToComplete.total_value || 0).toFixed(2)}</span>
+                  </div>
+                  {paymentMethods.length > 0 && (
+                    <div className="flex justify-between pt-2">
+                      <span>Formas de Pagamento:</span>
+                      <span className="font-semibold">
+                        {paymentMethods.map(m => 
+                          m === "pix" ? "PIX" : 
+                          m === "cartao" ? "Cartão" : 
+                          m === "outro" ? otherPaymentMethod || "Outro" : 
+                          m
+                        ).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConcludeDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleConclude} className="bg-green-600 hover:bg-green-700">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirmar Conclusão
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       </div>

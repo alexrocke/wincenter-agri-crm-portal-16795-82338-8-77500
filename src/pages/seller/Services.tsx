@@ -57,6 +57,13 @@ export default function Services() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  
+  // Estados para diálogo de conclusão
+  const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
+  const [serviceToComplete, setServiceToComplete] = useState<Service | null>(null);
+  const [hectaresAplicados, setHectaresAplicados] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
 
   const [formData, setFormData] = useState({
     client_id: "",
@@ -381,14 +388,61 @@ useEffect(() => {
     }
   };
 
+  const openConcludeDialog = async (service: Service) => {
+    setServiceToComplete(service);
+    setHectaresAplicados(service.hectares?.toString() || "");
+    setPaymentMethods([]);
+    setOtherPaymentMethod("");
+    
+    // Carregar produtos do serviço
+    const { data: serviceItems } = await supabase
+      .from("service_items")
+      .select("*, products:product_id(name)")
+      .eq("service_id", service.id);
+
+    const loadedProducts: ProductItem[] = (serviceItems || []).map((item: any) => ({
+      id: crypto.randomUUID(),
+      product_id: item.product_id || undefined,
+      name: item.products?.name || item.product_name,
+      dose_per_hectare: item.dose_per_hectare?.toString() || "",
+      unit_price: item.unit_price || 0,
+    }));
+
+    setProducts(loadedProducts);
+    setConcludeDialogOpen(true);
+  };
+
   const handleConclude = async () => {
-    if (!selectedService) return;
+    if (!serviceToComplete) return;
+
+    // Validações
+    const hectares = parseFloat(hectaresAplicados) || 0;
+    if (hectares <= 0) {
+      toast.error("Hectares aplicados deve ser maior que zero");
+      return;
+    }
+
+    if (paymentMethods.length === 0) {
+      toast.error("Selecione pelo menos uma forma de pagamento");
+      return;
+    }
+
+    if (paymentMethods.includes("outro") && !otherPaymentMethod.trim()) {
+      toast.error("Informe a outra forma de pagamento");
+      return;
+    }
 
     try {
-      const serviceId = selectedService.id;
-      const hectares = parseFloat(formData.hectares) || 0;
-      const valuePerHectare = parseFloat(formData.value_per_hectare) || 0;
-      const total = parseFloat(formData.total_value) || (hectares * valuePerHectare);
+      const serviceId = serviceToComplete.id;
+      const valuePerHectare = serviceToComplete.value_per_hectare || 0;
+      const totalRecalculado = hectares * valuePerHectare;
+
+      // Preparar formas de pagamento
+      const finalPaymentMethods = paymentMethods.map(m => 
+        m === "outro" ? otherPaymentMethod : m
+      );
+      const payment_method_1 = finalPaymentMethods[0] || null;
+      const payment_method_2 = finalPaymentMethods[1] || null;
 
       // Persistir itens de serviço (produtos) antes de concluir
       await supabase.from("service_items").delete().eq("service_id", serviceId);
@@ -416,16 +470,13 @@ useEffect(() => {
         }
       }
 
-      // Atualizar serviço com valores atuais e marcar como completo
+      // Atualizar serviço com hectares reais aplicados e marcar como completo
       const { error: updateError } = await supabase
         .from("services")
         .update({ 
           status: "completed",
-          crop: formData.crop || null,
-          city: formData.city || null,
           hectares: hectares,
-          value_per_hectare: valuePerHectare,
-          notes: formData.notes || null,
+          total_value: totalRecalculado,
         })
         .eq("id", serviceId);
       if (updateError) {
@@ -433,32 +484,35 @@ useEffect(() => {
         throw updateError;
       }
 
-      // Gerar venda com o total atual
+      // Gerar venda com valores atualizados e formas de pagamento
       const { error: saleError } = await supabase
         .from("sales")
         .insert([{ 
-          client_id: selectedService.client_id,
+          client_id: serviceToComplete.client_id,
           seller_auth_id: user?.id,
           service_id: serviceId,
-          gross_value: total,
+          gross_value: totalRecalculado,
           total_cost: 0,
-          estimated_profit: total,
+          estimated_profit: totalRecalculado,
           status: "closed",
           sold_at: new Date().toISOString(),
           payment_received: false,
+          payment_method_1: payment_method_1,
+          payment_method_2: payment_method_2,
         }]);
       if (saleError) {
         console.error("Erro ao criar venda:", saleError);
         throw saleError;
       }
 
-      toast.success("Venda gerada com base na pulverização concluída!");
+      toast.success("Serviço concluído e venda gerada com sucesso!");
       fetchServices();
-      setIsDialogOpen(false);
-      resetForm();
+      setConcludeDialogOpen(false);
+      setServiceToComplete(null);
+      setProducts([]);
     } catch (error) {
-      console.error("Erro ao concluir pulverização:", error);
-      toast.error("Erro ao concluir pulverização");
+      console.error("Erro ao concluir serviço:", error);
+      toast.error("Erro ao concluir serviço");
     }
   };
 
@@ -609,7 +663,18 @@ useEffect(() => {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {service.status === "scheduled" && (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={() => openConcludeDialog(service)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Concluir
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => handleView(service)}>
                     <Eye className="h-4 w-4 mr-1" />
                     Ver
@@ -1030,6 +1095,118 @@ useEffect(() => {
                     <p className="mt-1 whitespace-pre-wrap">{selectedService.notes}</p>
                   </div>
                 )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Conclusão */}
+        <Dialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Concluir Serviço de Pulverização</DialogTitle>
+            </DialogHeader>
+            
+            {serviceToComplete && (
+              <div className="space-y-6">
+                {/* Info do Serviço */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <p><strong>Cliente:</strong> {serviceToComplete.clients?.contact_name}</p>
+                  <p><strong>Data:</strong> {format(new Date(serviceToComplete.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                  {serviceToComplete.crop && <p><strong>Cultura:</strong> {serviceToComplete.crop}</p>}
+                  <p className="text-sm text-muted-foreground">
+                    Hectares Planejados: {serviceToComplete.hectares || 0} ha
+                  </p>
+                </div>
+
+                {/* Hectares Aplicados */}
+                <div className="space-y-2">
+                  <Label>Hectares Aplicados * <span className="text-xs text-muted-foreground">(informe a quantidade real executada)</span></Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={hectaresAplicados}
+                    onChange={(e) => setHectaresAplicados(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                {/* Formas de Pagamento */}
+                <div className="space-y-3">
+                  <Label>Formas de Pagamento * <span className="text-xs text-muted-foreground">(selecione uma ou mais)</span></Label>
+                  <div className="space-y-2">
+                    {["pix", "dinheiro", "cartao", "outro"].map((method) => (
+                      <label key={method} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={paymentMethods.includes(method)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPaymentMethods([...paymentMethods, method]);
+                            } else {
+                              setPaymentMethods(paymentMethods.filter(m => m !== method));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="capitalize">{method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {paymentMethods.includes("outro") && (
+                    <div className="space-y-2 ml-6">
+                      <Label>Especifique a forma de pagamento</Label>
+                      <Input
+                        value={otherPaymentMethod}
+                        onChange={(e) => setOtherPaymentMethod(e.target.value)}
+                        placeholder="Ex: Boleto, Cheque..."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Resumo Calculado */}
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <h4 className="font-semibold mb-3">Resumo</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Hectares Aplicados:</span>
+                      <span className="font-semibold">{parseFloat(hectaresAplicados) || 0} ha</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Valor por Hectare:</span>
+                      <span className="font-semibold">R$ {(serviceToComplete.value_per_hectare || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-primary pt-2 border-t">
+                      <span>Valor Total:</span>
+                      <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
+                    </div>
+                    {paymentMethods.length > 0 && (
+                      <div className="flex justify-between pt-2">
+                        <span>Formas de Pagamento:</span>
+                        <span className="font-semibold">
+                          {paymentMethods.map(m => 
+                            m === "pix" ? "PIX" : 
+                            m === "cartao" ? "Cartão" : 
+                            m === "outro" ? otherPaymentMethod || "Outro" : 
+                            m
+                          ).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => setConcludeDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleConclude} className="bg-green-600 hover:bg-green-700">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirmar Conclusão
+                  </Button>
+                </DialogFooter>
               </div>
             )}
           </DialogContent>
