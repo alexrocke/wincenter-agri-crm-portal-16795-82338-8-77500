@@ -64,6 +64,7 @@ export default function Services() {
   const [hectaresAplicados, setHectaresAplicados] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
+  const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     client_id: "",
@@ -393,6 +394,7 @@ useEffect(() => {
     setHectaresAplicados(service.hectares?.toString() || "");
     setPaymentMethods([]);
     setOtherPaymentMethod("");
+    setPaymentValues({});
     
     // Carregar produtos do serviço
     const { data: serviceItems } = await supabase
@@ -432,17 +434,43 @@ useEffect(() => {
       return;
     }
 
+    const valuePerHectare = serviceToComplete.value_per_hectare || 0;
+    const totalRecalculado = hectares * valuePerHectare;
+
+    // Validar valores quando há múltiplas formas de pagamento
+    if (paymentMethods.length > 1) {
+      const totalInformado = paymentMethods.reduce((sum, method) => {
+        const value = parseFloat(paymentValues[method] || "0");
+        return sum + value;
+      }, 0);
+
+      if (Math.abs(totalInformado - totalRecalculado) > 0.01) {
+        toast.error(
+          `Soma dos pagamentos (R$ ${totalInformado.toFixed(2)}) difere do valor total (R$ ${totalRecalculado.toFixed(2)})`
+        );
+        return;
+      }
+    }
+
     try {
       const serviceId = serviceToComplete.id;
-      const valuePerHectare = serviceToComplete.value_per_hectare || 0;
-      const totalRecalculado = hectares * valuePerHectare;
 
-      // Preparar formas de pagamento
+      // Preparar formas de pagamento e valores
       const finalPaymentMethods = paymentMethods.map(m => 
         m === "outro" ? otherPaymentMethod : m
       );
+      
       const payment_method_1 = finalPaymentMethods[0] || null;
       const payment_method_2 = finalPaymentMethods[1] || null;
+      
+      // Se tem apenas 1 forma, valor total vai para payment_value_1
+      // Se tem 2+, usar os valores informados
+      const payment_value_1 = paymentMethods.length === 1 
+        ? totalRecalculado 
+        : parseFloat(paymentValues[paymentMethods[0]] || "0");
+      const payment_value_2 = paymentMethods.length > 1 
+        ? parseFloat(paymentValues[paymentMethods[1]] || "0") 
+        : null;
 
       // Persistir itens de serviço (produtos) antes de concluir
       await supabase.from("service_items").delete().eq("service_id", serviceId);
@@ -499,6 +527,8 @@ useEffect(() => {
           payment_received: false,
           payment_method_1: payment_method_1,
           payment_method_2: payment_method_2,
+          payment_value_1: payment_value_1,
+          payment_value_2: payment_value_2,
         }]);
       if (saleError) {
         console.error("Erro ao criar venda:", saleError);
@@ -1136,34 +1166,54 @@ useEffect(() => {
                   <Label>Formas de Pagamento * <span className="text-xs text-muted-foreground">(selecione uma ou mais)</span></Label>
                   <div className="space-y-2">
                     {["pix", "dinheiro", "cartao", "outro"].map((method) => (
-                      <label key={method} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={paymentMethods.includes(method)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setPaymentMethods([...paymentMethods, method]);
-                            } else {
-                              setPaymentMethods(paymentMethods.filter(m => m !== method));
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <span className="capitalize">{method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</span>
-                      </label>
+                      <div key={method} className="space-y-2">
+                        <label className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={paymentMethods.includes(method)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setPaymentMethods([...paymentMethods, method]);
+                              } else {
+                                setPaymentMethods(paymentMethods.filter(m => m !== method));
+                                const newValues = { ...paymentValues };
+                                delete newValues[method];
+                                setPaymentValues(newValues);
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <span className="capitalize">{method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</span>
+                        </label>
+
+                        {/* Campo de valor aparece apenas se 2+ formas selecionadas */}
+                        {paymentMethods.includes(method) && paymentMethods.length >= 2 && (
+                          <div className="ml-6 space-y-1">
+                            <Label className="text-sm">Valor - {method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={paymentValues[method] || ""}
+                              onChange={(e) => setPaymentValues({ ...paymentValues, [method]: e.target.value })}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        )}
+
+                        {/* Campo "Especifique" para "Outro" */}
+                        {method === "outro" && paymentMethods.includes("outro") && (
+                          <div className="ml-6 space-y-1">
+                            <Label className="text-sm">Especifique a forma de pagamento</Label>
+                            <Input
+                              value={otherPaymentMethod}
+                              onChange={(e) => setOtherPaymentMethod(e.target.value)}
+                              placeholder="Ex: Boleto, Cheque..."
+                            />
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
-
-                  {paymentMethods.includes("outro") && (
-                    <div className="space-y-2 ml-6">
-                      <Label>Especifique a forma de pagamento</Label>
-                      <Input
-                        value={otherPaymentMethod}
-                        onChange={(e) => setOtherPaymentMethod(e.target.value)}
-                        placeholder="Ex: Boleto, Cheque..."
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {/* Resumo Calculado */}
@@ -1183,16 +1233,33 @@ useEffect(() => {
                       <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
                     </div>
                     {paymentMethods.length > 0 && (
-                      <div className="flex justify-between pt-2">
-                        <span>Formas de Pagamento:</span>
-                        <span className="font-semibold">
-                          {paymentMethods.map(m => 
-                            m === "pix" ? "PIX" : 
-                            m === "cartao" ? "Cartão" : 
-                            m === "outro" ? otherPaymentMethod || "Outro" : 
-                            m
-                          ).join(", ")}
-                        </span>
+                      <div className="pt-2 border-t">
+                        <span className="font-semibold">Formas de Pagamento:</span>
+                        {paymentMethods.length === 1 ? (
+                          <div className="mt-1">
+                            {paymentMethods[0] === "pix" ? "PIX" : 
+                             paymentMethods[0] === "cartao" ? "Cartão" : 
+                             paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
+                             paymentMethods[0]} - R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}
+                          </div>
+                        ) : (
+                          <div className="mt-1 space-y-1">
+                            {paymentMethods.map(m => {
+                              const methodLabel = m === "pix" ? "PIX" : m === "cartao" ? "Cartão" : m === "outro" ? otherPaymentMethod || "Outro" : m;
+                              const value = parseFloat(paymentValues[m] || "0");
+                              return (
+                                <div key={m} className="flex justify-between">
+                                  <span>{methodLabel}:</span>
+                                  <span className="font-medium">R$ {value.toFixed(2)}</span>
+                                </div>
+                              );
+                            })}
+                            <div className="flex justify-between font-bold text-primary pt-1 border-t">
+                              <span>Total Informado:</span>
+                              <span>R$ {paymentMethods.reduce((sum, m) => sum + parseFloat(paymentValues[m] || "0"), 0).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

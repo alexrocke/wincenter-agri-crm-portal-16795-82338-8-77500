@@ -679,6 +679,8 @@ export type Database = {
           payment_method_1: string | null
           payment_method_2: string | null
           payment_received: boolean | null
+          payment_value_1: number | null
+          payment_value_2: number | null
           region: string | null
           seller_auth_id: string
           service_id: string | null
@@ -696,6 +698,8 @@ export type Database = {
           payment_method_1?: string | null
           payment_method_2?: string | null
           payment_received?: boolean | null
+          payment_value_1?: number | null
+          payment_value_2?: number | null
           region?: string | null
           seller_auth_id: string
           service_id?: string | null
@@ -713,6 +717,8 @@ export type Database = {
           payment_method_1?: string | null
           payment_method_2?: string | null
           payment_received?: boolean | null
+          payment_value_1?: number | null
+          payment_value_2?: number | null
           region?: string | null
           seller_auth_id?: string
           service_id?: string | null
