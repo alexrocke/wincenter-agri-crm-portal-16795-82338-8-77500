@@ -414,6 +414,9 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          fcm_error: string | null
+          fcm_sent: boolean | null
+          fcm_sent_at: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message: string | null
@@ -426,6 +429,9 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          fcm_error?: string | null
+          fcm_sent?: boolean | null
+          fcm_sent_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
@@ -438,6 +444,9 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          fcm_error?: string | null
+          fcm_sent?: boolean | null
+          fcm_sent_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
@@ -1152,6 +1161,7 @@ export type Database = {
           auth_user_id: string | null
           created_at: string
           email: string
+          fcm_token: string | null
           id: string
           invite_expires_at: string | null
           invite_token: string | null
@@ -1168,6 +1178,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           email: string
+          fcm_token?: string | null
           id?: string
           invite_expires_at?: string | null
           invite_token?: string | null
@@ -1184,6 +1195,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           email?: string
+          fcm_token?: string | null
           id?: string
           invite_expires_at?: string | null
           invite_token?: string | null

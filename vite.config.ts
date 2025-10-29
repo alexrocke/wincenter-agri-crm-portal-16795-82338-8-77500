@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.png', 'favicon.ico'],
+      includeAssets: ['logo.png', 'favicon.ico', 'firebase-messaging-sw.js'],
       manifest: {
         name: 'WinCenter Agriculture CRM',
         short_name: 'WinCenter CRM',
