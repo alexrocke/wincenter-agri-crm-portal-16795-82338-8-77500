@@ -7,6 +7,7 @@ import { MobileHeader } from './MobileHeader';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -39,6 +40,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
+      <NotificationPermissionBanner />
     </div>
   );
 }
