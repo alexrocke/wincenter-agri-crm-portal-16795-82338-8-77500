@@ -343,14 +343,10 @@ export default function NotificationFormDialog({
                   <div className="p-4 bg-muted rounded-md space-y-2">
                     <h4 className="font-medium text-sm">Envio Automático</h4>
                     <p className="text-xs text-muted-foreground">
-                      Se uma categoria estiver selecionada, a notificação será automaticamente enviada via:
+                      Se uma categoria estiver selecionada, a notificação será automaticamente enviada via <strong>WhatsApp</strong> para usuários com telefone cadastrado.
                     </p>
-                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
-                      <li><strong>Push Notification:</strong> Para usuários que ativaram notificações no navegador</li>
-                      <li><strong>WhatsApp:</strong> Para usuários com telefone cadastrado</li>
-                    </ul>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Notificações sem categoria <strong>não serão</strong> enviadas via push ou WhatsApp, apenas aparecerão no sistema.
+                      Notificações sem categoria <strong>não serão</strong> enviadas via WhatsApp, apenas aparecerão no sistema.
                     </p>
                   </div>
                 </CardContent>
@@ -390,30 +386,6 @@ export default function NotificationFormDialog({
                     </div>
                   </div>
 
-                  {/* Preview Push Notification */}
-                  {formData.category && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Preview Push Notification</h4>
-                      <div className="border rounded-lg p-3 bg-secondary/50 max-w-sm">
-                        <div className="flex items-start gap-2">
-                          <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-                            🔔
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">
-                              {formData.title || 'Título'}
-                            </div>
-                            <div className="text-xs text-muted-foreground line-clamp-2">
-                              {formData.message || 'Mensagem'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Esta notificação será enviada via push (navegador) e WhatsApp
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>

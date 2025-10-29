@@ -11,13 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Bell, BellRing, MessageSquare, AlertTriangle, Plus, Search, Trash2, Edit, RefreshCw, Download, Smartphone } from 'lucide-react';
+import { Bell, BellRing, MessageSquare, AlertTriangle, Plus, Search, Trash2, Edit, RefreshCw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import NotificationFormDialog from '@/components/NotificationFormDialog';
 import NotificationKindBadge from '@/components/NotificationKindBadge';
-import NotificationStatusBadge from '@/components/NotificationStatusBadge';
 
 type NotificationKind = Database['public']['Enums']['notification_kind'];
 
@@ -31,9 +30,6 @@ interface Notification {
   read: boolean;
   whatsapp_sent: boolean | null;
   whatsapp_sent_at: string | null;
-  onesignal_sent: boolean | null;
-  onesignal_sent_at: string | null;
-  onesignal_error: string | null;
   created_at: string;
   user_name: string;
   user_email: string;
@@ -49,8 +45,6 @@ interface Stats {
   total: number;
   unread: number;
   whatsappSent: number;
-  onesignalSent: number;
-  errors: number;
 }
 
 export default function AdminNotifications() {
@@ -61,9 +55,7 @@ export default function AdminNotifications() {
   const [stats, setStats] = useState<Stats>({
     total: 0,
     unread: 0,
-    whatsappSent: 0,
-    onesignalSent: 0,
-    errors: 0
+    whatsappSent: 0
   });
 
   // Filtros
@@ -160,15 +152,13 @@ export default function AdminNotifications() {
       // Calcular estatísticas
       const statsQuery = await supabase
         .from('notifications')
-        .select('read, whatsapp_sent, onesignal_sent, onesignal_error');
+        .select('read, whatsapp_sent');
 
       if (statsQuery.data) {
         setStats({
           total: statsQuery.data.length,
           unread: statsQuery.data.filter(n => !n.read).length,
-          whatsappSent: statsQuery.data.filter(n => n.whatsapp_sent).length,
-          onesignalSent: statsQuery.data.filter(n => n.onesignal_sent).length,
-          errors: statsQuery.data.filter(n => n.onesignal_error).length
+          whatsappSent: statsQuery.data.filter(n => n.whatsapp_sent).length
         });
       }
     } catch (error) {
@@ -272,42 +262,6 @@ export default function AdminNotifications() {
     }
   };
 
-  const handleResendOneSignal = async (notificationId: string) => {
-    const notification = notifications.find(n => n.id === notificationId);
-
-    if (!notification?.category) {
-      toast.error('Notificação sem categoria não pode ser enviada via Push');
-      return;
-    }
-
-    try {
-      await supabase
-        .from('notifications')
-        .update({
-          onesignal_sent: false,
-          onesignal_sent_at: null,
-          onesignal_error: null
-        })
-        .eq('id', notificationId);
-
-      const response = await fetch(
-        'https://hlyhgpjzosnxaxgpcayi.supabase.co/functions/v1/send-onesignal-notification',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notification_id: notificationId })
-        }
-      );
-
-      if (!response.ok) throw new Error('Falha ao reenviar');
-
-      toast.success('Push notification reenviada!');
-      fetchNotifications();
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao reenviar push notification');
-    }
-  };
 
 
   const handleSelectAll = () => {
@@ -328,8 +282,7 @@ export default function AdminNotifications() {
       'Título': n.title || '',
       'Mensagem': n.message || '',
       'Lida': n.read ? 'Sim' : 'Não',
-      'WhatsApp': n.whatsapp_sent ? 'Enviado' : 'Não enviado',
-      'Push': n.onesignal_sent ? 'Enviado' : n.onesignal_error ? 'Erro' : 'Não enviado'
+      'WhatsApp': n.whatsapp_sent ? 'Enviado' : 'Não enviado'
     }));
 
     const headers = Object.keys(csvData[0] || {});
@@ -365,7 +318,7 @@ export default function AdminNotifications() {
         </div>
 
         {/* Estatísticas */}
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -393,26 +346,6 @@ export default function AdminNotifications() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.whatsappSent}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Push Enviados</CardTitle>
-              <Smartphone className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.onesignalSent}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Erros</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.errors}</div>
             </CardContent>
           </Card>
         </div>
@@ -547,7 +480,7 @@ export default function AdminNotifications() {
                       <TableHead>Categoria</TableHead>
                       <TableHead>Título</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Envios</TableHead>
+                      <TableHead>WhatsApp</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -599,13 +532,17 @@ export default function AdminNotifications() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <NotificationStatusBadge
-                            whatsappSent={notification.whatsapp_sent}
-                            whatsappSentAt={notification.whatsapp_sent_at}
-                            onesignalSent={notification.onesignal_sent}
-                            onesignalSentAt={notification.onesignal_sent_at}
-                            onesignalError={notification.onesignal_error}
-                          />
+                          {notification.whatsapp_sent ? (
+                            <Badge variant="default" className="gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              WhatsApp Enviado
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              Não enviado
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           {format(new Date(notification.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
@@ -631,24 +568,14 @@ export default function AdminNotifications() {
                               <Edit className="h-4 w-4" />
                             </Button>
                             {notification.category && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleResendWhatsApp(notification.id)}
-                                  title="Reenviar via WhatsApp"
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleResendOneSignal(notification.id)}
-                                  title="Reenviar via OneSignal"
-                                >
-                                  <Smartphone className="h-4 w-4" />
-                                </Button>
-                              </>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleResendWhatsApp(notification.id)}
+                                title="Reenviar via WhatsApp"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
                             )}
                             <Button
                               variant="ghost"
