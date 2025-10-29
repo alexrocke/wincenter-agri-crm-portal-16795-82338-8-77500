@@ -417,6 +417,9 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message: string | null
+          onesignal_error: string | null
+          onesignal_sent: boolean | null
+          onesignal_sent_at: string | null
           read: boolean
           title: string | null
           user_auth_id: string
@@ -429,6 +432,9 @@ export type Database = {
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
+          onesignal_error?: string | null
+          onesignal_sent?: boolean | null
+          onesignal_sent_at?: string | null
           read?: boolean
           title?: string | null
           user_auth_id: string
@@ -441,6 +447,9 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
+          onesignal_error?: string | null
+          onesignal_sent?: boolean | null
+          onesignal_sent_at?: string | null
           read?: boolean
           title?: string | null
           user_auth_id?: string
@@ -1158,6 +1167,7 @@ export type Database = {
           invited_at: string | null
           invited_by: string | null
           name: string
+          onesignal_player_id: string | null
           phone: string | null
           region: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -1174,6 +1184,7 @@ export type Database = {
           invited_at?: string | null
           invited_by?: string | null
           name: string
+          onesignal_player_id?: string | null
           phone?: string | null
           region?: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -1190,6 +1201,7 @@ export type Database = {
           invited_at?: string | null
           invited_by?: string | null
           name?: string
+          onesignal_player_id?: string | null
           phone?: string | null
           region?: string | null
           role?: Database["public"]["Enums"]["user_role"]
