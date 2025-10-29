@@ -276,7 +276,7 @@ export default function NotificationFormDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Categoria determina se a notificação será enviada via WhatsApp/OneSignal
+                  Categoria determina se a notificação será enviada via WhatsApp
                 </p>
               </div>
 
@@ -343,14 +343,10 @@ export default function NotificationFormDialog({
                   <div className="p-4 bg-muted rounded-md space-y-2">
                     <h4 className="font-medium text-sm">Envio Automático</h4>
                     <p className="text-xs text-muted-foreground">
-                      Se uma categoria estiver selecionada, a notificação será automaticamente enviada via:
+                      Se uma categoria estiver selecionada, a notificação será automaticamente enviada via WhatsApp (se o usuário tiver telefone cadastrado).
                     </p>
-                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
-                      <li><strong>WhatsApp</strong>: Se o usuário tiver telefone cadastrado</li>
-                      <li><strong>OneSignal</strong>: Se o usuário tiver player_id cadastrado</li>
-                    </ul>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Notificações sem categoria <strong>não serão</strong> enviadas via WhatsApp/OneSignal, apenas aparecerão no sistema.
+                      Notificações sem categoria <strong>não serão</strong> enviadas via WhatsApp, apenas aparecerão no sistema.
                     </p>
                   </div>
                 </CardContent>
@@ -393,7 +389,7 @@ export default function NotificationFormDialog({
                   {/* Preview Push Notification */}
                   {formData.category && (
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Preview Push (OneSignal/WhatsApp)</h4>
+                      <h4 className="text-sm font-medium mb-2">Preview Push (WhatsApp)</h4>
                       <div className="border rounded-lg p-3 bg-secondary/50 max-w-sm">
                         <div className="flex items-start gap-2">
                           <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">

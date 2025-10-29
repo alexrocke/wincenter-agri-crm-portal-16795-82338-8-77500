@@ -4,7 +4,6 @@ import { AdminSidebar } from './AdminSidebar';
 import { SidebarContent } from './SidebarContent';
 import { BottomNav } from './BottomNav';
 import { MobileHeader } from './MobileHeader';
-import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -40,7 +39,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
-      <NotificationPermissionBanner />
     </div>
   );
 }

@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { useOneSignal } from "@/hooks/useOneSignal";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -39,7 +38,6 @@ const queryClient = new QueryClient();
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { loading } = useSiteSettings();
-  useOneSignal(); // Initialize OneSignal
   
   if (loading) {
     return (
