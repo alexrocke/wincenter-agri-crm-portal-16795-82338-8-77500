@@ -15,6 +15,7 @@ export function useOneSignal() {
   const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
   const initStartedRef = useRef(false);
 
   useEffect(() => {
@@ -113,9 +114,19 @@ export function useOneSignal() {
           });
         });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Error initializing OneSignal:', error);
-        initStartedRef.current = false; // Resetar em caso de erro
+        
+        // Detectar erro de domínio
+        if (error?.message?.includes('Can only be used on:')) {
+          const domainMatch = error.message.match(/Can only be used on: (.+)/);
+          const allowedDomain = domainMatch ? domainMatch[1] : 'domínio configurado';
+          setInitError(`OneSignal configurado apenas para: ${allowedDomain}. Configure ${window.location.hostname} no Dashboard do OneSignal.`);
+        } else {
+          setInitError(error?.message || 'Erro ao inicializar notificações');
+        }
+        
+        initStartedRef.current = false;
       }
     };
 
@@ -143,5 +154,48 @@ export function useOneSignal() {
     initOneSignal();
   }, [user, isInitialized]);
 
-  return { isInitialized, playerId };
+  const requestPermission = async () => {
+    if (!window.OneSignal) {
+      console.error('OneSignal não inicializado');
+      return false;
+    }
+
+    try {
+      const result = await window.OneSignal.Notifications.requestPermission();
+      if (result) {
+        const newPlayerId = await window.OneSignal.User.PushSubscription.id;
+        if (newPlayerId) {
+          setPlayerId(newPlayerId);
+          await savePlayerIdToDatabase(newPlayerId);
+        }
+      }
+      return result;
+    } catch (error) {
+      console.error('Erro ao solicitar permissão:', error);
+      return false;
+    }
+  };
+
+  const savePlayerIdToDatabase = async (playerIdToSave: string) => {
+    if (!user?.id) return;
+
+    try {
+      console.log('💾 Saving player_id to database...');
+      
+      const { error } = await supabase
+        .from('users')
+        .update({ onesignal_player_id: playerIdToSave })
+        .eq('auth_user_id', user.id);
+
+      if (error) {
+        console.error('❌ Error saving player_id:', error);
+      } else {
+        console.log('✅ Player ID saved to database');
+      }
+    } catch (error) {
+      console.error('❌ Error saving player_id:', error);
+    }
+  };
+
+  return { isInitialized, playerId, initError, requestPermission };
 }
