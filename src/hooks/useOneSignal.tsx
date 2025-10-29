@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
-const ONESIGNAL_APP_ID = '566922a7-98de-4c80-bb1a-f17964f15d09';
+const ONESIGNAL_APP_ID = '78a7d0aa-6f16-45db-aed0-1730a713894e';
 
 declare global {
   interface Window {
