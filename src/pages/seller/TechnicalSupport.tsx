@@ -63,6 +63,11 @@ interface TechnicalService {
   clients?: {
     contact_name: string;
   };
+  service_items?: {
+    unit_price: number;
+    qty: number;
+    discount_percent: number;
+  }[];
 }
 
 interface User {
@@ -156,6 +161,11 @@ export default function TechnicalSupport() {
           *,
           clients (
             contact_name
+          ),
+          service_items (
+            unit_price,
+            qty,
+            discount_percent
           )
         `)
         .in("service_category", ["maintenance", "revision", "warranty", "followup"])
@@ -1394,11 +1404,23 @@ export default function TechnicalSupport() {
                 {service.under_warranty && (
                   <Badge variant="secondary" className="mt-1">Sob Garantia</Badge>
                 )}
-                {service.total_value !== null && service.total_value !== undefined && service.total_value > 0 && (
-                  <p className="text-lg font-bold text-primary">
-                    R$ {(service.total_value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                )}
+                {(() => {
+                  // Calcular total dos produtos
+                  const productsTotal = (service.service_items || []).reduce((sum: number, item: any) => {
+                    const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+                    const discount = itemTotal * ((item.discount_percent || 0) / 100);
+                    return sum + (itemTotal - discount);
+                  }, 0);
+                  
+                  // Total = valor do serviço + produtos
+                  const totalValue = (service.total_value || 0) + productsTotal;
+                  
+                  return totalValue > 0 ? (
+                    <p className="text-lg font-bold text-primary">
+                      R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  ) : null;
+                })()}
               </div>
 
               <div className="flex gap-2 flex-wrap">
