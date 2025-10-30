@@ -1488,11 +1488,11 @@ export default function TechnicalSupport() {
                     <p className="font-medium">{selectedService.under_warranty ? "Sim" : "Não"}</p>
                   </div>
                 )}
-                {selectedService.total_value !== undefined && (
+                {selectedService.total_value !== null && selectedService.total_value !== undefined && (
                   <div>
                     <Label className="text-muted-foreground">Valor</Label>
                     <p className="font-medium text-lg text-primary">
-                      R$ {selectedService.total_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(selectedService.total_value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 )}
