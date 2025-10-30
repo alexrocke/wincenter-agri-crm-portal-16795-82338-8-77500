@@ -82,6 +82,7 @@ export default function TechnicalSupport() {
   const [isEditing, setIsEditing] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
+  const [productSearch, setProductSearch] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -625,6 +626,11 @@ export default function TechnicalSupport() {
   const handleEdit = async (service: TechnicalService) => {
     setSelectedService(service);
     setIsEditing(true);
+    
+    // Limpar produtos antes de carregar
+    setProductItems([]);
+    setProductSearch("");
+    
     setFormData({
       client_id: service.client_id,
       date: new Date(service.date),
@@ -689,6 +695,7 @@ export default function TechnicalSupport() {
       assigned_users: [],
     });
     setProductItems([]);
+    setProductSearch("");
     setMediaFiles([]);
     setIsEditing(false);
     setSelectedService(null);
@@ -1007,12 +1014,24 @@ export default function TechnicalSupport() {
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
-                                {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    {product.name} (Est: {product.stock})
-                                  </SelectItem>
-                                ))}
+                              <SelectContent position="popper" className="z-[9999]">
+                                <div className="p-2 border-b sticky top-0 bg-background">
+                                  <Input
+                                    placeholder="Buscar produto..."
+                                    value={productSearch}
+                                    onChange={(e) => setProductSearch(e.target.value)}
+                                    className="h-8"
+                                  />
+                                </div>
+                                {products
+                                  .filter(product => 
+                                    product.name.toLowerCase().includes(productSearch.toLowerCase())
+                                  )
+                                  .map((product) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name} (Est: {product.stock})
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1068,26 +1087,55 @@ export default function TechnicalSupport() {
                         </div>
                       ))}
 
-                      <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                        <span className="font-semibold">Total dos Produtos:</span>
-                        <span className="text-lg font-bold text-primary">
-                          R$ {productItems.reduce((sum, item) => {
-                            const itemTotal = item.unit_price * item.qty;
-                            const discount = itemTotal * (item.discount_percent / 100);
-                            return sum + (itemTotal - discount);
-                          }, 0).toFixed(2)}
-                        </span>
-                      </div>
+                      <div className="space-y-2">
+                        {/* Total dos Produtos */}
+                        <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                          <span className="font-semibold">Total dos Produtos:</span>
+                          <span className="text-lg font-bold text-primary">
+                            R$ {productItems.reduce((sum, item) => {
+                              const itemTotal = item.unit_price * item.qty;
+                              const discount = itemTotal * (item.discount_percent / 100);
+                              return sum + (itemTotal - discount);
+                            }, 0).toFixed(2)}
+                          </span>
+                        </div>
 
-                      {formData.under_warranty ? (
-                        <p className="text-sm text-warning bg-warning/10 p-2 rounded">
-                          ⚠️ Garantia: Os produtos serão apenas baixados do estoque, sem gerar venda.
-                        </p>
-                      ) : (
-                        <p className="text-sm text-success bg-success/10 p-2 rounded">
-                          ✓ Será gerada uma venda automaticamente com estes produtos.
-                        </p>
-                      )}
+                        {/* Total da Venda (Produtos + Serviço) */}
+                        {formData.total_value > 0 && (
+                          <>
+                            <div className="flex justify-between items-center px-3 py-2 text-sm">
+                              <span className="text-muted-foreground">+ Valor do Serviço:</span>
+                              <span className="font-medium">
+                                R$ {formData.total_value.toFixed(2)}
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
+                              <span className="font-bold text-lg">Total da Venda:</span>
+                              <span className="text-2xl font-bold text-primary">
+                                R$ {(
+                                  productItems.reduce((sum, item) => {
+                                    const itemTotal = item.unit_price * item.qty;
+                                    const discount = itemTotal * (item.discount_percent / 100);
+                                    return sum + (itemTotal - discount);
+                                  }, 0) + (formData.total_value || 0)
+                                ).toFixed(2)}
+                              </span>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Mensagens de garantia/venda */}
+                        {formData.under_warranty ? (
+                          <p className="text-sm text-warning bg-warning/10 p-2 rounded">
+                            ⚠️ Garantia: Os produtos serão apenas baixados do estoque, sem gerar venda.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-success bg-success/10 p-2 rounded">
+                            ✓ Será gerada uma venda automaticamente com estes produtos.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
