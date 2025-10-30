@@ -1610,16 +1610,16 @@ export default function TechnicalSupport() {
                         </thead>
                         <tbody>
                           {productItems.map((item, index) => {
-                            const itemTotal = item.unit_price * item.qty;
-                            const discount = itemTotal * (item.discount_percent / 100);
+                            const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+                            const discount = itemTotal * ((item.discount_percent || 0) / 100);
                             const finalTotal = itemTotal - discount;
                             
                             return (
                               <tr key={index} className="border-t">
                                 <td className="p-2">{item.product_name}</td>
-                                <td className="text-center p-2">{item.qty}</td>
-                                <td className="text-right p-2">R$ {item.unit_price.toFixed(2)}</td>
-                                <td className="text-right p-2">{item.discount_percent}%</td>
+                                <td className="text-center p-2">{item.qty || 0}</td>
+                                <td className="text-right p-2">R$ {(item.unit_price || 0).toFixed(2)}</td>
+                                <td className="text-right p-2">{item.discount_percent || 0}%</td>
                                 <td className="text-right p-2 font-medium">R$ {finalTotal.toFixed(2)}</td>
                               </tr>
                             );
@@ -1635,8 +1635,8 @@ export default function TechnicalSupport() {
                         <span className="font-medium">Valor dos Produtos:</span>
                         <span className="text-lg font-bold text-primary">
                           R$ {productItems.reduce((sum, item) => {
-                            const itemTotal = item.unit_price * item.qty;
-                            const discount = itemTotal * (item.discount_percent / 100);
+                            const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+                            const discount = itemTotal * ((item.discount_percent || 0) / 100);
                             return sum + (itemTotal - discount);
                           }, 0).toFixed(2)}
                         </span>
@@ -1647,7 +1647,7 @@ export default function TechnicalSupport() {
                         <div className="flex justify-between items-center">
                           <span className="font-medium">Valor do Serviço:</span>
                           <span className="text-lg font-bold">
-                            R$ {selectedService.total_value.toFixed(2)}
+                            R$ {(selectedService.total_value || 0).toFixed(2)}
                           </span>
                         </div>
                       )}
@@ -1659,8 +1659,8 @@ export default function TechnicalSupport() {
                           <span className="text-2xl font-bold text-primary">
                             R$ {(
                               (productItems.length > 0 ? productItems.reduce((sum, item) => {
-                                const itemTotal = item.unit_price * item.qty;
-                                const discount = itemTotal * (item.discount_percent / 100);
+                                const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+                                const discount = itemTotal * ((item.discount_percent || 0) / 100);
                                 return sum + (itemTotal - discount);
                               }, 0) : 0) + (selectedService?.total_value || 0)
                             ).toFixed(2)}
@@ -1777,7 +1777,7 @@ export default function TechnicalSupport() {
                 {serviceToComplete.equipment_model && (
                   <p><strong>Equipamento:</strong> {serviceToComplete.equipment_model}</p>
                 )}
-                {serviceToComplete.total_value !== undefined && (
+                {serviceToComplete.total_value !== undefined && serviceToComplete.total_value !== null && (
                   <p className="text-lg font-semibold text-primary">
                     Valor: R$ {serviceToComplete.total_value.toFixed(2)}
                   </p>
