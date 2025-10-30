@@ -205,14 +205,19 @@ export default function TechnicalSupport() {
     try {
       const { data, error } = await supabase
         .from("service_items")
-        .select("*")
+        .select(`
+          *,
+          products (
+            name
+          )
+        `)
         .eq("service_id", serviceId);
 
       if (error) throw error;
       
-      const items = (data || []).map(item => ({
+      const items = (data || []).map((item: any) => ({
         product_id: item.product_id,
-        product_name: item.product_name || "",
+        product_name: item.products?.name || item.product_name || "",
         unit_price: item.unit_price,
         qty: item.qty,
         discount_percent: item.discount_percent
@@ -274,12 +279,23 @@ export default function TechnicalSupport() {
         }
       }
 
+      // Calcular valor total dos produtos
+      const productsTotal = productItems.reduce((sum, item) => {
+        const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+        const discount = itemTotal * ((item.discount_percent || 0) / 100);
+        return sum + (itemTotal - discount);
+      }, 0);
+
+      // Valor total = valor do serviço + valor dos produtos
+      const totalValue = (formData.total_value || 0) + productsTotal;
+
       const serviceData = {
         ...formData,
         date: formData.date.toISOString(),
         service_type: "maintenance" as const,
         created_by: user?.id,
         status: formData.status as any,
+        total_value: totalValue, // Usar o total calculado
       };
 
       if (isEditing && selectedService) {
@@ -1378,9 +1394,9 @@ export default function TechnicalSupport() {
                 {service.under_warranty && (
                   <Badge variant="secondary" className="mt-1">Sob Garantia</Badge>
                 )}
-                {service.total_value !== undefined && service.total_value > 0 && (
+                {service.total_value !== null && service.total_value !== undefined && service.total_value > 0 && (
                   <p className="text-lg font-bold text-primary">
-                    R$ {service.total_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(service.total_value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 )}
               </div>
