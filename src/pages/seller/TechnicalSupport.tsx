@@ -21,6 +21,8 @@ import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 import { MediaUpload } from "@/components/MediaUpload";
 import { MediaViewer } from "@/components/MediaViewer";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Product {
   id: string;
@@ -91,6 +93,7 @@ export default function TechnicalSupport() {
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   
   // Estados para diálogo de conclusão
   const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
@@ -778,6 +781,226 @@ export default function TechnicalSupport() {
     return categoryMap[category] || category;
   };
 
+  const generatePDF = async () => {
+    if (!selectedService) return;
+    
+    try {
+      setGeneratingPDF(true);
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Título
+      pdf.setFontSize(18);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Relatório de Atendimento Técnico", pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 15;
+
+      // Informações principais
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      
+      const info = [
+        ["Cliente:", selectedService.clients?.contact_name || "-"],
+        ["Data:", format(new Date(selectedService.date), "dd/MM/yyyy HH:mm", { locale: ptBR })],
+        ["Status:", selectedService.status === "scheduled" ? "Agendado" : selectedService.status === "completed" ? "Concluído" : "Cancelado"],
+        ["Tipo:", selectedService.service_category ? getCategoryLabel(selectedService.service_category) : "-"],
+      ];
+
+      if (selectedService.equipment_model) {
+        info.push(["Equipamento:", selectedService.equipment_model]);
+      }
+      if (selectedService.equipment_serial) {
+        info.push(["Número de Série:", selectedService.equipment_serial]);
+      }
+      if (selectedService.city) {
+        info.push(["Cidade:", selectedService.city]);
+      }
+      if (selectedService.under_warranty !== undefined) {
+        info.push(["Garantia:", selectedService.under_warranty ? "Sim" : "Não"]);
+      }
+
+      // Tabela de informações
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [],
+        body: info,
+        theme: "plain",
+        styles: { fontSize: 10, cellPadding: 2 },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 50 },
+          1: { cellWidth: 130 }
+        }
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 10;
+
+      // Problema relatado
+      if (selectedService.reported_defect) {
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Problema Relatado:", 15, yPosition);
+        yPosition += 7;
+        pdf.setFont("helvetica", "normal");
+        const defectLines = pdf.splitTextToSize(selectedService.reported_defect, pageWidth - 30);
+        pdf.text(defectLines, 15, yPosition);
+        yPosition += (defectLines.length * 5) + 8;
+      }
+
+      // Observações
+      if (selectedService.notes) {
+        if (yPosition > 250) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Observações:", 15, yPosition);
+        yPosition += 7;
+        pdf.setFont("helvetica", "normal");
+        const notesLines = pdf.splitTextToSize(selectedService.notes, pageWidth - 30);
+        pdf.text(notesLines, 15, yPosition);
+        yPosition += (notesLines.length * 5) + 8;
+      }
+
+      // Produtos utilizados
+      if (productItems.length > 0) {
+        if (yPosition > 220) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.text("Produtos Utilizados", 15, yPosition);
+        yPosition += 5;
+
+        const productsData = productItems.map(item => {
+          const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+          const discount = itemTotal * ((item.discount_percent || 0) / 100);
+          const finalTotal = itemTotal - discount;
+          
+          return [
+            item.product_name || "-",
+            String(item.qty || 0),
+            `R$ ${(item.unit_price || 0).toFixed(2)}`,
+            `${item.discount_percent || 0}%`,
+            `R$ ${finalTotal.toFixed(2)}`
+          ];
+        });
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [["Produto", "Qtd", "Preço Unit.", "Desc.", "Total"]],
+          body: productsData,
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: "bold" }
+        });
+
+        yPosition = (pdf as any).lastAutoTable.finalY + 10;
+
+        // Resumo de valores
+        const productsTotal = productItems.reduce((sum, item) => {
+          const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+          const discount = itemTotal * ((item.discount_percent || 0) / 100);
+          return sum + (itemTotal - discount);
+        }, 0);
+
+        const serviceValue = selectedService.total_value || 0;
+        const totalValue = productsTotal + serviceValue;
+
+        const resumeData = [
+          ["Valor dos Produtos:", `R$ ${productsTotal.toFixed(2)}`],
+        ];
+
+        if (serviceValue > 0) {
+          resumeData.push(["Valor do Serviço:", `R$ ${serviceValue.toFixed(2)}`]);
+        }
+
+        resumeData.push(["VALOR TOTAL:", `R$ ${totalValue.toFixed(2)}`]);
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [],
+          body: resumeData,
+          theme: "plain",
+          styles: { fontSize: 10, cellPadding: 2 },
+          columnStyles: {
+            0: { fontStyle: "bold", cellWidth: 50, halign: "right" },
+            1: { cellWidth: 40, halign: "right", fontStyle: "bold" }
+          },
+          margin: { left: pageWidth - 100 }
+        });
+
+        yPosition = (pdf as any).lastAutoTable.finalY + 10;
+      } else if (selectedService.total_value) {
+        // Se não tem produtos, mostrar apenas o valor do serviço
+        if (yPosition > 260) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.text(`Valor do Serviço: R$ ${selectedService.total_value.toFixed(2)}`, pageWidth - 15, yPosition, { align: "right" });
+        yPosition += 10;
+      }
+
+      // Adicionar imagens
+      if (selectedService.images && selectedService.images.length > 0) {
+        pdf.addPage();
+        yPosition = 20;
+        
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(14);
+        pdf.text("Imagens do Atendimento", 15, yPosition);
+        yPosition += 10;
+
+        for (let i = 0; i < selectedService.images.length; i++) {
+          try {
+            const imageUrl = selectedService.images[i];
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            
+            const reader = new FileReader();
+            await new Promise((resolve) => {
+              reader.onloadend = () => resolve(null);
+              reader.readAsDataURL(blob);
+            });
+            
+            const imgData = reader.result as string;
+            
+            if (yPosition > 200) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+
+            const imgWidth = 180;
+            const imgHeight = 100;
+            
+            pdf.addImage(imgData, "JPEG", 15, yPosition, imgWidth, imgHeight);
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(9);
+            pdf.text(`Imagem ${i + 1}`, 15, yPosition + imgHeight + 5);
+            
+            yPosition += imgHeight + 15;
+          } catch (error) {
+            console.error(`Erro ao adicionar imagem ${i + 1}:`, error);
+          }
+        }
+      }
+
+      // Salvar PDF
+      const fileName = `atendimento_${selectedService.clients?.contact_name || "cliente"}_${format(new Date(selectedService.date), "dd-MM-yyyy")}.pdf`;
+      pdf.save(fileName);
+      
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8">Carregando...</div>;
   }
@@ -1459,7 +1682,25 @@ export default function TechnicalSupport() {
       }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalhes do Atendimento</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Detalhes do Atendimento</span>
+              <Button
+                onClick={generatePDF}
+                disabled={generatingPDF}
+                variant="outline"
+                size="sm"
+                className="ml-4"
+              >
+                {generatingPDF ? (
+                  <>Gerando PDF...</>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Baixar PDF
+                  </>
+                )}
+              </Button>
+            </DialogTitle>
           </DialogHeader>
           {selectedService && (
             <Tabs defaultValue="details" className="w-full">
