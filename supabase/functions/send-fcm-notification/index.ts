@@ -167,13 +167,10 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar notificação e token FCM do usuário
+    // Buscar notificação
     const { data: notification, error: notifError } = await supabase
       .from('notifications')
-      .select(`
-        *,
-        users!inner(fcm_token)
-      `)
+      .select('*')
       .eq('id', notification_id)
       .single();
 
@@ -182,7 +179,19 @@ Deno.serve(async (req) => {
       throw new Error('Notification not found');
     }
 
-    const fcmToken = (notification.users as any).fcm_token;
+    // Buscar token FCM do usuário
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('fcm_token')
+      .eq('auth_user_id', notification.user_auth_id)
+      .single();
+
+    if (userError || !user) {
+      console.error('❌ User not found:', userError);
+      throw new Error('User not found');
+    }
+
+    const fcmToken = user.fcm_token;
 
     if (!fcmToken) {
       console.log('⚠️ User has no FCM token, skipping');
