@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { useFCM } from "@/hooks/useFCM";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -40,9 +39,6 @@ const queryClient = new QueryClient();
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { loading } = useSiteSettings();
-  
-  // Initialize FCM
-  useFCM();
   
   if (loading) {
     return (

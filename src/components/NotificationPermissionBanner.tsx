@@ -2,18 +2,24 @@ import { Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useFCM } from '@/hooks/useFCM';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function NotificationPermissionBanner() {
   const { permission, isSupported, requestPermission } = useFCM();
   const [dismissed, setDismissed] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Don't show if:
+  // - Not mounted yet (SSR safety)
   // - Not supported
   // - Already granted
   // - Explicitly denied
   // - User dismissed
-  if (!isSupported || permission === 'granted' || permission === 'denied' || dismissed) {
+  if (!isClient || !isSupported || permission === 'granted' || permission === 'denied' || dismissed) {
     return null;
   }
 
