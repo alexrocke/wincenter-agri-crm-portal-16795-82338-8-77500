@@ -619,17 +619,8 @@ export default function TechnicalSupport() {
       setMediaFiles(filesWithUrls);
     }
     
-    // Carregar produtos do serviço
-    const { data: items } = await supabase
-      .from('service_items')
-      .select('*')
-      .eq('service_id', service.id);
-    
-    if (items) {
-      setProductItems(items);
-    } else {
-      setProductItems([]);
-    }
+    // Carregar produtos do serviço usando a função que mapeia corretamente
+    await fetchServiceItems(service.id);
     
     setViewDialogOpen(true);
   };
@@ -664,6 +655,9 @@ export default function TechnicalSupport() {
       client_present: service.client_present || false,
       assigned_users: service.assigned_users || [],
     });
+    
+    // Carregar produtos do serviço usando a função que mapeia corretamente
+    await fetchServiceItems(service.id);
     
     // Carregar arquivos de mídia
     const { data: files } = await supabase
