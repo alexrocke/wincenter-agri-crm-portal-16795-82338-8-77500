@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import NotificationFormDialog from '@/components/NotificationFormDialog';
 import NotificationKindBadge from '@/components/NotificationKindBadge';
+import { NotificationStatusBadge } from '@/components/NotificationStatusBadge';
 
 type NotificationKind = Database['public']['Enums']['notification_kind'];
 
@@ -30,6 +31,9 @@ interface Notification {
   read: boolean;
   whatsapp_sent: boolean | null;
   whatsapp_sent_at: string | null;
+  fcm_sent: boolean | null;
+  fcm_sent_at: string | null;
+  fcm_error: string | null;
   created_at: string;
   user_name: string;
   user_email: string;
@@ -45,6 +49,7 @@ interface Stats {
   total: number;
   unread: number;
   whatsappSent: number;
+  fcmSent: number;
 }
 
 export default function AdminNotifications() {
@@ -55,7 +60,8 @@ export default function AdminNotifications() {
   const [stats, setStats] = useState<Stats>({
     total: 0,
     unread: 0,
-    whatsappSent: 0
+    whatsappSent: 0,
+    fcmSent: 0
   });
 
   // Filtros
@@ -152,13 +158,14 @@ export default function AdminNotifications() {
       // Calcular estatísticas
       const statsQuery = await supabase
         .from('notifications')
-        .select('read, whatsapp_sent');
+        .select('read, whatsapp_sent, fcm_sent');
 
       if (statsQuery.data) {
         setStats({
           total: statsQuery.data.length,
           unread: statsQuery.data.filter(n => !n.read).length,
-          whatsappSent: statsQuery.data.filter(n => n.whatsapp_sent).length
+          whatsappSent: statsQuery.data.filter(n => n.whatsapp_sent).length,
+          fcmSent: statsQuery.data.filter(n => n.fcm_sent).length
         });
       }
     } catch (error) {
@@ -262,6 +269,43 @@ export default function AdminNotifications() {
     }
   };
 
+  const handleResendFCM = async (notificationId: string) => {
+    const notification = notifications.find(n => n.id === notificationId);
+
+    if (!notification?.category) {
+      toast.error('Notificação sem categoria não pode ser enviada via Push');
+      return;
+    }
+
+    try {
+      await supabase
+        .from('notifications')
+        .update({
+          fcm_sent: false,
+          fcm_sent_at: null,
+          fcm_error: null
+        })
+        .eq('id', notificationId);
+
+      const response = await fetch(
+        'https://hlyhgpjzosnxaxgpcayi.supabase.co/functions/v1/send-fcm-notification',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notification_id: notificationId })
+        }
+      );
+
+      if (!response.ok) throw new Error('Falha ao reenviar');
+
+      toast.success('Notificação Push reenviada!');
+      fetchNotifications();
+    } catch (error) {
+      console.error('Erro:', error);
+      toast.error('Erro ao reenviar Push Notification');
+    }
+  };
+
 
 
   const handleSelectAll = () => {
@@ -318,7 +362,7 @@ export default function AdminNotifications() {
         </div>
 
         {/* Estatísticas */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -336,6 +380,16 @@ export default function AdminNotifications() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.unread}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Push Notifications</CardTitle>
+              <Bell className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.fcmSent}</div>
             </CardContent>
           </Card>
 
@@ -480,6 +534,7 @@ export default function AdminNotifications() {
                       <TableHead>Categoria</TableHead>
                       <TableHead>Título</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Push</TableHead>
                       <TableHead>WhatsApp</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
@@ -532,6 +587,13 @@ export default function AdminNotifications() {
                           )}
                         </TableCell>
                         <TableCell>
+                          <NotificationStatusBadge
+                            fcmSent={notification.fcm_sent}
+                            fcmSentAt={notification.fcm_sent_at}
+                            fcmError={notification.fcm_error}
+                          />
+                        </TableCell>
+                        <TableCell>
                           {notification.whatsapp_sent ? (
                             <Badge variant="default" className="gap-1">
                               <MessageSquare className="h-3 w-3" />
@@ -567,6 +629,16 @@ export default function AdminNotifications() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+                            {notification.category && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleResendFCM(notification.id)}
+                                title="Reenviar via Push Notification"
+                              >
+                                <Bell className="h-4 w-4" />
+                              </Button>
+                            )}
                             {notification.category && (
                               <Button
                                 variant="ghost"
