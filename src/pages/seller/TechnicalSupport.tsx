@@ -620,6 +620,18 @@ export default function TechnicalSupport() {
       setMediaFiles(filesWithUrls);
     }
     
+    // Carregar produtos do serviço
+    const { data: items } = await supabase
+      .from('service_items')
+      .select('*')
+      .eq('service_id', service.id);
+    
+    if (items) {
+      setProductItems(items);
+    } else {
+      setProductItems([]);
+    }
+    
     setViewDialogOpen(true);
   };
 
@@ -1416,7 +1428,13 @@ export default function TechnicalSupport() {
       )}
 
       {/* View Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+      <Dialog open={viewDialogOpen} onOpenChange={(open) => {
+        setViewDialogOpen(open);
+        if (!open) {
+          setProductItems([]);
+          setMediaFiles([]);
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Atendimento</DialogTitle>
@@ -1568,6 +1586,84 @@ export default function TechnicalSupport() {
                         </Button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Produtos do Atendimento */}
+              {productItems.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Produtos Utilizados</Label>
+                  <div className="mt-2 space-y-2">
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="text-left p-2">Produto</th>
+                            <th className="text-center p-2">Qtd</th>
+                            <th className="text-right p-2">Preço Unit.</th>
+                            <th className="text-right p-2">Desconto</th>
+                            <th className="text-right p-2">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productItems.map((item, index) => {
+                            const itemTotal = item.unit_price * item.qty;
+                            const discount = itemTotal * (item.discount_percent / 100);
+                            const finalTotal = itemTotal - discount;
+                            
+                            return (
+                              <tr key={index} className="border-t">
+                                <td className="p-2">{item.product_name}</td>
+                                <td className="text-center p-2">{item.qty}</td>
+                                <td className="text-right p-2">R$ {item.unit_price.toFixed(2)}</td>
+                                <td className="text-right p-2">{item.discount_percent}%</td>
+                                <td className="text-right p-2 font-medium">R$ {finalTotal.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Resumo de Valores */}
+                    <div className="space-y-2 mt-4 p-4 bg-muted/30 rounded-lg">
+                      {/* Total dos Produtos */}
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Valor dos Produtos:</span>
+                        <span className="text-lg font-bold text-primary">
+                          R$ {productItems.reduce((sum, item) => {
+                            const itemTotal = item.unit_price * item.qty;
+                            const discount = itemTotal * (item.discount_percent / 100);
+                            return sum + (itemTotal - discount);
+                          }, 0).toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Valor do Serviço */}
+                      {selectedService && selectedService.total_value > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Valor do Serviço:</span>
+                          <span className="text-lg font-bold">
+                            R$ {selectedService.total_value.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Total Geral */}
+                      <div className="flex justify-between items-center pt-2 border-t-2 border-primary">
+                        <span className="font-bold text-lg">Valor Total:</span>
+                        <span className="text-2xl font-bold text-primary">
+                          R$ {(
+                            productItems.reduce((sum, item) => {
+                              const itemTotal = item.unit_price * item.qty;
+                              const discount = itemTotal * (item.discount_percent / 100);
+                              return sum + (itemTotal - discount);
+                            }, 0) + (selectedService?.total_value || 0)
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
