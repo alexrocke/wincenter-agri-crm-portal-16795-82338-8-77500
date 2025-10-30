@@ -286,6 +286,7 @@ useEffect(() => {
         city: formData.city || null,
         hectares: parseFloat(formData.hectares),
         value_per_hectare: parseFloat(formData.value_per_hectare),
+        total_value: formData.total_value ? parseFloat(formData.total_value) : null,
         notes: formData.notes || null,
         created_by: user?.id,
         assigned_users: formData.assigned_users.length > 0 ? formData.assigned_users : [user?.id],
