@@ -289,23 +289,12 @@ export default function TechnicalSupport() {
         }
       }
 
-      // Calcular valor total dos produtos
-      const productsTotal = productItems.reduce((sum, item) => {
-        const itemTotal = (item.unit_price || 0) * (item.qty || 0);
-        const discount = itemTotal * ((item.discount_percent || 0) / 100);
-        return sum + (itemTotal - discount);
-      }, 0);
-
-      // Valor total = valor do serviço + valor dos produtos
-      const totalValue = (formData.total_value || 0) + productsTotal;
-
       const serviceData = {
         ...formData,
         date: formData.date.toISOString(),
         service_type: "maintenance" as const,
         created_by: user?.id,
         status: formData.status as any,
-        total_value: totalValue, // Usar o total calculado
       };
 
       if (isEditing && selectedService) {
