@@ -205,14 +205,14 @@ export default function TechnicalSupport() {
     try {
       const { data, error } = await supabase
         .from("service_items")
-        .select("*, products(name)")
+        .select("*")
         .eq("service_id", serviceId);
 
       if (error) throw error;
       
       const items = (data || []).map(item => ({
         product_id: item.product_id,
-        product_name: item.products?.name || "",
+        product_name: item.product_name || "",
         unit_price: item.unit_price,
         qty: item.qty,
         discount_percent: item.discount_percent
@@ -274,11 +274,8 @@ export default function TechnicalSupport() {
         }
       }
 
-      // Remover campos que não devem ser enviados diretamente
-      const { total_value, ...formDataWithoutTotal } = formData;
-      
       const serviceData = {
-        ...formDataWithoutTotal,
+        ...formData,
         date: formData.date.toISOString(),
         service_type: "maintenance" as const,
         created_by: user?.id,
@@ -306,6 +303,7 @@ export default function TechnicalSupport() {
           const serviceItems = productItems.map(item => ({
             service_id: selectedService.id,
             product_id: item.product_id,
+            product_name: item.product_name,
             qty: item.qty,
             unit_price: item.unit_price,
             discount_percent: item.discount_percent
@@ -379,6 +377,7 @@ export default function TechnicalSupport() {
           const serviceItems = productItems.map(item => ({
             service_id: newService.id,
             product_id: item.product_id,
+            product_name: item.product_name,
             qty: item.qty,
             unit_price: item.unit_price,
             discount_percent: item.discount_percent
@@ -1024,7 +1023,9 @@ export default function TechnicalSupport() {
                               onValueChange={(value) => updateProductItem(index, 'product_id', value)}
                             >
                               <SelectTrigger>
-                                <SelectValue />
+                                <SelectValue>
+                                  {item.product_name || "Selecione um produto"}
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent position="popper" className="z-[9999]">
                                 <div className="p-2 border-b sticky top-0 bg-background">
@@ -1440,7 +1441,14 @@ export default function TechnicalSupport() {
             <DialogTitle>Detalhes do Atendimento</DialogTitle>
           </DialogHeader>
           {selectedService && (
-            <div className="space-y-4">
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="details">Detalhes</TabsTrigger>
+                <TabsTrigger value="images">Imagens</TabsTrigger>
+                <TabsTrigger value="files">Arquivos</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Cliente</Label>
@@ -1641,7 +1649,7 @@ export default function TechnicalSupport() {
                       </div>
 
                       {/* Valor do Serviço */}
-                      {selectedService && selectedService.total_value > 0 && (
+                      {selectedService && selectedService.total_value !== null && selectedService.total_value !== undefined && selectedService.total_value > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="font-medium">Valor do Serviço:</span>
                           <span className="text-lg font-bold">
@@ -1651,23 +1659,55 @@ export default function TechnicalSupport() {
                       )}
 
                       {/* Total Geral */}
-                      <div className="flex justify-between items-center pt-2 border-t-2 border-primary">
-                        <span className="font-bold text-lg">Valor Total:</span>
-                        <span className="text-2xl font-bold text-primary">
-                          R$ {(
-                            productItems.reduce((sum, item) => {
-                              const itemTotal = item.unit_price * item.qty;
-                              const discount = itemTotal * (item.discount_percent / 100);
-                              return sum + (itemTotal - discount);
-                            }, 0) + (selectedService?.total_value || 0)
-                          ).toFixed(2)}
-                        </span>
-                      </div>
+                      {selectedService && (
+                        <div className="flex justify-between items-center pt-2 border-t-2 border-primary">
+                          <span className="font-bold text-lg">Valor Total:</span>
+                          <span className="text-2xl font-bold text-primary">
+                            R$ {(
+                              (productItems.length > 0 ? productItems.reduce((sum, item) => {
+                                const itemTotal = item.unit_price * item.qty;
+                                const discount = itemTotal * (item.discount_percent / 100);
+                                return sum + (itemTotal - discount);
+                              }, 0) : 0) + (selectedService?.total_value || 0)
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
+            </TabsContent>
 
+            {/* Aba de Imagens */}
+            <TabsContent value="images" className="space-y-4">
+              {selectedService?.images && selectedService.images.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {selectedService.images.map((url: string, index: number) => (
+                    <div 
+                      key={index} 
+                      className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        setSelectedImageUrl(url);
+                      }}
+                    >
+                      <img 
+                        src={url} 
+                        alt={`Imagem ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma imagem anexada
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Aba de Arquivos */}
+            <TabsContent value="files" className="space-y-4">
               {mediaFiles.length > 0 && (
                 <div>
                   <Label className="text-muted-foreground">Fotos e Vídeos</Label>
@@ -1676,7 +1716,8 @@ export default function TechnicalSupport() {
                   </div>
                 </div>
               )}
-            </div>
+            </TabsContent>
+          </Tabs>
           )}
         </DialogContent>
       </Dialog>
