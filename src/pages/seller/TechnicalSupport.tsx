@@ -63,6 +63,15 @@ interface TechnicalService {
   followup_results?: string;
   client_present?: boolean;
   assigned_users?: string[];
+  client_items?: {
+    carregador?: boolean;
+    controle?: boolean;
+    baterias?: boolean;
+    baterias_qty?: number;
+    baterias_controle?: boolean;
+    baterias_controle_qty?: number;
+    observacao?: string;
+  };
   clients?: {
     contact_name: string;
   };
@@ -200,7 +209,7 @@ export default function TechnicalSupport() {
         .order("date", { ascending: false });
 
       if (error) throw error;
-      setServices(data || []);
+      setServices((data || []) as TechnicalService[]);
     } catch (error: any) {
       toast.error("Erro ao carregar atendimentos");
       console.error(error);
@@ -728,7 +737,7 @@ export default function TechnicalSupport() {
       return;
     }
 
-    setSelectedService(fullService);
+    setSelectedService(fullService as TechnicalService);
     
     // Carregar arquivos de mídia
     const { data: files } = await supabase
@@ -1884,6 +1893,45 @@ export default function TechnicalSupport() {
                   </div>
                 )}
               </div>
+
+              {/* Checklist de Itens do Cliente (quando iniciado) */}
+              {selectedService.client_items && Object.keys(selectedService.client_items).length > 0 && (
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <Label className="text-base font-semibold mb-3 block">Itens Trazidos pelo Cliente</Label>
+                  <div className="space-y-2">
+                    {selectedService.client_items.carregador && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <span>Carregador</span>
+                      </div>
+                    )}
+                    {selectedService.client_items.controle && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <span>Controle</span>
+                      </div>
+                    )}
+                    {selectedService.client_items.baterias && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <span>Baterias {selectedService.client_items.baterias_qty ? `(${selectedService.client_items.baterias_qty}x)` : ''}</span>
+                      </div>
+                    )}
+                    {selectedService.client_items.baterias_controle && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <span>Baterias Controle {selectedService.client_items.baterias_controle_qty ? `(${selectedService.client_items.baterias_controle_qty}x)` : ''}</span>
+                      </div>
+                    )}
+                    {selectedService.client_items.observacao && (
+                      <div className="mt-3 pt-3 border-t">
+                        <Label className="text-sm text-muted-foreground">Observação:</Label>
+                        <p className="text-sm mt-1">{selectedService.client_items.observacao}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {selectedService.reported_defect && (
                 <div>
