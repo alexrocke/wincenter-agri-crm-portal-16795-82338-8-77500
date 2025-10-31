@@ -25,11 +25,13 @@ interface Opportunity {
   estimated_margin: number;
   expected_close_date: string;
   client_id: string;
+  seller_auth_id: string;
   product_ids?: string[];
   clients?: {
     farm_name: string;
     contact_name: string;
   };
+  seller_name?: string;
 }
 
 export default function Opportunities() {
@@ -138,7 +140,32 @@ export default function Opportunities() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setOpportunities(data || []);
+      
+      // Buscar nomes dos vendedores
+      const sellerIds = [...new Set((data || []).map(o => o.seller_auth_id).filter(Boolean))];
+      
+      let sellersMap: Record<string, string> = {};
+      
+      if (sellerIds.length > 0) {
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('auth_user_id, name')
+          .in('auth_user_id', sellerIds);
+        
+        if (usersData) {
+          sellersMap = usersData.reduce((acc, user) => {
+            acc[user.auth_user_id] = user.name;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+      
+      const opportunitiesWithSeller = (data || []).map((opp: any) => ({
+        ...opp,
+        seller_name: sellersMap[opp.seller_auth_id] || 'N/A',
+      }));
+      
+      setOpportunities(opportunitiesWithSeller);
     } catch (error) {
       console.error('Error fetching opportunities:', error);
     } finally {
@@ -599,6 +626,7 @@ export default function Opportunities() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Responsável</TableHead>
                   <TableHead>Estágio</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Probabilidade</TableHead>
@@ -610,7 +638,7 @@ export default function Opportunities() {
               <TableBody>
                 {opportunities.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhuma oportunidade encontrada
                     </TableCell>
                   </TableRow>
@@ -625,6 +653,11 @@ export default function Opportunities() {
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {opp.clients?.contact_name}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">
+                            {opp.seller_name || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell>
