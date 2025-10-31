@@ -149,6 +149,7 @@ export default function Clients() {
     drone_version: '',
     purchase_date: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -285,6 +286,9 @@ export default function Clients() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       const clientData: any = {
         farm_name: formData.farm_name,
@@ -317,6 +321,8 @@ export default function Clients() {
     } catch (error: any) {
       console.error('Error creating client:', error);
       toast.error('Erro ao criar cliente: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -861,8 +867,8 @@ export default function Clients() {
                       </Select>
                     </div>
                   )}
-                  <Button type="submit" className="w-full">
-                    Criar Cliente
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Criando...' : 'Criar Cliente'}
                   </Button>
                 </form>
               </DialogContent>

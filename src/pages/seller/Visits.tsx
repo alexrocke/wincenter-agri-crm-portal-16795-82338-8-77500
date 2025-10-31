@@ -62,6 +62,7 @@ export default function Visits() {
     notes: '',
     status: 'scheduled' as 'scheduled' | 'completed' | 'cancelled',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: visits, isLoading, refetch } = useQuery({
     queryKey: ["visits", user?.id],
@@ -278,6 +279,9 @@ export default function Visits() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       const visitData = {
         client_id: formData.client_id,
@@ -301,6 +305,8 @@ export default function Visits() {
     } catch (error: any) {
       console.error('Error creating visit:', error);
       toast.error('Erro ao criar visita: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -568,8 +574,8 @@ export default function Visits() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button type="submit" className="w-full">
-                    Criar Visita
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Criando...' : 'Criar Visita'}
                   </Button>
                 </form>
               </DialogContent>

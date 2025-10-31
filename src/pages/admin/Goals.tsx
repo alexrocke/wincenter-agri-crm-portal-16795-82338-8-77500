@@ -37,6 +37,7 @@ export default function Goals() {
     visits_goal: '',
     proposals_goal: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchGoals();
@@ -118,6 +119,9 @@ export default function Goals() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       const goalData: any = {
         level: formData.level,
@@ -151,6 +155,8 @@ export default function Goals() {
     } catch (error: any) {
       console.error('Error creating goal:', error);
       toast.error('Erro ao criar meta: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -263,8 +269,8 @@ export default function Goals() {
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full">
-                  Criar Meta
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Criando...' : 'Criar Meta'}
                 </Button>
               </form>
             </DialogContent>

@@ -45,6 +45,7 @@ export default function CommissionRules() {
     product_id: '',
     active: true,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchRules();
@@ -128,6 +129,9 @@ export default function CommissionRules() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       const ruleData: any = {
         base: formData.base,
@@ -166,6 +170,8 @@ export default function CommissionRules() {
     } catch (error: any) {
       console.error('Error creating rule:', error);
       toast.error('Erro ao criar regra: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -352,8 +358,8 @@ export default function CommissionRules() {
                     </Select>
                   </div>
                 )}
-                <Button type="submit" className="w-full">
-                  Criar Regra
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Criando...' : 'Criar Regra'}
                 </Button>
               </form>
             </DialogContent>

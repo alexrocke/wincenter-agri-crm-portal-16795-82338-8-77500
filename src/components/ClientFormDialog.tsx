@@ -18,6 +18,7 @@ interface ClientFormDialogProps {
 
 export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers }: ClientFormDialogProps) {
   const { user, userRole } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     farm_name: '',
     contact_name: '',
@@ -56,6 +57,9 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
     try {
       const clientData: any = {

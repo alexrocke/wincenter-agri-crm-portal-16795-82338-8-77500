@@ -36,6 +36,7 @@ export default function CompanyCosts() {
     competence_ym: new Date().toISOString().slice(0, 7),
     notes: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchCosts();
@@ -74,6 +75,9 @@ export default function CompanyCosts() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       const costData: any = {
         cost_type: formData.cost_type,
@@ -104,6 +108,8 @@ export default function CompanyCosts() {
     } catch (error: any) {
       console.error('Error creating cost:', error);
       toast.error('Erro ao registrar custo: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -213,8 +219,8 @@ export default function CompanyCosts() {
                     rows={3}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Registrar Custo
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Salvando...' : 'Registrar Custo'}
                 </Button>
               </form>
             </DialogContent>

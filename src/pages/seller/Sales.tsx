@@ -71,6 +71,7 @@ export default function Sales() {
   const [itemQty, setItemQty] = useState('1');
   const [itemDiscount, setItemDiscount] = useState('0');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'received' | 'pending'>('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     client_id: '',
     seller_auth_id: user?.id || '',
@@ -262,6 +263,9 @@ export default function Sales() {
       return;
     }
 
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       // Criar a venda
       const saleData: any = {
@@ -320,6 +324,8 @@ export default function Sales() {
     } catch (error: any) {
       console.error('Error creating sale:', error);
       toast.error('Erro ao criar venda: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -669,8 +675,8 @@ export default function Sales() {
                   )}
                 </div>
 
-                <Button type="submit" className="w-full" disabled={saleItems.length === 0}>
-                  Criar Venda
+                <Button type="submit" className="w-full" disabled={saleItems.length === 0 || isSubmitting}>
+                  {isSubmitting ? 'Criando...' : 'Criar Venda'}
                 </Button>
               </form>
             </DialogContent>

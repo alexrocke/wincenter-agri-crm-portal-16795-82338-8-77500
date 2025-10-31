@@ -108,6 +108,7 @@ export default function Services() {
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [systemSearchResults, setSystemSearchResults] = useState<SystemProduct[]>([]);
   const [systemSearchLoading, setSystemSearchLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -296,6 +297,9 @@ useEffect(() => {
       return;
     }
 
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       const serviceData = {
         client_id: formData.client_id,
@@ -407,6 +411,8 @@ useEffect(() => {
     } catch (error) {
       console.error("Erro ao salvar pulverização:", error);
       toast.error("Erro ao salvar pulverização");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1123,11 +1129,11 @@ useEffect(() => {
               </div>
 
               <DialogFooter className="gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {selectedService ? "Atualizar" : "Criar"} Pulverização
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Salvando...' : (selectedService ? "Atualizar" : "Criar")} {!isSubmitting && 'Pulverização'}
                 </Button>
                 {selectedService && selectedService.status !== 'completed' && (
                   <Button 

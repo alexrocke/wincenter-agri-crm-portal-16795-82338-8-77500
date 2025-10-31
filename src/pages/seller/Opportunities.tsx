@@ -59,6 +59,7 @@ export default function Opportunities() {
     payment_method_1: '',
     payment_method_2: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOpportunities();
@@ -169,6 +170,9 @@ export default function Opportunities() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       // Calculate gross value from products if products are selected
       const calculatedGrossValue = formData.product_ids.length > 0 
@@ -209,6 +213,8 @@ export default function Opportunities() {
     } catch (error: any) {
       console.error('Error creating opportunity:', error);
       toast.error('Erro ao criar oportunidade: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -514,8 +520,8 @@ export default function Opportunities() {
                     rows={3}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Criar Oportunidade
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Criando...' : 'Criar Oportunidade'}
                 </Button>
               </form>
             </DialogContent>

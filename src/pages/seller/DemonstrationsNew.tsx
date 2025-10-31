@@ -79,6 +79,7 @@ export default function DemonstrationsNew() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>();
   const [filterDateTo, setFilterDateTo] = useState<Date | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -170,12 +171,15 @@ export default function DemonstrationsNew() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
     try {
       if (!formData.client_id) {
         toast.error("Selecione um cliente");
         return;
       }
 
+      setIsSubmitting(true);
       const demoData = {
         ...formData,
         date: formData.date.toISOString(),
@@ -205,6 +209,8 @@ export default function DemonstrationsNew() {
     } catch (error: any) {
       toast.error(error.message || "Erro ao salvar demonstração");
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -582,11 +588,11 @@ export default function DemonstrationsNew() {
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit}>
-                {isEditing ? "Atualizar" : "Criar"} Demonstração
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? 'Salvando...' : (isEditing ? "Atualizar" : "Criar") + " Demonstração"}
               </Button>
             </div>
           </DialogContent>
