@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Package, AlertTriangle, Upload, X, Pencil, History, Calculator } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Upload, X, Pencil, History, Calculator, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,16 @@ import { toast } from 'sonner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { productSchema } from '@/lib/validation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
   id: string;
@@ -97,6 +107,9 @@ export default function Products() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -356,6 +369,9 @@ export default function Products() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setUploading(true);
     
     try {
@@ -464,6 +480,7 @@ export default function Products() {
       toast.error(error.message || 'Erro ao salvar produto');
     } finally {
       setUploading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -487,6 +504,55 @@ export default function Products() {
     setImagePreview(product.image_url || null);
     setShowHistory(false);
     setDialogOpen(true);
+  };
+
+  const handleDeleteClick = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    try {
+      // Verificar registros relacionados
+      const { data: saleItems } = await supabase
+        .from("sale_items")
+        .select("id")
+        .eq("product_id", productToDelete.id)
+        .limit(1);
+
+      const { data: serviceItems } = await supabase
+        .from("service_items")
+        .select("id")
+        .eq("product_id", productToDelete.id)
+        .limit(1);
+
+      if ((saleItems && saleItems.length > 0) || (serviceItems && serviceItems.length > 0)) {
+        toast.error('Este produto possui vendas ou serviços relacionados e não pode ser excluído.');
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+        return;
+      }
+
+      // Excluir produto
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productToDelete.id);
+
+      if (error) throw error;
+
+      toast.success('Produto excluído com sucesso!');
+      fetchProducts();
+    } catch (error) {
+      console.error("Erro ao excluir produto:", error);
+      toast.error('Ocorreu um erro ao excluir o produto.');
+    } finally {
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+    }
   };
 
   const activeProducts = products.filter(p => p.status === 'active');
@@ -1022,21 +1088,30 @@ export default function Products() {
                             </span>
                           </div>
                         </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(product.status)}>
-                        {getStatusLabel(product.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(product)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                        <TableCell>
+                          <Badge className={getStatusColor(product.status)}>
+                            {getStatusLabel(product.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(product)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => handleDeleteClick(product, e)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
@@ -1079,6 +1154,23 @@ export default function Products() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o produto "{productToDelete?.name}"? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

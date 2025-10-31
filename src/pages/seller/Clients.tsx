@@ -19,6 +19,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Client {
   id: string;
@@ -153,6 +163,8 @@ export default function Clients() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   useEffect(() => {
     fetchClients();
@@ -359,6 +371,79 @@ export default function Clients() {
       owner_user_id: (client as any).owner_user_id || '',
     });
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!clientToDelete) return;
+
+    try {
+      // Verificar registros relacionados
+      const { data: services } = await supabase
+        .from("services")
+        .select("id")
+        .eq("client_id", clientToDelete.id)
+        .limit(1);
+
+      const { data: sales } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("client_id", clientToDelete.id)
+        .limit(1);
+
+      const { data: visits } = await supabase
+        .from("visits")
+        .select("id")
+        .eq("client_id", clientToDelete.id)
+        .limit(1);
+
+      const { data: demonstrations } = await supabase
+        .from("demonstrations")
+        .select("id")
+        .eq("client_id", clientToDelete.id)
+        .limit(1);
+
+      const { data: opportunities } = await supabase
+        .from("opportunities")
+        .select("id")
+        .eq("client_id", clientToDelete.id)
+        .limit(1);
+
+      if (
+        (services && services.length > 0) ||
+        (sales && sales.length > 0) ||
+        (visits && visits.length > 0) ||
+        (demonstrations && demonstrations.length > 0) ||
+        (opportunities && opportunities.length > 0)
+      ) {
+        toast.error('Este cliente possui serviços, vendas, visitas, demonstrações ou oportunidades relacionadas e não pode ser excluído.');
+        setDeleteDialogOpen(false);
+        setClientToDelete(null);
+        return;
+      }
+
+      // Excluir cliente
+      const { error } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", clientToDelete.id);
+
+      if (error) throw error;
+
+      toast.success('Cliente excluído com sucesso!');
+      fetchClients();
+    } catch (error) {
+      console.error("Erro ao excluir cliente:", error);
+      toast.error('Ocorreu um erro ao excluir o cliente.');
+    } finally {
+      setDeleteDialogOpen(false);
+      setClientToDelete(null);
+    }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -1048,6 +1133,13 @@ export default function Clients() {
                             onClick={() => handleEdit(client)}
                           >
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => handleDeleteClick(client, e)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
@@ -1958,6 +2050,23 @@ export default function Clients() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente "{clientToDelete?.contact_name}"? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );
