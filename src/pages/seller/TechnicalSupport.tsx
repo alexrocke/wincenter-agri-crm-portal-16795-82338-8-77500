@@ -710,7 +710,25 @@ export default function TechnicalSupport() {
   };
 
   const handleView = async (service: TechnicalService) => {
-    setSelectedService(service);
+    // Buscar serviço com dados completos do cliente
+    const { data: fullService, error } = await supabase
+      .from('services')
+      .select(`
+        *,
+        clients (
+          contact_name
+        )
+      `)
+      .eq('id', service.id)
+      .single();
+
+    if (error) {
+      console.error('Erro ao carregar detalhes do serviço:', error);
+      toast.error('Erro ao carregar detalhes do serviço');
+      return;
+    }
+
+    setSelectedService(fullService);
     
     // Carregar arquivos de mídia
     const { data: files } = await supabase
