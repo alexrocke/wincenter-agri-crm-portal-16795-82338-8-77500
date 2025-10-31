@@ -239,7 +239,7 @@ export default function Clients() {
       const { data, error } = await supabase
         .from('users')
         .select('id, auth_user_id, name')
-        .eq('role', 'seller')
+        .in('role', ['seller', 'admin', 'technician'])
         .eq('status', 'active')
         .order('name');
       if (error) throw error;
@@ -1307,13 +1307,14 @@ export default function Clients() {
                 <div className="space-y-2">
                   <Label htmlFor="edit_owner_user_id">Responsável (opcional)</Label>
                   <Select
-                    value={formData.owner_user_id}
-                    onValueChange={(value) => setFormData({ ...formData, owner_user_id: value })}
+                    value={formData.owner_user_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, owner_user_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um vendedor" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum responsável</SelectItem>
                       {sellers.map((seller) => (
                         <SelectItem key={seller.auth_user_id} value={seller.auth_user_id}>
                           {seller.name}

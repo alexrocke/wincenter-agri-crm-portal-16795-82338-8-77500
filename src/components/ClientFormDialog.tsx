@@ -252,13 +252,14 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
             <div className="space-y-2">
               <Label htmlFor="owner_user_id">Responsável (Opcional)</Label>
               <Select
-                value={formData.owner_user_id || undefined}
-                onValueChange={(value) => setFormData({ ...formData, owner_user_id: value })}
+                value={formData.owner_user_id || "none"}
+                onValueChange={(value) => setFormData({ ...formData, owner_user_id: value === "none" ? undefined : value })}
               >
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Selecione um responsável" />
                 </SelectTrigger>
                 <SelectContent className="bg-background z-[110]">
+                  <SelectItem value="none">Nenhum responsável</SelectItem>
                   {sellers.map((seller) => (
                     <SelectItem key={seller.auth_user_id} value={seller.auth_user_id}>
                       {seller.name}
