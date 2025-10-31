@@ -298,10 +298,12 @@ export type Database = {
           city: string | null
           client_evaluation: string | null
           client_id: string | null
+          completion_notes: string | null
           created_at: string | null
           crop: string | null
           date: string
           demo_types: string[] | null
+          equipment_checklist: Json | null
           hectares: number | null
           id: string
           images: string[] | null
@@ -323,10 +325,12 @@ export type Database = {
           city?: string | null
           client_evaluation?: string | null
           client_id?: string | null
+          completion_notes?: string | null
           created_at?: string | null
           crop?: string | null
           date: string
           demo_types?: string[] | null
+          equipment_checklist?: Json | null
           hectares?: number | null
           id?: string
           images?: string[] | null
@@ -348,10 +352,12 @@ export type Database = {
           city?: string | null
           client_evaluation?: string | null
           client_id?: string | null
+          completion_notes?: string | null
           created_at?: string | null
           crop?: string | null
           date?: string
           demo_types?: string[] | null
+          equipment_checklist?: Json | null
           hectares?: number | null
           id?: string
           images?: string[] | null
@@ -848,12 +854,15 @@ export type Database = {
           cancellation_reason: string | null
           city: string | null
           client_id: string
+          client_items: Json | null
           client_present: boolean | null
           client_signature: string | null
+          completion_notes: string | null
           created_at: string
           created_by: string | null
           crop: string | null
           date: string
+          equipment_checklist: Json | null
           equipment_model: string | null
           equipment_serial: string | null
           equipment_year: number | null
@@ -894,12 +903,15 @@ export type Database = {
           cancellation_reason?: string | null
           city?: string | null
           client_id: string
+          client_items?: Json | null
           client_present?: boolean | null
           client_signature?: string | null
+          completion_notes?: string | null
           created_at?: string
           created_by?: string | null
           crop?: string | null
           date: string
+          equipment_checklist?: Json | null
           equipment_model?: string | null
           equipment_serial?: string | null
           equipment_year?: number | null
@@ -940,12 +952,15 @@ export type Database = {
           cancellation_reason?: string | null
           city?: string | null
           client_id?: string
+          client_items?: Json | null
           client_present?: boolean | null
           client_signature?: string | null
+          completion_notes?: string | null
           created_at?: string
           created_by?: string | null
           crop?: string | null
           date?: string
+          equipment_checklist?: Json | null
           equipment_model?: string | null
           equipment_serial?: string | null
           equipment_year?: number | null
@@ -1325,7 +1340,7 @@ export type Database = {
         | "spraying"
       commission_pay_status: "pending" | "approved" | "paid" | "canceled"
       cost_type: "fixed" | "variable"
-      demo_status: "scheduled" | "completed" | "cancelled"
+      demo_status: "scheduled" | "completed" | "cancelled" | "in_progress"
       goal_level: "team" | "seller"
       notification_kind:
         | "visit_late_30"
@@ -1351,7 +1366,12 @@ export type Database = {
       product_status: "active" | "inactive"
       relationship_status: "prospect" | "negotiation" | "customer" | "lost"
       sale_status: "closed" | "canceled"
-      service_status: "scheduled" | "completed" | "cancelled"
+      service_status:
+        | "scheduled"
+        | "completed"
+        | "cancelled"
+        | "in_progress"
+        | "open"
       service_type: "maintenance" | "revision" | "spraying"
       user_role: "admin" | "seller" | "technician"
       user_status: "active" | "inactive" | "invited" | "pending"
@@ -1492,7 +1512,7 @@ export const Constants = {
       ],
       commission_pay_status: ["pending", "approved", "paid", "canceled"],
       cost_type: ["fixed", "variable"],
-      demo_status: ["scheduled", "completed", "cancelled"],
+      demo_status: ["scheduled", "completed", "cancelled", "in_progress"],
       goal_level: ["team", "seller"],
       notification_kind: [
         "visit_late_30",
@@ -1520,7 +1540,13 @@ export const Constants = {
       product_status: ["active", "inactive"],
       relationship_status: ["prospect", "negotiation", "customer", "lost"],
       sale_status: ["closed", "canceled"],
-      service_status: ["scheduled", "completed", "cancelled"],
+      service_status: [
+        "scheduled",
+        "completed",
+        "cancelled",
+        "in_progress",
+        "open",
+      ],
       service_type: ["maintenance", "revision", "spraying"],
       user_role: ["admin", "seller", "technician"],
       user_status: ["active", "inactive", "invited", "pending"],

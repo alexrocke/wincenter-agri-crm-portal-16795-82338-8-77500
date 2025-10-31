@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
@@ -47,6 +47,30 @@ export default function DemonstrationsNew() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<Demonstration | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Estados para diálogo de iniciar
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [demoToStart, setDemoToStart] = useState<Demonstration | null>(null);
+  const [equipmentChecklist, setEquipmentChecklist] = useState({
+    drone: false,
+    baterias: false,
+    controle: false,
+    base_rtk: false,
+    misturador: false,
+    cabo_misturador: false,
+    carregador: false,
+    cabo_trifasico: false,
+    powerbank: false,
+    tanque_liquido: false,
+    tanque_solido: false,
+    gerador: false,
+    cabo_gerador: false,
+  });
+  
+  // Estados para diálogo de conclusão
+  const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
+  const [demoToComplete, setDemoToComplete] = useState<Demonstration | null>(null);
+  const [completionNotes, setCompletionNotes] = useState("");
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -242,9 +266,89 @@ export default function DemonstrationsNew() {
     setSelectedDemo(null);
   };
 
+  const openStartDialog = (demo: Demonstration) => {
+    setDemoToStart(demo);
+    setEquipmentChecklist({
+      drone: false,
+      baterias: false,
+      controle: false,
+      base_rtk: false,
+      misturador: false,
+      cabo_misturador: false,
+      carregador: false,
+      cabo_trifasico: false,
+      powerbank: false,
+      tanque_liquido: false,
+      tanque_solido: false,
+      gerador: false,
+      cabo_gerador: false,
+    });
+    setStartDialogOpen(true);
+  };
+
+  const handleStartDemo = async () => {
+    if (!demoToStart) return;
+
+    try {
+      const { error } = await supabase
+        .from("demonstrations")
+        .update({
+          status: "in_progress",
+          equipment_checklist: equipmentChecklist,
+        })
+        .eq("id", demoToStart.id);
+
+      if (error) throw error;
+      
+      toast.success("Demonstração iniciada com sucesso!");
+      fetchDemonstrations();
+      setStartDialogOpen(false);
+      setDemoToStart(null);
+    } catch (error) {
+      console.error("Erro ao iniciar demonstração:", error);
+      toast.error("Erro ao iniciar demonstração");
+    }
+  };
+
+  const openConcludeDialog = (demo: Demonstration) => {
+    setDemoToComplete(demo);
+    setCompletionNotes("");
+    setConcludeDialogOpen(true);
+  };
+
+  const handleConcludeDemo = async () => {
+    if (!demoToComplete) return;
+
+    if (!completionNotes.trim()) {
+      toast.error("Informe as observações de conclusão");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("demonstrations")
+        .update({
+          status: "completed",
+          completion_notes: completionNotes,
+        })
+        .eq("id", demoToComplete.id);
+
+      if (error) throw error;
+      
+      toast.success("Demonstração concluída com sucesso!");
+      fetchDemonstrations();
+      setConcludeDialogOpen(false);
+      setDemoToComplete(null);
+    } catch (error) {
+      console.error("Erro ao concluir demonstração:", error);
+      toast.error("Erro ao concluir demonstração");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       scheduled: { label: "Agendada", variant: "default" as const, className: "" },
+      in_progress: { label: "Em Andamento", variant: "default" as const, className: "bg-yellow-500 text-white" },
       completed: { label: "Realizada", variant: "default" as const, className: "bg-success text-success-foreground" },
       cancelled: { label: "Cancelada", variant: "destructive" as const, className: "" },
     };
@@ -642,7 +746,29 @@ export default function DemonstrationsNew() {
                 {demo.city && <p><strong>Cidade:</strong> {demo.city}</p>}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {demo.status === "scheduled" && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => openStartDialog(demo)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Iniciar
+                  </Button>
+                )}
+                {demo.status === "in_progress" && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => openConcludeDialog(demo)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Concluir
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => handleView(demo)}>
                   <Eye className="h-4 w-4 mr-1" />
                   Visualizar
@@ -667,6 +793,117 @@ export default function DemonstrationsNew() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de Iniciar Demonstração */}
+      <Dialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Iniciar Demonstração</DialogTitle>
+          </DialogHeader>
+          
+          {demoToStart && (
+            <div className="space-y-6">
+              {/* Info da Demonstração */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <p><strong>Cliente:</strong> {demoToStart.clients?.contact_name}</p>
+                <p><strong>Data:</strong> {format(new Date(demoToStart.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                {demoToStart.demo_types && demoToStart.demo_types.length > 0 && (
+                  <p><strong>Tipos:</strong> {demoToStart.demo_types.join(', ')}</p>
+                )}
+              </div>
+
+              {/* Checklist de Equipamentos */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Checklist de Equipamentos</Label>
+                <p className="text-sm text-muted-foreground">Marque os itens que você levou para a demonstração:</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'drone', label: 'Drone' },
+                    { key: 'baterias', label: 'Baterias' },
+                    { key: 'controle', label: 'Controle' },
+                    { key: 'base_rtk', label: 'Base + RTK' },
+                    { key: 'misturador', label: 'Misturador' },
+                    { key: 'cabo_misturador', label: 'Cabo Misturador' },
+                    { key: 'carregador', label: 'Carregador' },
+                    { key: 'cabo_trifasico', label: 'Cabo Trifásico Carregador' },
+                    { key: 'powerbank', label: 'PowerBank (verificar se está carregada)' },
+                    { key: 'tanque_liquido', label: 'Tanque de Líquido' },
+                    { key: 'tanque_solido', label: 'Tanque de Sólido' },
+                    { key: 'gerador', label: 'Gerador (Verificar se tem gasolina)' },
+                    { key: 'cabo_gerador', label: 'Cabo Gerador Tomada (se necessário)' },
+                  ].map((item) => (
+                    <label key={item.key} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={equipmentChecklist[item.key as keyof typeof equipmentChecklist]}
+                        onChange={(e) => setEquipmentChecklist(prev => ({
+                          ...prev,
+                          [item.key]: e.target.checked
+                        }))}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setStartDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleStartDemo} className="bg-blue-600 hover:bg-blue-700">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirmar Início
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Conclusão */}
+      <Dialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Concluir Demonstração</DialogTitle>
+          </DialogHeader>
+          
+          {demoToComplete && (
+            <div className="space-y-6">
+              {/* Info da Demonstração */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <p><strong>Cliente:</strong> {demoToComplete.clients?.contact_name}</p>
+                <p><strong>Data:</strong> {format(new Date(demoToComplete.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                {demoToComplete.demo_types && demoToComplete.demo_types.length > 0 && (
+                  <p><strong>Tipos:</strong> {demoToComplete.demo_types.join(', ')}</p>
+                )}
+              </div>
+
+              {/* Observações de Conclusão */}
+              <div className="space-y-2">
+                <Label>Observações de Conclusão * <span className="text-xs text-muted-foreground">(informe se ocorreu tudo conforme o planejado ou se houve intercorrências)</span></Label>
+                <Textarea
+                  value={completionNotes}
+                  onChange={(e) => setCompletionNotes(e.target.value)}
+                  placeholder="Ex: Demonstração realizada com sucesso, cliente interessado / Houve problemas técnicos..."
+                  rows={4}
+                />
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConcludeDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleConcludeDemo} className="bg-green-600 hover:bg-green-700">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirmar Conclusão
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>

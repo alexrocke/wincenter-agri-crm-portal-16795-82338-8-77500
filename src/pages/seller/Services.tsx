@@ -65,6 +65,26 @@ export default function Services() {
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
   const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
+  
+  // Estados para diálogo de iniciar
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [serviceToStart, setServiceToStart] = useState<Service | null>(null);
+  const [equipmentChecklist, setEquipmentChecklist] = useState({
+    drone: false,
+    baterias: false,
+    controle: false,
+    base_rtk: false,
+    misturador: false,
+    cabo_misturador: false,
+    carregador: false,
+    cabo_trifasico: false,
+    powerbank: false,
+    tanque_liquido: false,
+    tanque_solido: false,
+    gerador: false,
+    cabo_gerador: false,
+  });
+  const [completionNotes, setCompletionNotes] = useState("");
 
   const [formData, setFormData] = useState({
     client_id: "",
@@ -396,6 +416,7 @@ useEffect(() => {
     setPaymentMethods([]);
     setOtherPaymentMethod("");
     setPaymentValues({});
+    setCompletionNotes("");
     
     // Carregar produtos do serviço
     const { data: serviceItems } = await supabase
@@ -432,6 +453,11 @@ useEffect(() => {
 
     if (paymentMethods.includes("outro") && !otherPaymentMethod.trim()) {
       toast.error("Informe a outra forma de pagamento");
+      return;
+    }
+
+    if (!completionNotes.trim()) {
+      toast.error("Informe as observações de conclusão");
       return;
     }
 
@@ -506,6 +532,7 @@ useEffect(() => {
           status: "completed",
           hectares: hectares,
           total_value: totalRecalculado,
+          completion_notes: completionNotes,
         })
         .eq("id", serviceId);
       if (updateError) {
@@ -609,9 +636,54 @@ useEffect(() => {
     }
   };
 
+  const openStartDialog = (service: Service) => {
+    setServiceToStart(service);
+    setEquipmentChecklist({
+      drone: false,
+      baterias: false,
+      controle: false,
+      base_rtk: false,
+      misturador: false,
+      cabo_misturador: false,
+      carregador: false,
+      cabo_trifasico: false,
+      powerbank: false,
+      tanque_liquido: false,
+      tanque_solido: false,
+      gerador: false,
+      cabo_gerador: false,
+    });
+    setStartDialogOpen(true);
+  };
+
+  const handleStartService = async () => {
+    if (!serviceToStart) return;
+
+    try {
+      const { error } = await supabase
+        .from("services")
+        .update({
+          status: "in_progress",
+          equipment_checklist: equipmentChecklist,
+        })
+        .eq("id", serviceToStart.id);
+
+      if (error) throw error;
+      
+      toast.success("Serviço iniciado com sucesso!");
+      fetchServices();
+      setStartDialogOpen(false);
+      setServiceToStart(null);
+    } catch (error) {
+      console.error("Erro ao iniciar serviço:", error);
+      toast.error("Erro ao iniciar serviço");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       scheduled: { label: "Agendada", className: "bg-blue-500" },
+      in_progress: { label: "Em Andamento", className: "bg-yellow-500" },
       completed: { label: "Concluída", className: "bg-green-500" },
       cancelled: { label: "Cancelada", className: "bg-red-500" },
     };
@@ -696,6 +768,17 @@ useEffect(() => {
 
                 <div className="flex gap-2 flex-wrap">
                   {service.status === "scheduled" && (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={() => openStartDialog(service)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Iniciar
+                    </Button>
+                  )}
+                  {service.status === "in_progress" && (
                     <Button 
                       variant="default" 
                       size="sm" 
@@ -1061,6 +1144,73 @@ useEffect(() => {
           </DialogContent>
         </Dialog>
 
+        {/* Dialog de Iniciar Serviço */}
+        <Dialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Iniciar Serviço de Pulverização</DialogTitle>
+            </DialogHeader>
+            
+            {serviceToStart && (
+              <div className="space-y-6">
+                {/* Info do Serviço */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <p><strong>Cliente:</strong> {serviceToStart.clients?.contact_name}</p>
+                  <p><strong>Data:</strong> {format(new Date(serviceToStart.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                  {serviceToStart.crop && <p><strong>Cultura:</strong> {serviceToStart.crop}</p>}
+                  {serviceToStart.hectares && <p><strong>Hectares:</strong> {serviceToStart.hectares} ha</p>}
+                </div>
+
+                {/* Checklist de Equipamentos */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Checklist de Equipamentos</Label>
+                  <p className="text-sm text-muted-foreground">Marque os itens que você levou para o serviço:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { key: 'drone', label: 'Drone' },
+                      { key: 'baterias', label: 'Baterias' },
+                      { key: 'controle', label: 'Controle' },
+                      { key: 'base_rtk', label: 'Base + RTK' },
+                      { key: 'misturador', label: 'Misturador' },
+                      { key: 'cabo_misturador', label: 'Cabo Misturador' },
+                      { key: 'carregador', label: 'Carregador' },
+                      { key: 'cabo_trifasico', label: 'Cabo Trifásico Carregador' },
+                      { key: 'powerbank', label: 'PowerBank (verificar se está carregada)' },
+                      { key: 'tanque_liquido', label: 'Tanque de Líquido' },
+                      { key: 'tanque_solido', label: 'Tanque de Sólido' },
+                      { key: 'gerador', label: 'Gerador (Verificar se tem gasolina)' },
+                      { key: 'cabo_gerador', label: 'Cabo Gerador Tomada (se necessário)' },
+                    ].map((item) => (
+                      <label key={item.key} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={equipmentChecklist[item.key as keyof typeof equipmentChecklist]}
+                          onChange={(e) => setEquipmentChecklist(prev => ({
+                            ...prev,
+                            [item.key]: e.target.checked
+                          }))}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => setStartDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleStartService} className="bg-blue-600 hover:bg-blue-700">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirmar Início
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* View Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -1215,6 +1365,17 @@ useEffect(() => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Observações de Conclusão */}
+                <div className="space-y-2">
+                  <Label>Observações de Conclusão * <span className="text-xs text-muted-foreground">(informe se ocorreu tudo conforme o planejado ou se houve intercorrências)</span></Label>
+                  <Textarea
+                    value={completionNotes}
+                    onChange={(e) => setCompletionNotes(e.target.value)}
+                    placeholder="Ex: Serviço realizado conforme planejado / Houve atraso devido ao clima..."
+                    rows={4}
+                  />
                 </div>
 
                 {/* Resumo Calculado */}

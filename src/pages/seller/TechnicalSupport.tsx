@@ -21,6 +21,7 @@ import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 import { MediaUpload } from "@/components/MediaUpload";
 import { MediaViewer } from "@/components/MediaViewer";
+import { StartTechnicalDialog } from "@/components/StartTechnicalDialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -101,6 +102,29 @@ export default function TechnicalSupport() {
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
   const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
+  
+  // Estados para diálogo de iniciar
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [serviceToStart, setServiceToStart] = useState<TechnicalService | null>(null);
+  const [clientItems, setClientItems] = useState({
+    drone: false,
+    baterias: 0,
+    controle: false,
+    dongle: false,
+    carregador_controle: false,
+    baterias_controle: 0,
+    base_rtk: false,
+    misturador: false,
+    cabo_misturador: false,
+    carregador: false,
+    cabo_trifasico: false,
+    powerbank: false,
+    tanque_liquido: false,
+    tanque_solido: false,
+    gerador: false,
+    cabo_gerador: false,
+  });
+  const [completionNotes, setCompletionNotes] = useState("");
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -503,11 +527,59 @@ export default function TechnicalSupport() {
     }
   };
 
+  const openStartDialog = (service: TechnicalService) => {
+    setServiceToStart(service);
+    setClientItems({
+      drone: false,
+      baterias: 0,
+      controle: false,
+      dongle: false,
+      carregador_controle: false,
+      baterias_controle: 0,
+      base_rtk: false,
+      misturador: false,
+      cabo_misturador: false,
+      carregador: false,
+      cabo_trifasico: false,
+      powerbank: false,
+      tanque_liquido: false,
+      tanque_solido: false,
+      gerador: false,
+      cabo_gerador: false,
+    });
+    setStartDialogOpen(true);
+  };
+
+  const handleStartTechnical = async () => {
+    if (!serviceToStart) return;
+
+    try {
+      const { error } = await supabase
+        .from("services")
+        .update({
+          status: "open",
+          client_items: clientItems,
+        })
+        .eq("id", serviceToStart.id);
+
+      if (error) throw error;
+      
+      toast.success("Atendimento iniciado com sucesso!");
+      fetchServices();
+      setStartDialogOpen(false);
+      setServiceToStart(null);
+    } catch (error) {
+      console.error("Erro ao iniciar atendimento:", error);
+      toast.error("Erro ao iniciar atendimento");
+    }
+  };
+
   const openConcludeDialog = async (service: TechnicalService) => {
     setServiceToComplete(service);
     setPaymentMethods([]);
     setOtherPaymentMethod("");
     setPaymentValues({});
+    setCompletionNotes("");
     
     // Carregar produtos do serviço
     await fetchServiceItems(service.id);
@@ -527,6 +599,20 @@ export default function TechnicalSupport() {
     if (paymentMethods.includes("outro") && !otherPaymentMethod.trim()) {
       toast.error("Informe a outra forma de pagamento");
       return;
+    }
+
+    if (!completionNotes.trim()) {
+      toast.error("Informe as observações de conclusão");
+      return;
+    }
+
+    // Validar estoque de todos os produtos
+    for (const item of productItems) {
+      const product = products.find(p => p.id === item.product_id);
+      if (product && product.stock < item.qty) {
+        toast.error(`Estoque insuficiente para ${item.product_name}. Disponível: ${product.stock}, Necessário: ${item.qty}`);
+        return;
+      }
     }
 
     const totalValue = serviceToComplete.total_value || 0;
@@ -571,6 +657,7 @@ export default function TechnicalSupport() {
         .from("services")
         .update({ 
           status: "completed",
+          completion_notes: completionNotes,
         })
         .eq("id", serviceId);
         
@@ -763,6 +850,7 @@ export default function TechnicalSupport() {
   const getStatusBadge = (status: string) => {
     const statusMap = {
       scheduled: { label: "Agendado", variant: "default" as const, className: "" },
+      open: { label: "Em Aberto", variant: "default" as const, className: "bg-orange-500 text-white" },
       completed: { label: "Concluído", variant: "default" as const, className: "bg-success text-success-foreground" },
       cancelled: { label: "Cancelado", variant: "destructive" as const, className: "" },
     };
@@ -1637,6 +1725,17 @@ export default function TechnicalSupport() {
 
               <div className="flex gap-2 flex-wrap">
                 {service.status === "scheduled" && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => openStartDialog(service)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Iniciar
+                  </Button>
+                )}
+                {service.status === "open" && (
                   <Button 
                     variant="default" 
                     size="sm" 
