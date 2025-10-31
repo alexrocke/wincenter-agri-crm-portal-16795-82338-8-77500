@@ -123,6 +123,7 @@ export default function TechnicalSupport() {
     tanque_solido: false,
     gerador: false,
     cabo_gerador: false,
+    observacao: "",
   });
   const [completionNotes, setCompletionNotes] = useState("");
 
@@ -546,6 +547,7 @@ export default function TechnicalSupport() {
       tanque_solido: false,
       gerador: false,
       cabo_gerador: false,
+      observacao: "",
     });
     setStartDialogOpen(true);
   };

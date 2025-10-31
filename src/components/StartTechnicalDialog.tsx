@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +24,7 @@ interface ClientItems {
   tanque_solido: boolean;
   gerador: boolean;
   cabo_gerador: boolean;
+  observacao: string;
 }
 
 interface StartTechnicalDialogProps {
@@ -114,6 +116,15 @@ export function StartTechnicalDialog({
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Observação</Label>
+            <Textarea
+              placeholder="Ex.: Itens com avarias, falta de acessórios, etc."
+              value={clientItems.observacao || ""}
+              onChange={(e) => setClientItems({ ...clientItems, observacao: e.target.value })}
+            />
           </div>
 
           <DialogFooter className="gap-2">
