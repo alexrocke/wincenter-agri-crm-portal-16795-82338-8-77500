@@ -2260,6 +2260,16 @@ export default function TechnicalSupport() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Iniciar Atendimento */}
+      <StartTechnicalDialog
+        open={startDialogOpen}
+        onOpenChange={setStartDialogOpen}
+        service={serviceToStart}
+        clientItems={clientItems}
+        setClientItems={setClientItems}
+        onConfirm={handleStartTechnical}
+      />
       </div>
     </AppLayout>
   );
