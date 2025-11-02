@@ -8,10 +8,8 @@ import {
   BarChart3,
   Target,
   Receipt,
-  Settings,
   Bell,
   UserPlus,
-  Leaf,
   Sparkles,
   Calendar,
   Presentation,
@@ -19,6 +17,9 @@ import {
   Droplet,
   Wrench,
   CheckSquare,
+  Briefcase,
+  FileText,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,34 +27,87 @@ import { useAuth } from '@/lib/auth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Badge } from '@/components/ui/badge';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { MenuItemWithSubmenu } from './MenuItemWithSubmenu';
 
-const sellerLinks = [
+// Links diretos do vendedor
+const sellerDirectLinks = [
   { to: '/seller/dashboard', icon: Home, label: 'Dashboard' },
   { to: '/seller/clients', icon: Users, label: 'Clientes' },
-  { to: '/seller/opportunities', icon: TrendingUp, label: 'Oportunidades' },
-  { to: '/seller/products', icon: Package, label: 'Produtos' },
-  { to: '/seller/sales', icon: ShoppingCart, label: 'Vendas' },
-  { to: '/seller/commissions', icon: DollarSign, label: 'Comissões' },
-  { to: '/seller/visits', icon: Calendar, label: 'Visitas' },
-  { to: '/seller/services', icon: Droplet, label: 'Serviço' },
-  { to: '/seller/demonstrations', icon: Presentation, label: 'Demonstração' },
-  { to: '/seller/technical-support', icon: Wrench, label: 'Assistência Técnica' },
   { to: '/seller/tasks', icon: CheckSquare, label: 'Tarefas' },
+  { to: '/seller/products', icon: Package, label: 'Produtos' },
   { to: '/notifications', icon: Bell, label: 'Notificações' },
 ];
 
-const adminLinks = [
+// Grupos de submenus do vendedor
+const sellerGroups = [
+  {
+    title: 'Comercial',
+    icon: TrendingUp,
+    storageKey: 'sidebar-comercial-open',
+    items: [
+      { to: '/seller/opportunities', icon: TrendingUp, label: 'Oportunidades' },
+      { to: '/seller/sales', icon: ShoppingCart, label: 'Vendas' },
+      { to: '/seller/commissions', icon: DollarSign, label: 'Comissões' },
+    ],
+  },
+  {
+    title: 'Atendimento',
+    icon: Wrench,
+    storageKey: 'sidebar-atendimento-open',
+    items: [
+      { to: '/seller/visits', icon: Calendar, label: 'Visitas' },
+      { to: '/seller/services', icon: Droplet, label: 'Serviço' },
+      { to: '/seller/demonstrations', icon: Presentation, label: 'Demonstração' },
+      { to: '/seller/technical-support', icon: Wrench, label: 'Assistência Técnica' },
+    ],
+  },
+];
+
+// Link direto do admin
+const adminDirectLinks = [
   { to: '/admin/dashboard', icon: Home, label: 'Dashboard' },
-  { to: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
-  { to: '/admin/sales', icon: ShoppingCart, label: 'Vendas' },
-  { to: '/admin/products', icon: Package, label: 'Produtos' },
-  { to: '/admin/goals', icon: Target, label: 'Metas' },
-  { to: '/admin/company-costs', icon: Receipt, label: 'Custos' },
-  { to: '/admin/commission-rules', icon: Settings, label: 'Regras Comissão' },
-  { to: '/admin/commissions', icon: DollarSign, label: 'Gestão Comissões' },
-  { to: '/admin/notifications', icon: Bell, label: 'Notificações' },
-  { to: '/admin/users-invites', icon: UserPlus, label: 'Convites' },
-  { to: '/admin/site-settings', icon: Sparkles, label: 'Configurações' },
+];
+
+// Grupos de submenus do admin
+const adminGroups = [
+  {
+    title: 'Relatórios & Análises',
+    icon: BarChart3,
+    storageKey: 'sidebar-relatorios-open',
+    items: [
+      { to: '/admin/reports', icon: FileText, label: 'Relatórios' },
+      { to: '/admin/sales', icon: ShoppingCart, label: 'Vendas' },
+    ],
+  },
+  {
+    title: 'Gestão Comercial',
+    icon: Briefcase,
+    storageKey: 'sidebar-gestao-open',
+    items: [
+      { to: '/admin/products', icon: Package, label: 'Produtos' },
+      { to: '/admin/goals', icon: Target, label: 'Metas' },
+      { to: '/admin/company-costs', icon: Receipt, label: 'Custos' },
+    ],
+  },
+  {
+    title: 'Comissões',
+    icon: DollarSign,
+    storageKey: 'sidebar-comissoes-open',
+    items: [
+      { to: '/admin/commission-rules', icon: Settings, label: 'Regras de Comissão' },
+      { to: '/admin/commissions', icon: DollarSign, label: 'Gestão de Comissões' },
+    ],
+  },
+  {
+    title: 'Configurações',
+    icon: Settings,
+    storageKey: 'sidebar-configuracoes-open',
+    items: [
+      { to: '/admin/users-invites', icon: UserPlus, label: 'Convites' },
+      { to: '/admin/notifications', icon: Bell, label: 'Notificações' },
+      { to: '/admin/site-settings', icon: Sparkles, label: 'Configurações do Site' },
+    ],
+  },
 ];
 
 interface SidebarContentProps {
@@ -87,14 +141,14 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-6">
+        <div className="space-y-4">
           {userRole === 'admin' && (
             <div>
               <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Administração
               </h3>
               <nav className="space-y-1">
-                {adminLinks.map((link) => (
+                {adminDirectLinks.map((link) => (
                   <NavLink
                     key={link.to}
                     to={link.to}
@@ -112,6 +166,16 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
                     {link.label}
                   </NavLink>
                 ))}
+                {adminGroups.map((group) => (
+                  <MenuItemWithSubmenu
+                    key={group.storageKey}
+                    title={group.title}
+                    icon={group.icon}
+                    items={group.items}
+                    storageKey={group.storageKey}
+                    onNavigate={handleNavClick}
+                  />
+                ))}
               </nav>
             </div>
           )}
@@ -121,7 +185,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
               {userRole === 'technician' ? 'Técnico' : 'Vendedor'}
             </h3>
             <nav className="space-y-1">
-              {sellerLinks.map((link) => (
+              {sellerDirectLinks.map((link) => (
                 <NavLink
                   key={link.to}
                   to={link.to}
@@ -143,6 +207,16 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
                     </Badge>
                   )}
                 </NavLink>
+              ))}
+              {sellerGroups.map((group) => (
+                <MenuItemWithSubmenu
+                  key={group.storageKey}
+                  title={group.title}
+                  icon={group.icon}
+                  items={group.items}
+                  storageKey={group.storageKey}
+                  onNavigate={handleNavClick}
+                />
               ))}
             </nav>
           </div>
