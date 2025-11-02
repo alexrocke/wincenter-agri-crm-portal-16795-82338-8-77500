@@ -135,57 +135,59 @@ export function DesktopTopNav() {
         </NavLink>
 
         {/* Navigation Menu */}
-        <NavigationMenu className="flex-1">
-          <NavigationMenuList>
+        <nav className="flex-1 flex items-center gap-1">
             {userRole === 'admin' && (
               <>
                 {adminDirectLinks.map((link) => (
-                  <NavigationMenuItem key={link.to}>
-                    <NavLink
-                      to={link.to}
-                      className={cn(
-                        navigationMenuTriggerStyle(),
-                        isLinkActive(link.to) && 'bg-accent text-accent-foreground'
-                      )}
-                    >
-                      <link.icon className="h-4 w-4 mr-2" />
-                      {link.label}
-                    </NavLink>
-                  </NavigationMenuItem>
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                      isLinkActive(link.to) && 'bg-accent text-accent-foreground'
+                    )}
+                  >
+                    <link.icon className="h-4 w-4 mr-2" />
+                    {link.label}
+                  </NavLink>
                 ))}
                 {adminGroups.map((group) => (
-                  <NavigationMenuItem key={group.title}>
-                    <NavigationMenuTrigger
-                      className={cn(
-                        isGroupActive(group.items) && 'bg-accent/50 text-accent-foreground'
-                      )}
-                    >
-                      <group.icon className="h-4 w-4 mr-2" />
-                      {group.title}
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <ul className="w-56 p-2 bg-popover">
-                        {group.items.map((item) => (
-                          <li key={item.to}>
-                            <NavLink
-                              to={item.to}
-                              className={({ isActive }) =>
-                                cn(
-                                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                                  isActive
-                                    ? 'bg-accent text-accent-foreground'
-                                    : 'hover:bg-accent/50 hover:text-accent-foreground'
-                                )
-                              }
-                            >
-                              <item.icon className="h-4 w-4" />
-                              {item.label}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+                  <NavigationMenu key={group.title}>
+                    <NavigationMenuList>
+                      <NavigationMenuItem>
+                        <NavigationMenuTrigger
+                          className={cn(
+                            isGroupActive(group.items) && 'bg-accent/50 text-accent-foreground'
+                          )}
+                        >
+                          <group.icon className="h-4 w-4 mr-2" />
+                          {group.title}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <ul className="w-56 p-2 bg-popover">
+                            {group.items.map((item) => (
+                              <li key={item.to}>
+                                <NavLink
+                                  to={item.to}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                                      isActive
+                                        ? 'bg-accent text-accent-foreground'
+                                        : 'hover:bg-accent/50 hover:text-accent-foreground'
+                                    )
+                                  }
+                                >
+                                  <item.icon className="h-4 w-4" />
+                                  {item.label}
+                                </NavLink>
+                              </li>
+                            ))}
+                          </ul>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    </NavigationMenuList>
+                  </NavigationMenu>
                 ))}
               </>
             )}
@@ -193,57 +195,59 @@ export function DesktopTopNav() {
             {(userRole === 'seller' || userRole === 'technician') && (
               <>
                 {sellerDirectLinks.map((link) => (
-                  <NavigationMenuItem key={link.to}>
-                    <NavLink
-                      to={link.to}
-                      className={cn(
-                        navigationMenuTriggerStyle(),
-                        isLinkActive(link.to) && 'bg-accent text-accent-foreground'
-                      )}
-                    >
-                      <link.icon className="h-4 w-4 mr-2" />
-                      {link.label}
-                    </NavLink>
-                  </NavigationMenuItem>
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                      isLinkActive(link.to) && 'bg-accent text-accent-foreground'
+                    )}
+                  >
+                    <link.icon className="h-4 w-4 mr-2" />
+                    {link.label}
+                  </NavLink>
                 ))}
                 {sellerGroups.map((group) => (
-                  <NavigationMenuItem key={group.title}>
-                    <NavigationMenuTrigger
-                      className={cn(
-                        isGroupActive(group.items) && 'bg-accent/50 text-accent-foreground'
-                      )}
-                    >
-                      <group.icon className="h-4 w-4 mr-2" />
-                      {group.title}
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <ul className="w-56 p-2 bg-popover">
-                        {group.items.map((item) => (
-                          <li key={item.to}>
-                            <NavLink
-                              to={item.to}
-                              className={({ isActive }) =>
-                                cn(
-                                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                                  isActive
-                                    ? 'bg-accent text-accent-foreground'
-                                    : 'hover:bg-accent/50 hover:text-accent-foreground'
-                                )
-                              }
-                            >
-                              <item.icon className="h-4 w-4" />
-                              {item.label}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
+                  <NavigationMenu key={group.title}>
+                    <NavigationMenuList>
+                      <NavigationMenuItem>
+                        <NavigationMenuTrigger
+                          className={cn(
+                            isGroupActive(group.items) && 'bg-accent/50 text-accent-foreground'
+                          )}
+                        >
+                          <group.icon className="h-4 w-4 mr-2" />
+                          {group.title}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <ul className="w-56 p-2 bg-popover">
+                            {group.items.map((item) => (
+                              <li key={item.to}>
+                                <NavLink
+                                  to={item.to}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                                      isActive
+                                        ? 'bg-accent text-accent-foreground'
+                                        : 'hover:bg-accent/50 hover:text-accent-foreground'
+                                    )
+                                  }
+                                >
+                                  <item.icon className="h-4 w-4" />
+                                  {item.label}
+                                </NavLink>
+                              </li>
+                            ))}
+                          </ul>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    </NavigationMenuList>
+                  </NavigationMenu>
                 ))}
               </>
             )}
-          </NavigationMenuList>
-        </NavigationMenu>
+        </nav>
 
         {/* Right side - Notifications and User */}
         <div className="flex items-center gap-3">
