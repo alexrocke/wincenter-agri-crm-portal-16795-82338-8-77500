@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { DesktopTopNav } from './DesktopTopNav';
+import { AdminSidebar } from './AdminSidebar';
 import { SidebarContent } from './SidebarContent';
 import { BottomNav } from './BottomNav';
 import { MobileHeader } from './MobileHeader';
@@ -18,10 +18,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      {/* Desktop: Top Navigation */}
-      <div className="hidden md:block">
-        <DesktopTopNav />
+    <div className="flex min-h-screen w-full">
+      {/* Desktop: Sidebar */}
+      <div className="hidden md:flex">
+        <AdminSidebar />
       </div>
 
       {/* Mobile: Header with Menu Button */}
