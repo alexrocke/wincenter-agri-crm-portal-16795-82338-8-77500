@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { AdminSidebar } from './AdminSidebar';
+import { DesktopTopNav } from './DesktopTopNav';
 import { SidebarContent } from './SidebarContent';
 import { BottomNav } from './BottomNav';
 import { MobileHeader } from './MobileHeader';
@@ -18,29 +18,37 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full">
-      <AdminSidebar />
+    <div className="flex min-h-screen w-full flex-col">
+      {/* Desktop: Top Navigation */}
+      <div className="hidden md:block">
+        <DesktopTopNav />
+      </div>
+
+      {/* Mobile: Header with Menu Button */}
+      <div className="md:hidden p-4 border-b border-border bg-card sticky top-0 z-40">
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+            <SheetDescription className="sr-only">
+              Navegue pelas diferentes seções do WinCenter
+            </SheetDescription>
+            <SidebarContent onNavigate={() => setSheetOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="md:hidden p-4 border-b border-border bg-card sticky top-0 z-40">
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-              <SheetDescription className="sr-only">
-                Navegue pelas diferentes seções do WinCenter
-              </SheetDescription>
-              <SidebarContent onNavigate={() => setSheetOpen(false)} />
-            </SheetContent>
-          </Sheet>
-        </div>
         <div className="pb-4 md:pb-0">
           {children}
         </div>
       </main>
+
       <NotificationPermissionBanner />
     </div>
   );
