@@ -1076,19 +1076,30 @@ export default function TechnicalSupport() {
         yPosition += (defectLines.length * 5) + 8;
       }
 
-      // Observações
+      // Observações (parse JSON to get general notes)
       if (selectedService.notes) {
-        if (yPosition > 250) {
-          pdf.addPage();
-          yPosition = 20;
+        let generalNotes = "";
+        try {
+          const parsed = JSON.parse(selectedService.notes);
+          generalNotes = parsed.general || "";
+        } catch (e) {
+          // If not JSON, it's plain text (old format)
+          generalNotes = selectedService.notes;
         }
-        pdf.setFont("helvetica", "bold");
-        pdf.text("Observações:", 15, yPosition);
-        yPosition += 7;
-        pdf.setFont("helvetica", "normal");
-        const notesLines = pdf.splitTextToSize(selectedService.notes, pageWidth - 30);
-        pdf.text(notesLines, 15, yPosition);
-        yPosition += (notesLines.length * 5) + 8;
+        
+        if (generalNotes) {
+          if (yPosition > 250) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Observações:", 15, yPosition);
+          yPosition += 7;
+          pdf.setFont("helvetica", "normal");
+          const notesLines = pdf.splitTextToSize(generalNotes, pageWidth - 30);
+          pdf.text(notesLines, 15, yPosition);
+          yPosition += (notesLines.length * 5) + 8;
+        }
       }
 
       // Produtos utilizados
@@ -1127,23 +1138,71 @@ export default function TechnicalSupport() {
         });
 
         yPosition = (pdf as any).lastAutoTable.finalY + 10;
+      }
 
-        // Resumo de valores
+      // Serviços realizados
+      if (serviceItems.length > 0) {
+        if (yPosition > 220) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.text("Serviços Realizados", 15, yPosition);
+        yPosition += 5;
+
+        const servicesData = serviceItems.map(item => {
+          const itemTotal = (item.value || 0) * (item.qty || 0);
+          
+          return [
+            item.description || "-",
+            String(item.qty || 0),
+            `R$ ${(item.value || 0).toFixed(2)}`,
+            `R$ ${itemTotal.toFixed(2)}`,
+            item.notes || "-"
+          ];
+        });
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [["Serviço", "Qtd", "Valor Unit.", "Total", "Observações"]],
+          body: servicesData,
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: { fillColor: [66, 66, 66], textColor: 255, fontStyle: "bold" }
+        });
+
+        yPosition = (pdf as any).lastAutoTable.finalY + 10;
+      }
+
+      // Resumo de valores
+      if (productItems.length > 0 || serviceItems.length > 0 || selectedService.total_value) {
         const productsTotal = productItems.reduce((sum, item) => {
           const itemTotal = (item.unit_price || 0) * (item.qty || 0);
           const discount = itemTotal * ((item.discount_percent || 0) / 100);
           return sum + (itemTotal - discount);
         }, 0);
 
-        const serviceValue = selectedService.total_value || 0;
-        const totalValue = productsTotal + serviceValue;
+        const servicesTotal = serviceItems.reduce((sum, item) => {
+          return sum + ((item.value || 0) * (item.qty || 0));
+        }, 0);
 
-        const resumeData = [
-          ["Valor dos Produtos:", `R$ ${productsTotal.toFixed(2)}`],
-        ];
+        const serviceValue = selectedService.total_value || 0;
+        const totalValue = productsTotal + servicesTotal + serviceValue;
+
+        const resumeData = [];
+        
+        if (productsTotal > 0) {
+          resumeData.push(["Valor dos Produtos:", `R$ ${productsTotal.toFixed(2)}`]);
+        }
+
+        if (servicesTotal > 0) {
+          resumeData.push(["Valor dos Serviços:", `R$ ${servicesTotal.toFixed(2)}`]);
+        }
 
         if (serviceValue > 0) {
-          resumeData.push(["Valor do Serviço:", `R$ ${serviceValue.toFixed(2)}`]);
+          resumeData.push(["Valor do Atendimento:", `R$ ${serviceValue.toFixed(2)}`]);
         }
 
         resumeData.push(["VALOR TOTAL:", `R$ ${totalValue.toFixed(2)}`]);
@@ -1162,16 +1221,6 @@ export default function TechnicalSupport() {
         });
 
         yPosition = (pdf as any).lastAutoTable.finalY + 10;
-      } else if (selectedService.total_value) {
-        // Se não tem produtos, mostrar apenas o valor do serviço
-        if (yPosition > 260) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(12);
-        pdf.text(`Valor do Serviço: R$ ${selectedService.total_value.toFixed(2)}`, pageWidth - 15, yPosition, { align: "right" });
-        yPosition += 10;
       }
 
       // Adicionar imagens
@@ -2329,12 +2378,30 @@ export default function TechnicalSupport() {
                 </div>
               )}
 
-              {selectedService.notes && (
-                <div>
-                  <Label className="text-muted-foreground">Observações</Label>
-                  <p className="mt-1 whitespace-pre-wrap">{selectedService.notes}</p>
-                </div>
-              )}
+              {selectedService.notes && (() => {
+                // Parse notes to get only the general notes
+                try {
+                  const parsed = JSON.parse(selectedService.notes);
+                  const generalNotes = parsed.general || "";
+                  if (generalNotes) {
+                    return (
+                      <div>
+                        <Label className="text-muted-foreground">Observações</Label>
+                        <p className="mt-1 whitespace-pre-wrap">{generalNotes}</p>
+                      </div>
+                    );
+                  }
+                } catch (e) {
+                  // If not JSON, it's plain text (old format)
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Observações</Label>
+                      <p className="mt-1 whitespace-pre-wrap">{selectedService.notes}</p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {selectedService.technical_checklist && (
                 <div>
