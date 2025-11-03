@@ -44,6 +44,7 @@ interface ProductItem {
 
 interface ServiceItem {
   description: string;
+  qty: number;
   value: number;
   notes?: string;
 }
@@ -115,6 +116,7 @@ export default function TechnicalSupport() {
   // Service states
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [newServiceDescription, setNewServiceDescription] = useState("");
+  const [newServiceQty, setNewServiceQty] = useState<number>(1);
   const [newServiceValue, setNewServiceValue] = useState<number>(0);
   const [newServiceNotes, setNewServiceNotes] = useState("");
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
@@ -882,6 +884,7 @@ export default function TechnicalSupport() {
     setMediaFiles([]);
     setServiceItems([]);
     setNewServiceDescription("");
+    setNewServiceQty(1);
     setNewServiceValue(0);
     setNewServiceNotes("");
     setIsEditing(false);
@@ -938,6 +941,10 @@ export default function TechnicalSupport() {
       toast.error("Informe a descrição do serviço");
       return;
     }
+    if (newServiceQty <= 0) {
+      toast.error("Informe uma quantidade válida");
+      return;
+    }
     if (newServiceValue <= 0) {
       toast.error("Informe um valor válido para o serviço");
       return;
@@ -945,12 +952,14 @@ export default function TechnicalSupport() {
     
     setServiceItems([...serviceItems, {
       description: newServiceDescription,
+      qty: newServiceQty,
       value: newServiceValue,
       notes: newServiceNotes
     }]);
     
     // Limpar campos
     setNewServiceDescription("");
+    setNewServiceQty(1);
     setNewServiceValue(0);
     setNewServiceNotes("");
   };
@@ -1657,15 +1666,15 @@ export default function TechnicalSupport() {
                             <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
                               <span className="font-bold text-lg">Total da Ordem:</span>
                               <span className="text-2xl font-bold text-primary">
-                                R$ {(
-                                  productItems.reduce((sum, item) => {
-                                    const itemTotal = item.unit_price * item.qty;
-                                    const discount = itemTotal * (item.discount_percent / 100);
-                                    return sum + (itemTotal - discount);
-                                  }, 0) + 
-                                  (formData.total_value || 0) +
-                                  serviceItems.reduce((sum, item) => sum + item.value, 0)
-                                ).toFixed(2)}
+              R$ {(
+                productItems.reduce((sum, item) => {
+                  const itemTotal = item.unit_price * item.qty;
+                  const discount = itemTotal * (item.discount_percent / 100);
+                  return sum + (itemTotal - discount);
+                }, 0) + 
+                (formData.total_value || 0) +
+                serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0)
+              ).toFixed(2)}
                               </span>
                             </div>
                           </>
@@ -1695,50 +1704,61 @@ export default function TechnicalSupport() {
                     <CardHeader>
                       <CardTitle className="text-lg">Adicionar Serviço</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                        <div className="md:col-span-4 space-y-1">
-                          <Label className="text-xs">Descrição do Serviço *</Label>
-                          <Input
-                            placeholder="Ex: Deslocamento, Mão de Obra..."
-                            value={newServiceDescription}
-                            onChange={(e) => setNewServiceDescription(e.target.value)}
-                          />
-                        </div>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div className="md:col-span-3 space-y-1">
+              <Label className="text-xs">Descrição do Serviço *</Label>
+              <Input
+                placeholder="Ex: Deslocamento, Mão de Obra..."
+                value={newServiceDescription}
+                onChange={(e) => setNewServiceDescription(e.target.value)}
+              />
+            </div>
 
-                        <div className="md:col-span-2 space-y-1">
-                          <Label className="text-xs">Valor (R$) *</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            value={newServiceValue || ""}
-                            onChange={(e) => setNewServiceValue(parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs">Quantidade *</Label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={newServiceQty || ""}
+                onChange={(e) => setNewServiceQty(parseInt(e.target.value) || 1)}
+              />
+            </div>
 
-                        <div className="md:col-span-5 space-y-1">
-                          <Label className="text-xs">Observações (opcional)</Label>
-                          <Input
-                            placeholder="Detalhes adicionais..."
-                            value={newServiceNotes}
-                            onChange={(e) => setNewServiceNotes(e.target.value)}
-                          />
-                        </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs">Valor Unit. (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={newServiceValue || ""}
+                onChange={(e) => setNewServiceValue(parseFloat(e.target.value) || 0)}
+              />
+            </div>
 
-                        <div className="md:col-span-1">
-                          <Button
-                            type="button"
-                            onClick={addServiceItem}
-                            size="icon"
-                            className="w-full"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
+            <div className="md:col-span-4 space-y-1">
+              <Label className="text-xs">Observações (opcional)</Label>
+              <Input
+                placeholder="Detalhes adicionais..."
+                value={newServiceNotes}
+                onChange={(e) => setNewServiceNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <Button
+                type="button"
+                onClick={addServiceItem}
+                size="icon"
+                className="w-full"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
                   </Card>
 
                   {/* Lista de serviços adicionados */}
@@ -1754,50 +1774,69 @@ export default function TechnicalSupport() {
                     ) : (
                       serviceItems.map((service, index) => (
                         <Card key={index}>
-                          <CardContent className="pt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                              <div className="md:col-span-4 space-y-1">
-                                <Label className="text-xs">Descrição</Label>
-                                <Input
-                                  value={service.description}
-                                  onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
-                                  placeholder="Descrição do serviço"
-                                />
-                              </div>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                <div className="md:col-span-3 space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={service.description}
+                    onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
+                    placeholder="Descrição do serviço"
+                  />
+                </div>
 
-                              <div className="md:col-span-2 space-y-1">
-                                <Label className="text-xs">Valor (R$)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={service.value}
-                                  onChange={(e) => updateServiceItem(index, 'value', parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs">Quantidade</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={service.qty}
+                    onChange={(e) => updateServiceItem(index, 'qty', parseInt(e.target.value) || 1)}
+                  />
+                </div>
 
-                              <div className="md:col-span-5 space-y-1">
-                                <Label className="text-xs">Observações</Label>
-                                <Input
-                                  value={service.notes || ""}
-                                  onChange={(e) => updateServiceItem(index, 'notes', e.target.value)}
-                                  placeholder="Observações"
-                                />
-                              </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label className="text-xs">Valor Unit. (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={service.value}
+                    onChange={(e) => updateServiceItem(index, 'value', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
 
-                              <div className="md:col-span-1 flex items-end">
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removeServiceItem(index)}
-                                  className="w-full"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
+                <div className="md:col-span-1 space-y-1">
+                  <Label className="text-xs">Total</Label>
+                  <div className="h-10 flex items-center px-3 bg-muted rounded-md">
+                    <span className="text-sm font-semibold">
+                      R$ {(service.value * service.qty).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="md:col-span-3 space-y-1">
+                  <Label className="text-xs">Observações</Label>
+                  <Input
+                    value={service.notes || ""}
+                    onChange={(e) => updateServiceItem(index, 'notes', e.target.value)}
+                    placeholder="Observações"
+                  />
+                </div>
+
+                <div className="md:col-span-1 flex items-end">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => removeServiceItem(index)}
+                    className="w-full"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
                         </Card>
                       ))
                     )}
@@ -1805,12 +1844,12 @@ export default function TechnicalSupport() {
                     {/* Totalizadores */}
                     {serviceItems.length > 0 && (
                       <div className="space-y-2 mt-4">
-                        <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                          <span className="font-semibold">Total dos Serviços:</span>
-                          <span className="text-lg font-bold text-primary">
-                            R$ {serviceItems.reduce((sum, item) => sum + item.value, 0).toFixed(2)}
-                          </span>
-                        </div>
+          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+            <span className="font-semibold">Total dos Serviços:</span>
+            <span className="text-lg font-bold text-primary">
+              R$ {serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0).toFixed(2)}
+            </span>
+          </div>
 
                         {/* Total Geral (Produtos + Serviços + Valor do Atendimento) */}
                         <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
@@ -1822,7 +1861,7 @@ export default function TechnicalSupport() {
                                 const discount = itemTotal * (item.discount_percent / 100);
                                 return sum + (itemTotal - discount);
                               }, 0) + 
-                              serviceItems.reduce((sum, item) => sum + item.value, 0) +
+                              serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) +
                               (formData.total_value || 0)
                             ).toFixed(2)}
                           </span>
