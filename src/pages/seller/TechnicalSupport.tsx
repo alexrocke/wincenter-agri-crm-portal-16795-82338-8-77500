@@ -10,12 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench, Download, CheckCircle } from "lucide-react";
+import { Plus, Edit, Eye, Trash2, Calendar as CalendarIcon, Filter, Upload, X, Wrench, Download, CheckCircle, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClientAutocomplete } from "@/components/ClientAutocomplete";
@@ -100,6 +101,7 @@ export default function TechnicalSupport() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const [productComboOpen, setProductComboOpen] = useState<{[key: number]: boolean}>({});
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -1374,35 +1376,57 @@ export default function TechnicalSupport() {
                         <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg">
                           <div className="col-span-4 space-y-1">
                             <Label className="text-xs">Produto</Label>
-                            <Select
-                              value={item.product_id}
-                              onValueChange={(value) => updateProductItem(index, 'product_id', value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue>
-                                  {item.product_name || "Selecione um produto"}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent position="popper" className="z-[9999]">
-                                <div className="p-2 border-b sticky top-0 bg-background">
-                                  <Input
-                                    placeholder="Buscar produto..."
+                            <Popover open={productComboOpen[index]} onOpenChange={(open) => setProductComboOpen(prev => ({...prev, [index]: open}))}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={productComboOpen[index]}
+                                  className="w-full justify-between"
+                                >
+                                  <span className="truncate">
+                                    {item.product_name || "Selecione um produto"}
+                                  </span>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[300px] p-0" align="start">
+                                <Command>
+                                  <CommandInput 
+                                    placeholder="Pesquisar produto..." 
                                     value={productSearch}
-                                    onChange={(e) => setProductSearch(e.target.value)}
-                                    className="h-8"
+                                    onValueChange={setProductSearch}
                                   />
-                                </div>
-                                {products
-                                  .filter(product => 
-                                    product.name.toLowerCase().includes(productSearch.toLowerCase())
-                                  )
-                                  .map((product) => (
-                                    <SelectItem key={product.id} value={product.id}>
-                                      {product.name} (Est: {product.stock})
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                                  <CommandList>
+                                    <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                                    <CommandGroup>
+                                      {products
+                                        .filter(product => 
+                                          product.name.toLowerCase().includes(productSearch.toLowerCase())
+                                        )
+                                        .map((product) => (
+                                          <CommandItem
+                                            key={product.id}
+                                            value={product.name}
+                                            onSelect={() => {
+                                              updateProductItem(index, 'product_id', product.id);
+                                              setProductComboOpen(prev => ({...prev, [index]: false}));
+                                              setProductSearch("");
+                                            }}
+                                          >
+                                            <Check
+                                              className={`mr-2 h-4 w-4 ${
+                                                item.product_id === product.id ? "opacity-100" : "opacity-0"
+                                              }`}
+                                            />
+                                            {product.name} (Est: {product.stock})
+                                          </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
 
                           <div className="col-span-2 space-y-1">
