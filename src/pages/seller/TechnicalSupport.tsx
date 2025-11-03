@@ -102,6 +102,8 @@ export default function TechnicalSupport() {
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [productComboOpen, setProductComboOpen] = useState<{[key: number]: boolean}>({});
+  const [newProductComboOpen, setNewProductComboOpen] = useState(false);
+  const [selectedNewProduct, setSelectedNewProduct] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -850,19 +852,28 @@ export default function TechnicalSupport() {
   };
 
   const addProductItem = () => {
-    if (products.length === 0) {
-      toast.error("Nenhum produto disponível");
+    if (!selectedNewProduct) {
+      toast.error("Selecione um produto");
       return;
     }
     
-    const firstProduct = products[0];
+    const product = products.find(p => p.id === selectedNewProduct);
+    if (!product) {
+      toast.error("Produto não encontrado");
+      return;
+    }
+    
     setProductItems([...productItems, {
-      product_id: firstProduct.id,
-      product_name: firstProduct.name,
-      unit_price: firstProduct.price,
+      product_id: product.id,
+      product_name: product.name,
+      unit_price: product.price,
       qty: 1,
       discount_percent: 0
     }]);
+    
+    // Limpar seleção
+    setSelectedNewProduct("");
+    setProductSearch("");
   };
 
   const removeProductItem = (index: number) => {
@@ -1358,19 +1369,79 @@ export default function TechnicalSupport() {
 
               <TabsContent value="products" className="space-y-4">
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label>Produtos Utilizados na Assistência</Label>
-                    <Button type="button" onClick={addProductItem} size="sm">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Adicionar Produto
-                    </Button>
+                  <div className="space-y-2">
+                    <Label>Pesquisar Produto</Label>
+                    <div className="flex gap-2">
+                      <Popover open={newProductComboOpen} onOpenChange={setNewProductComboOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={newProductComboOpen}
+                            className="flex-1 justify-between"
+                          >
+                            <span className="truncate">
+                              {selectedNewProduct 
+                                ? products.find(p => p.id === selectedNewProduct)?.name 
+                                : "Selecione um produto"}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Pesquisar produto..." 
+                              value={productSearch}
+                              onValueChange={setProductSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                              <CommandGroup>
+                                {products
+                                  .filter(product => 
+                                    product.name.toLowerCase().includes(productSearch.toLowerCase())
+                                  )
+                                  .map((product) => (
+                                    <CommandItem
+                                      key={product.id}
+                                      value={product.name}
+                                      onSelect={() => {
+                                        setSelectedNewProduct(product.id);
+                                        setNewProductComboOpen(false);
+                                        setProductSearch("");
+                                      }}
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          selectedNewProduct === product.id ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      {product.name} (Est: {product.stock})
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Button 
+                        type="button" 
+                        onClick={addProductItem}
+                        disabled={!selectedNewProduct}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
-                  {productItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhum produto adicionado
-                    </p>
-                  ) : (
+                  <div className="space-y-2">
+                    <Label>Produtos Adicionados</Label>
+                    {productItems.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8 border rounded-lg border-dashed">
+                        Nenhum produto adicionado
+                      </p>
+                    ) : (
                     <div className="space-y-2">
                       {productItems.map((item, index) => (
                         <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg">
@@ -1530,7 +1601,8 @@ export default function TechnicalSupport() {
                         )}
                       </div>
                     </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </TabsContent>
 
