@@ -42,6 +42,12 @@ interface ProductItem {
   discount_percent: number;
 }
 
+interface ServiceItem {
+  description: string;
+  value: number;
+  notes?: string;
+}
+
 interface TechnicalService {
   id: string;
   client_id: string;
@@ -105,6 +111,12 @@ export default function TechnicalSupport() {
   const [newProductComboOpen, setNewProductComboOpen] = useState(false);
   const [selectedNewProduct, setSelectedNewProduct] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
+  
+  // Service states
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
+  const [newServiceDescription, setNewServiceDescription] = useState("");
+  const [newServiceValue, setNewServiceValue] = useState<number>(0);
+  const [newServiceNotes, setNewServiceNotes] = useState("");
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
@@ -341,6 +353,10 @@ export default function TechnicalSupport() {
         service_type: "maintenance" as const,
         created_by: user?.id,
         status: formData.status as any,
+        notes: JSON.stringify({
+          general: formData.notes,
+          services: serviceItems
+        })
       };
 
       if (isEditing && selectedService) {
@@ -778,6 +794,21 @@ export default function TechnicalSupport() {
     setProductItems([]);
     setProductSearch("");
     
+    // Parse notes to extract general notes and services
+    let generalNotes = "";
+    let loadedServices: ServiceItem[] = [];
+    
+    if (service.notes) {
+      try {
+        const parsed = JSON.parse(service.notes);
+        generalNotes = parsed.general || "";
+        loadedServices = parsed.services || [];
+      } catch (e) {
+        // If notes is not JSON, it's a plain string (old format)
+        generalNotes = service.notes;
+      }
+    }
+    
     setFormData({
       client_id: service.client_id,
       date: new Date(service.date),
@@ -791,7 +822,7 @@ export default function TechnicalSupport() {
       total_value: service.total_value || 0,
       under_warranty: service.under_warranty || false,
       status: service.status,
-      notes: service.notes || "",
+      notes: generalNotes,
       images: service.images || [],
       client_signature: service.client_signature || "",
       technical_checklist: service.technical_checklist || "",
@@ -800,6 +831,8 @@ export default function TechnicalSupport() {
       client_present: service.client_present || false,
       assigned_users: service.assigned_users || [],
     });
+    
+    setServiceItems(loadedServices);
     
     // Carregar produtos do serviço usando a função que mapeia corretamente
     await fetchServiceItems(service.id);
@@ -847,6 +880,10 @@ export default function TechnicalSupport() {
     setProductItems([]);
     setProductSearch("");
     setMediaFiles([]);
+    setServiceItems([]);
+    setNewServiceDescription("");
+    setNewServiceValue(0);
+    setNewServiceNotes("");
     setIsEditing(false);
     setSelectedService(null);
   };
@@ -894,6 +931,38 @@ export default function TechnicalSupport() {
     }
     
     setProductItems(newItems);
+  };
+
+  const addServiceItem = () => {
+    if (!newServiceDescription.trim()) {
+      toast.error("Informe a descrição do serviço");
+      return;
+    }
+    if (newServiceValue <= 0) {
+      toast.error("Informe um valor válido para o serviço");
+      return;
+    }
+    
+    setServiceItems([...serviceItems, {
+      description: newServiceDescription,
+      value: newServiceValue,
+      notes: newServiceNotes
+    }]);
+    
+    // Limpar campos
+    setNewServiceDescription("");
+    setNewServiceValue(0);
+    setNewServiceNotes("");
+  };
+
+  const removeServiceItem = (index: number) => {
+    setServiceItems(serviceItems.filter((_, i) => i !== index));
+  };
+
+  const updateServiceItem = (index: number, field: keyof ServiceItem, value: any) => {
+    const newItems = [...serviceItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setServiceItems(newItems);
   };
 
   const getStatusBadge = (status: string) => {
@@ -1174,9 +1243,10 @@ export default function TechnicalSupport() {
             </DialogHeader>
             
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="general">Dados Gerais</TabsTrigger>
                 <TabsTrigger value="products">Produtos</TabsTrigger>
+                <TabsTrigger value="services">Serviços</TabsTrigger>
                 <TabsTrigger value="equipment">Equipamento</TabsTrigger>
                 <TabsTrigger value="checklist">Checklist</TabsTrigger>
               </TabsList>
@@ -1564,25 +1634,37 @@ export default function TechnicalSupport() {
                           </span>
                         </div>
 
-                        {/* Total da Venda (Produtos + Serviço) */}
-                        {formData.total_value > 0 && (
+                        {/* Total da Venda (Produtos + Serviços + Valor Serviço) */}
+                        {(formData.total_value > 0 || serviceItems.length > 0) && (
                           <>
-                            <div className="flex justify-between items-center px-3 py-2 text-sm">
-                              <span className="text-muted-foreground">+ Valor do Serviço:</span>
-                              <span className="font-medium">
-                                R$ {formData.total_value.toFixed(2)}
-                              </span>
-                            </div>
+                            {formData.total_value > 0 && (
+                              <div className="flex justify-between items-center px-3 py-2 text-sm">
+                                <span className="text-muted-foreground">+ Valor do Serviço:</span>
+                                <span className="font-medium">
+                                  R$ {formData.total_value.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {serviceItems.length > 0 && (
+                              <div className="flex justify-between items-center px-3 py-2 text-sm">
+                                <span className="text-muted-foreground">+ Valor dos Serviços:</span>
+                                <span className="font-medium">
+                                  R$ {serviceItems.reduce((sum, item) => sum + item.value, 0).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
                             
                             <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                              <span className="font-bold text-lg">Total da Venda:</span>
+                              <span className="font-bold text-lg">Total da Ordem:</span>
                               <span className="text-2xl font-bold text-primary">
                                 R$ {(
                                   productItems.reduce((sum, item) => {
                                     const itemTotal = item.unit_price * item.qty;
                                     const discount = itemTotal * (item.discount_percent / 100);
                                     return sum + (itemTotal - discount);
-                                  }, 0) + (formData.total_value || 0)
+                                  }, 0) + 
+                                  (formData.total_value || 0) +
+                                  serviceItems.reduce((sum, item) => sum + item.value, 0)
                                 ).toFixed(2)}
                               </span>
                             </div>
@@ -1601,6 +1683,155 @@ export default function TechnicalSupport() {
                         )}
                       </div>
                     </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="services" className="space-y-4">
+                <div className="space-y-4">
+                  {/* Card para adicionar novo serviço */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Adicionar Serviço</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <div className="md:col-span-4 space-y-1">
+                          <Label className="text-xs">Descrição do Serviço *</Label>
+                          <Input
+                            placeholder="Ex: Deslocamento, Mão de Obra..."
+                            value={newServiceDescription}
+                            onChange={(e) => setNewServiceDescription(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="md:col-span-2 space-y-1">
+                          <Label className="text-xs">Valor (R$) *</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={newServiceValue || ""}
+                            onChange={(e) => setNewServiceValue(parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+
+                        <div className="md:col-span-5 space-y-1">
+                          <Label className="text-xs">Observações (opcional)</Label>
+                          <Input
+                            placeholder="Detalhes adicionais..."
+                            value={newServiceNotes}
+                            onChange={(e) => setNewServiceNotes(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="md:col-span-1">
+                          <Button
+                            type="button"
+                            onClick={addServiceItem}
+                            size="icon"
+                            className="w-full"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Lista de serviços adicionados */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">Serviços Adicionados ({serviceItems.length})</h3>
+                    
+                    {serviceItems.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-center text-muted-foreground">
+                          Nenhum serviço adicionado ainda
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      serviceItems.map((service, index) => (
+                        <Card key={index}>
+                          <CardContent className="pt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                              <div className="md:col-span-4 space-y-1">
+                                <Label className="text-xs">Descrição</Label>
+                                <Input
+                                  value={service.description}
+                                  onChange={(e) => updateServiceItem(index, 'description', e.target.value)}
+                                  placeholder="Descrição do serviço"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 space-y-1">
+                                <Label className="text-xs">Valor (R$)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={service.value}
+                                  onChange={(e) => updateServiceItem(index, 'value', parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+
+                              <div className="md:col-span-5 space-y-1">
+                                <Label className="text-xs">Observações</Label>
+                                <Input
+                                  value={service.notes || ""}
+                                  onChange={(e) => updateServiceItem(index, 'notes', e.target.value)}
+                                  placeholder="Observações"
+                                />
+                              </div>
+
+                              <div className="md:col-span-1 flex items-end">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeServiceItem(index)}
+                                  className="w-full"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+
+                    {/* Totalizadores */}
+                    {serviceItems.length > 0 && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                          <span className="font-semibold">Total dos Serviços:</span>
+                          <span className="text-lg font-bold text-primary">
+                            R$ {serviceItems.reduce((sum, item) => sum + item.value, 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        {/* Total Geral (Produtos + Serviços + Valor do Atendimento) */}
+                        <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
+                          <span className="font-bold text-lg">Total Geral da Ordem:</span>
+                          <span className="text-2xl font-bold text-primary">
+                            R$ {(
+                              productItems.reduce((sum, item) => {
+                                const itemTotal = item.unit_price * item.qty;
+                                const discount = itemTotal * (item.discount_percent / 100);
+                                return sum + (itemTotal - discount);
+                              }, 0) + 
+                              serviceItems.reduce((sum, item) => sum + item.value, 0) +
+                              (formData.total_value || 0)
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-info bg-info/10 p-2 rounded">
+                          ℹ️ Os serviços serão incluídos no valor total da ordem de serviço.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
