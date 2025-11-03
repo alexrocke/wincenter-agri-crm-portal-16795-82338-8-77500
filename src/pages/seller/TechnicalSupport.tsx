@@ -785,6 +785,21 @@ export default function TechnicalSupport() {
     // Carregar produtos do serviço usando a função que mapeia corretamente
     await fetchServiceItems(service.id);
     
+    // Carregar serviços do campo notes (se existirem)
+    if (service.notes) {
+      try {
+        const parsedNotes = JSON.parse(service.notes);
+        if (parsedNotes.services && Array.isArray(parsedNotes.services)) {
+          setServiceItems(parsedNotes.services);
+        }
+      } catch (e) {
+        // Se não for JSON ou não tiver serviços, ignora
+        setServiceItems([]);
+      }
+    } else {
+      setServiceItems([]);
+    }
+    
     setViewDialogOpen(true);
   };
 
@@ -2178,6 +2193,7 @@ export default function TechnicalSupport() {
         setViewDialogOpen(open);
         if (!open) {
           setProductItems([]);
+          setServiceItems([]);
           setMediaFiles([]);
         }
       }}>
@@ -2435,6 +2451,46 @@ export default function TechnicalSupport() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Serviços do Atendimento */}
+              {serviceItems.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Serviços Realizados</Label>
+                  <div className="mt-2 space-y-2">
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="text-left p-2">Serviço</th>
+                            <th className="text-center p-2">Qtd</th>
+                            <th className="text-right p-2">Valor Unit.</th>
+                            <th className="text-right p-2">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {serviceItems.map((item, index) => {
+                            const finalTotal = (item.value || 0) * (item.qty || 0);
+                            
+                            return (
+                              <tr key={index} className="border-t">
+                                <td className="p-2">
+                                  <div>{item.description}</div>
+                                  {item.notes && (
+                                    <div className="text-xs text-muted-foreground mt-1">{item.notes}</div>
+                                  )}
+                                </td>
+                                <td className="text-center p-2">{item.qty || 0}</td>
+                                <td className="text-right p-2">R$ {(item.value || 0).toFixed(2)}</td>
+                                <td className="text-right p-2 font-medium">R$ {finalTotal.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
                     {/* Resumo de Valores */}
                     <div className="space-y-2 mt-4 p-4 bg-muted/30 rounded-lg">
@@ -2450,10 +2506,20 @@ export default function TechnicalSupport() {
                         </span>
                       </div>
 
-                      {/* Valor do Serviço */}
+                      {/* Valor dos Serviços */}
+                      {serviceItems.length > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Valor dos Serviços:</span>
+                          <span className="text-lg font-bold">
+                            R$ {serviceItems.reduce((sum, item) => sum + ((item.value || 0) * (item.qty || 0)), 0).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Valor do Atendimento */}
                       {selectedService && selectedService.total_value !== null && selectedService.total_value !== undefined && selectedService.total_value > 0 && (
                         <div className="flex justify-between items-center">
-                          <span className="font-medium">Valor do Serviço:</span>
+                          <span className="font-medium">Valor do Atendimento:</span>
                           <span className="text-lg font-bold">
                             R$ {(selectedService.total_value || 0).toFixed(2)}
                           </span>
@@ -2470,7 +2536,9 @@ export default function TechnicalSupport() {
                                 const itemTotal = (item.unit_price || 0) * (item.qty || 0);
                                 const discount = itemTotal * ((item.discount_percent || 0) / 100);
                                 return sum + (itemTotal - discount);
-                              }, 0) : 0) + (selectedService?.total_value || 0)
+                              }, 0) : 0) + 
+                              (serviceItems.length > 0 ? serviceItems.reduce((sum, item) => sum + ((item.value || 0) * (item.qty || 0)), 0) : 0) +
+                              (selectedService?.total_value || 0)
                             ).toFixed(2)}
                           </span>
                         </div>
