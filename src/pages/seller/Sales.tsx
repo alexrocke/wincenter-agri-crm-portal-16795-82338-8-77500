@@ -1260,7 +1260,7 @@ export default function Sales() {
                             >
                               <FileText className="h-4 w-4" />
                             </Button>
-                            {!sale.service_id && (
+                            {(!sale.service_id || userRole === 'admin') && (
                               <>
                                 <Button
                                   variant="ghost"
