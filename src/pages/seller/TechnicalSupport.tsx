@@ -705,6 +705,19 @@ export default function TechnicalSupport() {
 
     const totalValue = serviceToComplete.total_value || 0;
 
+    // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos (exceto garantia)
+    if (!serviceToComplete.under_warranty) {
+      const hasProducts = productItems.length > 0;
+      const hasValue = totalValue > 0;
+      
+      if (!hasProducts && !hasValue) {
+        toast.error(
+          "Para concluir um atendimento que não seja garantia, é necessário informar produtos ou valor do serviço."
+        );
+        return;
+      }
+    }
+
     // Validar valores quando há múltiplas formas de pagamento
     if (paymentMethods.length > 1) {
       const totalInformado = paymentMethods.reduce((sum, method) => {
@@ -808,7 +821,7 @@ export default function TechnicalSupport() {
           }
         }
 
-        toast.success("Atendimento concluído e venda gerada com sucesso!");
+        toast.success(`Atendimento concluído e venda de R$ ${totalValue.toFixed(2)} gerada com sucesso!`);
       } else {
         toast.success("Atendimento de garantia concluído com sucesso!");
       }

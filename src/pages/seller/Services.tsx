@@ -481,6 +481,17 @@ useEffect(() => {
     const valuePerHectare = serviceToComplete.value_per_hectare || 0;
     const totalRecalculado = hectares * valuePerHectare;
 
+    // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos
+    const hasProducts = products.length > 0;
+    const hasValue = totalRecalculado > 0;
+    
+    if (!hasProducts && !hasValue) {
+      toast.error(
+        "Para concluir um serviço de pulverização, é necessário informar produtos ou valor do serviço."
+      );
+      return;
+    }
+
     // Validar valores quando há múltiplas formas de pagamento
     if (paymentMethods.length > 1) {
       const totalInformado = paymentMethods.reduce((sum, method) => {
@@ -606,7 +617,7 @@ useEffect(() => {
         }
       }
 
-      toast.success("Serviço concluído e venda gerada com sucesso!");
+      toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)} gerada com sucesso!`);
       fetchServices();
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
