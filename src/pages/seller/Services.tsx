@@ -558,7 +558,7 @@ useEffect(() => {
       }
 
       // Gerar venda com valores atualizados e formas de pagamento
-      const { error: saleError } = await supabase
+      const { data: insertedSale, error: saleError } = await supabase
         .from("sales")
         .insert([{ 
           client_id: serviceToComplete.client_id,
@@ -574,10 +574,36 @@ useEffect(() => {
           payment_method_2: payment_method_2,
           payment_value_1: payment_value_1,
           payment_value_2: payment_value_2,
-        }]);
+        }])
+        .select()
+        .single();
       if (saleError) {
         console.error("Erro ao criar venda:", saleError);
         throw saleError;
+      }
+
+      // Criar sale_items a partir dos produtos do serviço
+      if (products.length > 0 && insertedSale) {
+        const saleItems = products
+          .filter(p => p.product_id) // Apenas produtos com ID válido
+          .map(p => ({
+            sale_id: insertedSale.id,
+            product_id: p.product_id,
+            qty: 1, // Serviços geralmente têm qty = 1
+            unit_price: p.unit_price || 0,
+            discount_percent: 0,
+          }));
+        
+        if (saleItems.length > 0) {
+          const { error: saleItemsError } = await supabase
+            .from("sale_items")
+            .insert(saleItems);
+            
+          if (saleItemsError) {
+            console.error("Erro ao criar itens da venda:", saleItemsError);
+            // Não lançar erro, apenas logar
+          }
+        }
       }
 
       toast.success("Serviço concluído e venda gerada com sucesso!");

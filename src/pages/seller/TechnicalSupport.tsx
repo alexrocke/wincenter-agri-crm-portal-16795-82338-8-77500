@@ -754,37 +754,64 @@ export default function TechnicalSupport() {
         throw updateError;
       }
 
-      // Calcular custos dos produtos
-      const totalCost = productItems.reduce((sum, item) => {
-        const product = products.find(p => p.id === item.product_id);
-        return sum + ((product?.cost || 0) * item.qty);
-      }, 0);
+      // VALIDAÇÃO: Apenas gerar venda se NÃO estiver sob garantia
+      if (!serviceToComplete.under_warranty) {
+        // Calcular custos dos produtos
+        const totalCost = productItems.reduce((sum, item) => {
+          const product = products.find(p => p.id === item.product_id);
+          return sum + ((product?.cost || 0) * item.qty);
+        }, 0);
 
-      // Gerar venda automaticamente
-      const { error: saleError } = await supabase
-        .from("sales")
-        .insert([{ 
-          client_id: serviceToComplete.client_id,
-          seller_auth_id: user?.id,
-          service_id: serviceId,
-          gross_value: totalValue,
-          total_cost: totalCost,
-          estimated_profit: totalValue - totalCost,
-          status: "closed",
-          sold_at: new Date().toISOString(),
-          payment_received: false,
-          payment_method_1: payment_method_1,
-          payment_method_2: payment_method_2,
-          payment_value_1: payment_value_1,
-          payment_value_2: payment_value_2,
-        }]);
-        
-      if (saleError) {
-        console.error("Erro ao criar venda:", saleError);
-        throw saleError;
+        // Gerar venda automaticamente
+        const { data: insertedSale, error: saleError } = await supabase
+          .from("sales")
+          .insert([{ 
+            client_id: serviceToComplete.client_id,
+            seller_auth_id: user?.id,
+            service_id: serviceId,
+            gross_value: totalValue,
+            total_cost: totalCost,
+            estimated_profit: totalValue - totalCost,
+            status: "closed",
+            sold_at: new Date().toISOString(),
+            payment_received: false,
+            payment_method_1: payment_method_1,
+            payment_method_2: payment_method_2,
+            payment_value_1: payment_value_1,
+            payment_value_2: payment_value_2,
+          }])
+          .select()
+          .single();
+          
+        if (saleError) {
+          console.error("Erro ao criar venda:", saleError);
+          throw saleError;
+        }
+
+        // Criar sale_items a partir dos productItems
+        if (productItems.length > 0 && insertedSale) {
+          const saleItems = productItems.map(item => ({
+            sale_id: insertedSale.id,
+            product_id: item.product_id,
+            qty: item.qty,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent || 0,
+          }));
+          
+          const { error: saleItemsError } = await supabase
+            .from("sale_items")
+            .insert(saleItems);
+            
+          if (saleItemsError) {
+            console.error("Erro ao criar itens da venda:", saleItemsError);
+            // Não lançar erro, apenas logar
+          }
+        }
+
+        toast.success("Atendimento concluído e venda gerada com sucesso!");
+      } else {
+        toast.success("Atendimento de garantia concluído com sucesso!");
       }
-
-      toast.success("Atendimento concluído e venda gerada com sucesso!");
       fetchServices();
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
