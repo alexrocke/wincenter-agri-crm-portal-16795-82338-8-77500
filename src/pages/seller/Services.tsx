@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -522,6 +522,7 @@ useEffect(() => {
     }
     
     const totalRecalculado = valorBruto - valorDesconto;
+    const finalDiscountPercent = valorBruto > 0 ? (valorDesconto / valorBruto) * 100 : 0;
 
     // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos
     const hasProducts = products.length > 0;
@@ -595,14 +596,15 @@ useEffect(() => {
         }
       }
 
-      // Atualizar serviço com hectares reais aplicados, desconto e marcar como completo
+      // Atualizar serviço com hectares reais aplicados, marcar como completo e registrar métodos de pagamento
       const { error: updateError } = await supabase
         .from("services")
         .update({ 
           status: "completed",
           hectares: hectares,
-          discount_percent: discount,
           total_value: totalRecalculado,
+          payment_method_1: payment_method_1,
+          payment_method_2: payment_method_2,
           completion_notes: completionNotes,
         })
         .eq("id", serviceId);
@@ -619,7 +621,7 @@ useEffect(() => {
           seller_auth_id: user?.id,
           service_id: serviceId,
           gross_value: valorBruto,
-          discount_percent: discount,
+          final_discount_percent: finalDiscountPercent,
           total_cost: 0,
           estimated_profit: totalRecalculado,
           status: "closed",
@@ -661,7 +663,7 @@ useEffect(() => {
         }
       }
 
-      toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)}${discount > 0 ? ` (${discount}% de desconto)` : ''} gerada com sucesso!`);
+      toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)}${discount > 0 ? ` (${discountType === 'percentage' ? `${discount}%` : `R$ ${discount.toFixed(2)}`} de desconto)` : ''} gerada com sucesso!`);
       fetchServices();
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
@@ -1248,6 +1250,7 @@ useEffect(() => {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Iniciar Serviço de Pulverização</DialogTitle>
+              <DialogDescription className="sr-only">Defina checklist e confirme o início do serviço.</DialogDescription>
             </DialogHeader>
             
             {serviceToStart && (
@@ -1315,6 +1318,7 @@ useEffect(() => {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Detalhes da Pulverização</DialogTitle>
+              <DialogDescription className="sr-only">Visualize os detalhes completos da pulverização.</DialogDescription>
             </DialogHeader>
             {selectedService && (
               <div className="space-y-4">
@@ -1385,6 +1389,7 @@ useEffect(() => {
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Concluir Serviço de Pulverização</DialogTitle>
+              <DialogDescription className="sr-only">Informe hectares, desconto e pagamentos para concluir.</DialogDescription>
             </DialogHeader>
             
             {serviceToComplete && (
