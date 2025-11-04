@@ -680,6 +680,7 @@ export type Database = {
           client_id: string
           created_at: string
           estimated_profit: number
+          final_discount_percent: number | null
           gross_value: number
           id: string
           payment_method_1: string | null
@@ -699,6 +700,7 @@ export type Database = {
           client_id: string
           created_at?: string
           estimated_profit?: number
+          final_discount_percent?: number | null
           gross_value?: number
           id?: string
           payment_method_1?: string | null
@@ -718,6 +720,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           estimated_profit?: number
+          final_discount_percent?: number | null
           gross_value?: number
           id?: string
           payment_method_1?: string | null

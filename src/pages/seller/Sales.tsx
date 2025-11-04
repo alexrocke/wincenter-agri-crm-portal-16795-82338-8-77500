@@ -30,6 +30,7 @@ interface Sale {
   payment_method_1: string | null;
   payment_method_2: string | null;
   service_id: string | null;
+  final_discount_percent: number;
   clients?: {
     farm_name: string;
     contact_name: string;
@@ -84,6 +85,7 @@ export default function Sales() {
     payment_method_1: '',
     payment_method_2: '',
     payment_received: false,
+    final_discount_percent: '0',
   });
 
   useEffect(() => {
@@ -255,6 +257,11 @@ export default function Sales() {
         )
       ]);
       
+      // Calcular subtotal dos produtos
+      const subtotal = saleItems.reduce((sum: number, item: any) => {
+        return sum + (item.unit_price * item.qty * (1 - item.discount_percent / 100));
+      }, 0);
+      
       autoTable(doc, {
         startY: sale.region ? 55 : 50,
         head: [['Produto', 'Qtd', 'Preço Unit.', 'Desconto', 'Total']],
@@ -268,17 +275,45 @@ export default function Sales() {
       
       doc.setFontSize(12);
       doc.text('Resumo:', 14, finalY);
+      
+      let yPos = finalY + 8;
+      doc.text(
+        `Subtotal: ${new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(subtotal)}`,
+        14,
+        yPos
+      );
+      
+      // Mostrar desconto final se existir
+      if (sale.final_discount_percent && sale.final_discount_percent > 0) {
+        yPos += 6;
+        const discountAmount = subtotal * (sale.final_discount_percent / 100);
+        doc.text(
+          `Desconto Final (${sale.final_discount_percent}%): - ${new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(discountAmount)}`,
+          14,
+          yPos
+        );
+      }
+      
+      yPos += 6;
+      doc.setFontSize(14);
       doc.text(
         `Valor Total: ${new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL'
         }).format(sale.gross_value)}`,
         14,
-        finalY + 8
+        yPos
       );
+      doc.setFontSize(12);
       
       // Formas de pagamento
-      let yPos = finalY + 16;
+      yPos += 10;
       if (sale.payment_method_1) {
         doc.text(`Forma de Pagamento: ${sale.payment_method_1}`, 14, yPos);
         yPos += 6;
@@ -352,10 +387,16 @@ export default function Sales() {
       totalCost += itemCost;
     });
 
+    // Aplicar desconto final sobre o total
+    const finalDiscount = Number(formData.final_discount_percent) || 0;
+    const grossAfterDiscount = totalGross * (1 - finalDiscount / 100);
+
     return {
       gross: totalGross,
+      grossAfterDiscount: grossAfterDiscount,
       cost: totalCost,
-      profit: totalGross - totalCost
+      profit: grossAfterDiscount - totalCost,
+      finalDiscount: totalGross - grossAfterDiscount
     };
   };
 
@@ -386,12 +427,13 @@ export default function Sales() {
         status: formData.status,
         tax_percent: formData.tax_percent ? Number(formData.tax_percent) : null,
         region: formData.region || null,
-        gross_value: Number(totals.gross),
+        gross_value: Number(totals.grossAfterDiscount),
         total_cost: Number(totals.cost),
         estimated_profit: Number(totals.profit),
         payment_method_1: formData.payment_method_1 || null,
         payment_method_2: formData.payment_method_2 || null,
         payment_received: formData.payment_received,
+        final_discount_percent: Number(formData.final_discount_percent) || 0,
       };
 
       const { data: sale, error: saleError } = await supabase
@@ -429,6 +471,7 @@ export default function Sales() {
         payment_method_1: '',
         payment_method_2: '',
         payment_received: false,
+        final_discount_percent: '0',
       });
       setSaleItems([]);
       fetchSales();
@@ -752,16 +795,55 @@ export default function Sales() {
                     </div>
                   )}
 
+                  {/* Desconto Final */}
+                  {saleItems.length > 0 && (
+                    <div className="border-t pt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="final_discount_percent">Desconto Final (%)</Label>
+                        <Input
+                          id="final_discount_percent"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={formData.final_discount_percent}
+                          onChange={(e) => setFormData({ ...formData, final_discount_percent: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Totais */}
                   {saleItems.length > 0 && (
                     <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Valor Bruto:</span>
+                        <span>Subtotal:</span>
                         <span className="font-medium">
                           {new Intl.NumberFormat('pt-BR', {
                             style: 'currency',
                             currency: 'BRL',
                           }).format(totals.gross)}
+                        </span>
+                      </div>
+                      {totals.finalDiscount > 0 && (
+                        <div className="flex justify-between text-sm text-orange-600">
+                          <span>Desconto Final ({formData.final_discount_percent}%):</span>
+                          <span className="font-medium">
+                            - {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(totals.finalDiscount)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold border-t pt-2">
+                        <span>Valor Total:</span>
+                        <span className="text-primary">
+                          {new Intl.NumberFormat('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          }).format(totals.grossAfterDiscount)}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
