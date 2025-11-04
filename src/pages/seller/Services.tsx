@@ -17,6 +17,25 @@ import { ClientAutocomplete } from "@/components/ClientAutocomplete";
 import { WeatherForecast, WeatherData } from "@/components/WeatherForecast";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { z } from "zod";
+
+// Schema de validação para conclusão de serviço
+const concludeServiceSchema = z.object({
+  hectares: z.number()
+    .min(0.01, "Hectares deve ser maior que zero")
+    .max(10000, "Hectares não pode exceder 10.000"),
+  discountPercent: z.number()
+    .min(0, "Desconto não pode ser negativo")
+    .max(100, "Desconto não pode exceder 100%"),
+  completionNotes: z.string()
+    .trim()
+    .min(10, "Observações devem ter pelo menos 10 caracteres")
+    .max(1000, "Observações não podem exceder 1000 caracteres"),
+  otherPaymentMethod: z.string()
+    .trim()
+    .max(100, "Descrição da forma de pagamento não pode exceder 100 caracteres")
+    .optional(),
+});
 
 interface Service {
   id: string;
@@ -62,6 +81,7 @@ export default function Services() {
   const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
   const [serviceToComplete, setServiceToComplete] = useState<Service | null>(null);
   const [hectaresAplicados, setHectaresAplicados] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("0");
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
   const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
@@ -430,6 +450,7 @@ useEffect(() => {
   const openConcludeDialog = async (service: Service) => {
     setServiceToComplete(service);
     setHectaresAplicados(service.hectares?.toString() || "");
+    setDiscountPercent("0");
     setPaymentMethods([]);
     setOtherPaymentMethod("");
     setPaymentValues({});
@@ -456,11 +477,23 @@ useEffect(() => {
   const handleConclude = async () => {
     if (!serviceToComplete) return;
 
-    // Validações
+    // Validações com zod
     const hectares = parseFloat(hectaresAplicados) || 0;
-    if (hectares <= 0) {
-      toast.error("Hectares aplicados deve ser maior que zero");
-      return;
+    const discount = parseFloat(discountPercent) || 0;
+    
+    try {
+      concludeServiceSchema.parse({
+        hectares,
+        discountPercent: discount,
+        completionNotes: completionNotes.trim(),
+        otherPaymentMethod: paymentMethods.includes("outro") ? otherPaymentMethod.trim() : undefined,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast.error(firstError.message);
+        return;
+      }
     }
 
     if (paymentMethods.length === 0) {
@@ -473,13 +506,10 @@ useEffect(() => {
       return;
     }
 
-    if (!completionNotes.trim()) {
-      toast.error("Informe as observações de conclusão");
-      return;
-    }
-
     const valuePerHectare = serviceToComplete.value_per_hectare || 0;
-    const totalRecalculado = hectares * valuePerHectare;
+    const valorBruto = hectares * valuePerHectare;
+    const valorDesconto = valorBruto * (discount / 100);
+    const totalRecalculado = valorBruto - valorDesconto;
 
     // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos
     const hasProducts = products.length > 0;
@@ -501,7 +531,7 @@ useEffect(() => {
 
       if (Math.abs(totalInformado - totalRecalculado) > 0.01) {
         toast.error(
-          `Soma dos pagamentos (R$ ${totalInformado.toFixed(2)}) difere do valor total (R$ ${totalRecalculado.toFixed(2)})`
+          `Soma dos pagamentos (R$ ${totalInformado.toFixed(2)}) difere do valor total com desconto (R$ ${totalRecalculado.toFixed(2)})`
         );
         return;
       }
@@ -553,12 +583,13 @@ useEffect(() => {
         }
       }
 
-      // Atualizar serviço com hectares reais aplicados e marcar como completo
+      // Atualizar serviço com hectares reais aplicados, desconto e marcar como completo
       const { error: updateError } = await supabase
         .from("services")
         .update({ 
           status: "completed",
           hectares: hectares,
+          discount_percent: discount,
           total_value: totalRecalculado,
           completion_notes: completionNotes,
         })
@@ -568,14 +599,15 @@ useEffect(() => {
         throw updateError;
       }
 
-      // Gerar venda com valores atualizados e formas de pagamento
+      // Gerar venda com valores atualizados, desconto aplicado e formas de pagamento
       const { data: insertedSale, error: saleError } = await supabase
         .from("sales")
         .insert([{ 
           client_id: serviceToComplete.client_id,
           seller_auth_id: user?.id,
           service_id: serviceId,
-          gross_value: totalRecalculado,
+          gross_value: valorBruto,
+          discount_percent: discount,
           total_cost: 0,
           estimated_profit: totalRecalculado,
           status: "closed",
@@ -617,11 +649,12 @@ useEffect(() => {
         }
       }
 
-      toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)} gerada com sucesso!`);
+      toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)}${discount > 0 ? ` (${discount}% de desconto)` : ''} gerada com sucesso!`);
       fetchServices();
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
       setProducts([]);
+      setDiscountPercent("0");
     } catch (error) {
       console.error("Erro ao concluir serviço:", error);
       toast.error("Erro ao concluir serviço");
@@ -1373,6 +1406,28 @@ useEffect(() => {
                     />
                   </div>
 
+                  {/* Desconto Percentual */}
+                  <div className="space-y-2">
+                    <Label className="text-sm">
+                      Desconto (%)
+                      <span className="text-xs text-muted-foreground ml-1">(opcional, 0 a 100)</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={discountPercent}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        if (value >= 0 && value <= 100) {
+                          setDiscountPercent(e.target.value);
+                        }
+                      }}
+                      placeholder="0.00"
+                    />
+                  </div>
+
                   {/* Formas de Pagamento */}
                   <div className="space-y-2">
                     <Label className="text-sm">Formas de Pagamento * <span className="text-xs text-muted-foreground">(1 ou mais)</span></Label>
@@ -1457,10 +1512,28 @@ useEffect(() => {
                         <span>Valor por Hectare:</span>
                         <span className="font-medium">R$ {(serviceToComplete.value_per_hectare || 0).toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
-                        <span>Valor Total:</span>
-                        <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
+                      <div className="flex justify-between pt-1 border-t">
+                        <span>Valor Bruto:</span>
+                        <span className="font-medium">R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
                       </div>
+                      {parseFloat(discountPercent) > 0 && (
+                        <>
+                          <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                            <span>Desconto ({discountPercent}%):</span>
+                            <span className="font-medium">- R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (parseFloat(discountPercent) / 100)).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
+                            <span>Valor Final:</span>
+                            <span>R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (1 - parseFloat(discountPercent) / 100)).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {parseFloat(discountPercent) === 0 && (
+                        <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
+                          <span>Valor Total:</span>
+                          <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
+                        </div>
+                      )}
                       {paymentMethods.length > 0 && (
                         <div className="pt-1.5 border-t">
                           <span className="font-medium text-xs">Formas de Pagamento:</span>
@@ -1469,7 +1542,7 @@ useEffect(() => {
                               {paymentMethods[0] === "pix" ? "PIX" : 
                                paymentMethods[0] === "cartao" ? "Cartão" : 
                                paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
-                               paymentMethods[0]} - R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}
+                               paymentMethods[0]} - R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (1 - parseFloat(discountPercent) / 100)).toFixed(2)}
                             </div>
                           ) : (
                             <div className="mt-1 space-y-0.5">
