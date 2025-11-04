@@ -2623,16 +2623,6 @@ export default function TechnicalSupport() {
                         </div>
                       )}
 
-                      {/* Valor do Atendimento */}
-                      {selectedService && selectedService.total_value !== null && selectedService.total_value !== undefined && selectedService.total_value > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">Valor do Atendimento:</span>
-                          <span className="text-lg font-bold">
-                            R$ {(selectedService.total_value || 0).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-
                       {/* Total Geral */}
                       {selectedService && (
                         <div className="flex justify-between items-center pt-2 border-t-2 border-primary">
@@ -2644,8 +2634,7 @@ export default function TechnicalSupport() {
                                 const discount = itemTotal * ((item.discount_percent || 0) / 100);
                                 return sum + (itemTotal - discount);
                               }, 0) : 0) + 
-                              (serviceItems.length > 0 ? serviceItems.reduce((sum, item) => sum + ((item.value || 0) * (item.qty || 0)), 0) : 0) +
-                              (selectedService?.total_value || 0)
+                              (serviceItems.length > 0 ? serviceItems.reduce((sum, item) => sum + ((item.value || 0) * (item.qty || 0)), 0) : 0)
                             ).toFixed(2)}
                           </span>
                         </div>
