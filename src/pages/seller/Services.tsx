@@ -366,7 +366,18 @@ useEffect(() => {
           }
         }
         
-        toast.success("Pulverização atualizada com sucesso!");
+        // Verificar se existe venda associada
+        const { data: associatedSale } = await supabase
+          .from('sales')
+          .select('id')
+          .eq('service_id', selectedService.id)
+          .maybeSingle();
+
+        if (associatedSale) {
+          toast.success("Pulverização atualizada! A venda associada foi sincronizada automaticamente.");
+        } else {
+          toast.success("Pulverização atualizada com sucesso!");
+        }
       } else {
         const { data: newService, error } = await supabase
           .from("services")

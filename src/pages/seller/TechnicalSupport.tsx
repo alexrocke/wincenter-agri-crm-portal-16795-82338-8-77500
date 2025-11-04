@@ -454,10 +454,21 @@ export default function TechnicalSupport() {
             .from('service_files')
             .insert(fileRecords);
 
-          if (filesError) console.error('Error saving files:', filesError);
+        if (filesError) console.error('Error saving files:', filesError);
         }
 
-        toast.success("Atendimento atualizado com sucesso!");
+        // Verificar se existe venda associada
+        const { data: associatedSale } = await supabase
+          .from('sales')
+          .select('id')
+          .eq('service_id', selectedService.id)
+          .maybeSingle();
+
+        if (associatedSale) {
+          toast.success("Atendimento atualizado! A venda associada foi sincronizada automaticamente.");
+        } else {
+          toast.success("Atendimento atualizado com sucesso!");
+        }
       } else {
         // Criar serviço
         const { data: newService, error: serviceError } = await supabase
