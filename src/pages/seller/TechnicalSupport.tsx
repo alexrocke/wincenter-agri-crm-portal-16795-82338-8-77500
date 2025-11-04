@@ -96,6 +96,24 @@ interface User {
   email: string;
 }
 
+// Função utilitária para calcular o total de serviços a partir do campo notes
+const getServicesTotalFromNotes = (notes?: string): number => {
+  if (!notes) return 0;
+  try {
+    const parsed = JSON.parse(notes);
+    if (Array.isArray(parsed?.services)) {
+      return parsed.services.reduce((sum: number, item: any) => {
+        const qty = Number(item?.qty) || 0;
+        const val = Number(item?.value) || 0;
+        return sum + (qty * val);
+      }, 0);
+    }
+  } catch {
+    // Se não for JSON válido, retorna 0
+  }
+  return 0;
+};
+
 export default function TechnicalSupport() {
   const { user } = useAuth();
   const [services, setServices] = useState<TechnicalService[]>([]);
@@ -1207,8 +1225,10 @@ export default function TechnicalSupport() {
           return sum + ((item.value || 0) * (item.qty || 0));
         }, 0);
 
-        const serviceValue = selectedService.total_value || 0;
-        const totalValue = productsTotal + servicesTotal + serviceValue;
+        const hasItems = (productItems.length + serviceItems.length) > 0;
+        const totalValue = hasItems 
+          ? (productsTotal + servicesTotal) 
+          : (selectedService.total_value || 0);
 
         const resumeData = [];
         
@@ -1218,10 +1238,6 @@ export default function TechnicalSupport() {
 
         if (servicesTotal > 0) {
           resumeData.push(["Valor dos Serviços:", `R$ ${servicesTotal.toFixed(2)}`]);
-        }
-
-        if (serviceValue > 0) {
-          resumeData.push(["Valor do Atendimento:", `R$ ${serviceValue.toFixed(2)}`]);
         }
 
         resumeData.push(["VALOR TOTAL:", `R$ ${totalValue.toFixed(2)}`]);
@@ -2200,8 +2216,13 @@ export default function TechnicalSupport() {
                     return sum + (itemTotal - discount);
                   }, 0);
                   
-                  // Total = valor do serviço + produtos
-                  const totalValue = (service.total_value || 0) + productsTotal;
+                  // Calcular total dos serviços
+                  const servicesTotal = getServicesTotalFromNotes(service.notes);
+                  
+                  // Total = produtos + serviços (se houver serviços) ou produtos + total_value (para registros antigos)
+                  const totalValue = servicesTotal > 0
+                    ? productsTotal + servicesTotal
+                    : productsTotal + (service.total_value || 0);
                   
                   return totalValue > 0 ? (
                     <p className="text-lg font-bold text-primary">
@@ -2344,14 +2365,33 @@ export default function TechnicalSupport() {
                     <p className="font-medium">{selectedService.under_warranty ? "Sim" : "Não"}</p>
                   </div>
                 )}
-                {selectedService.total_value !== null && selectedService.total_value !== undefined && (
-                  <div>
-                    <Label className="text-muted-foreground">Valor</Label>
-                    <p className="font-medium text-lg text-primary">
-                      R$ {(selectedService.total_value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                )}
+                {(() => {
+                  // Calcular total dos produtos
+                  const productsTotalView = productItems.reduce((sum, item) => {
+                    const itemTotal = (item.unit_price || 0) * (item.qty || 0);
+                    const discount = itemTotal * ((item.discount_percent || 0) / 100);
+                    return sum + (itemTotal - discount);
+                  }, 0);
+                  
+                  // Calcular total dos serviços
+                  const servicesTotalView = serviceItems.reduce((sum, item) => 
+                    sum + ((item.value || 0) * (item.qty || 0)), 0
+                  );
+                  
+                  // Total = produtos + serviços se houver itens, senão usa total_value
+                  const displayTotal = (productsTotalView + servicesTotalView) > 0
+                    ? (productsTotalView + servicesTotalView)
+                    : (selectedService.total_value || 0);
+                  
+                  return displayTotal > 0 ? (
+                    <div>
+                      <Label className="text-muted-foreground">Valor Total</Label>
+                      <p className="font-medium text-lg text-primary">
+                        R$ {displayTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Checklist de Itens do Cliente (quando iniciado) */}
