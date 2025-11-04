@@ -1337,42 +1337,49 @@ useEffect(() => {
 
         {/* Dialog de Conclusão */}
         <Dialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Concluir Serviço de Pulverização</DialogTitle>
             </DialogHeader>
             
             {serviceToComplete && (
-              <div className="space-y-6">
-                {/* Info do Serviço */}
-                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                  <p><strong>Cliente:</strong> {serviceToComplete.clients?.contact_name}</p>
-                  <p><strong>Data:</strong> {format(new Date(serviceToComplete.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
-                  {serviceToComplete.crop && <p><strong>Cultura:</strong> {serviceToComplete.crop}</p>}
-                  <p className="text-sm text-muted-foreground">
-                    Hectares Planejados: {serviceToComplete.hectares || 0} ha
-                  </p>
-                </div>
+              <>
+                {/* Container com scroll */}
+                <div className="space-y-4 overflow-y-auto pr-2 flex-1">
+                  {/* Info do Serviço - Grid 2 colunas */}
+                  <div className="p-3 bg-muted/50 rounded-lg grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><strong>Cliente:</strong> {serviceToComplete.clients?.contact_name}</div>
+                    <div><strong>Data:</strong> {format(new Date(serviceToComplete.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>
+                    {serviceToComplete.crop && (
+                      <div className="col-span-2"><strong>Cultura:</strong> {serviceToComplete.crop}</div>
+                    )}
+                    <div className="col-span-2 text-muted-foreground text-xs">
+                      Hectares Planejados: {serviceToComplete.hectares || 0} ha
+                    </div>
+                  </div>
 
-                {/* Hectares Aplicados */}
-                <div className="space-y-2">
-                  <Label>Hectares Aplicados * <span className="text-xs text-muted-foreground">(informe a quantidade real executada)</span></Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={hectaresAplicados}
-                    onChange={(e) => setHectaresAplicados(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                {/* Formas de Pagamento */}
-                <div className="space-y-3">
-                  <Label>Formas de Pagamento * <span className="text-xs text-muted-foreground">(selecione uma ou mais)</span></Label>
+                  {/* Hectares Aplicados */}
                   <div className="space-y-2">
-                    {["pix", "dinheiro", "cartao", "outro"].map((method) => (
-                      <div key={method} className="space-y-2">
-                        <label className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer">
+                    <Label className="text-sm">
+                      Hectares Aplicados * 
+                      <span className="text-xs text-muted-foreground ml-1">(qtd real executada)</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={hectaresAplicados}
+                      onChange={(e) => setHectaresAplicados(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Formas de Pagamento */}
+                  <div className="space-y-2">
+                    <Label className="text-sm">Formas de Pagamento * <span className="text-xs text-muted-foreground">(1 ou mais)</span></Label>
+                    <div className="space-y-2">
+                      {["pix", "dinheiro", "cartao", "outro"].map((method) => (
+                        <div key={method} className="space-y-1.5">
+                          <label className="flex items-center space-x-2 p-1.5 border rounded hover:bg-muted cursor-pointer text-sm">
                           <input
                             type="checkbox"
                             checked={paymentMethods.includes(method)}
@@ -1391,97 +1398,105 @@ useEffect(() => {
                           <span className="capitalize">{method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</span>
                         </label>
 
-                        {/* Campo de valor aparece apenas se 2+ formas selecionadas */}
-                        {paymentMethods.includes(method) && paymentMethods.length >= 2 && (
-                          <div className="ml-6 space-y-1">
-                            <Label className="text-sm">Valor - {method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={paymentValues[method] || ""}
-                              onChange={(e) => setPaymentValues({ ...paymentValues, [method]: e.target.value })}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        )}
-
-                        {/* Campo "Especifique" para "Outro" */}
-                        {method === "outro" && paymentMethods.includes("outro") && (
-                          <div className="ml-6 space-y-1">
-                            <Label className="text-sm">Especifique a forma de pagamento</Label>
-                            <Input
-                              value={otherPaymentMethod}
-                              onChange={(e) => setOtherPaymentMethod(e.target.value)}
-                              placeholder="Ex: Boleto, Cheque..."
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Observações de Conclusão */}
-                <div className="space-y-2">
-                  <Label>Observações de Conclusão * <span className="text-xs text-muted-foreground">(informe se ocorreu tudo conforme o planejado ou se houve intercorrências)</span></Label>
-                  <Textarea
-                    value={completionNotes}
-                    onChange={(e) => setCompletionNotes(e.target.value)}
-                    placeholder="Ex: Serviço realizado conforme planejado / Houve atraso devido ao clima..."
-                    rows={4}
-                  />
-                </div>
-
-                {/* Resumo Calculado */}
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                  <h4 className="font-semibold mb-3">Resumo</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Hectares Aplicados:</span>
-                      <span className="font-semibold">{parseFloat(hectaresAplicados) || 0} ha</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Valor por Hectare:</span>
-                      <span className="font-semibold">R$ {(serviceToComplete.value_per_hectare || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-primary pt-2 border-t">
-                      <span>Valor Total:</span>
-                      <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
-                    </div>
-                    {paymentMethods.length > 0 && (
-                      <div className="pt-2 border-t">
-                        <span className="font-semibold">Formas de Pagamento:</span>
-                        {paymentMethods.length === 1 ? (
-                          <div className="mt-1">
-                            {paymentMethods[0] === "pix" ? "PIX" : 
-                             paymentMethods[0] === "cartao" ? "Cartão" : 
-                             paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
-                             paymentMethods[0]} - R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}
-                          </div>
-                        ) : (
-                          <div className="mt-1 space-y-1">
-                            {paymentMethods.map(m => {
-                              const methodLabel = m === "pix" ? "PIX" : m === "cartao" ? "Cartão" : m === "outro" ? otherPaymentMethod || "Outro" : m;
-                              const value = parseFloat(paymentValues[m] || "0");
-                              return (
-                                <div key={m} className="flex justify-between">
-                                  <span>{methodLabel}:</span>
-                                  <span className="font-medium">R$ {value.toFixed(2)}</span>
-                                </div>
-                              );
-                            })}
-                            <div className="flex justify-between font-bold text-primary pt-1 border-t">
-                              <span>Total Informado:</span>
-                              <span>R$ {paymentMethods.reduce((sum, m) => sum + parseFloat(paymentValues[m] || "0"), 0).toFixed(2)}</span>
+                          {/* Campo de valor aparece apenas se 2+ formas selecionadas */}
+                          {paymentMethods.includes(method) && paymentMethods.length >= 2 && (
+                            <div className="ml-6 space-y-1">
+                              <Label className="text-xs">Valor - {method === "pix" ? "PIX" : method === "cartao" ? "Cartão" : method === "outro" ? "Outro" : method}</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={paymentValues[method] || ""}
+                                onChange={(e) => setPaymentValues({ ...paymentValues, [method]: e.target.value })}
+                                placeholder="0.00"
+                                className="text-sm"
+                              />
                             </div>
-                          </div>
-                        )}
+                          )}
+
+                          {/* Campo "Especifique" para "Outro" */}
+                          {method === "outro" && paymentMethods.includes("outro") && (
+                            <div className="ml-6 space-y-1">
+                              <Label className="text-xs">Especifique a forma de pagamento</Label>
+                              <Input
+                                value={otherPaymentMethod}
+                                onChange={(e) => setOtherPaymentMethod(e.target.value)}
+                                placeholder="Ex: Boleto, Cheque..."
+                                className="text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Observações de Conclusão */}
+                  <div className="space-y-2">
+                    <Label className="text-sm">
+                      Observações de Conclusão * 
+                      <span className="text-xs text-muted-foreground ml-1">(intercorrências)</span>
+                    </Label>
+                    <Textarea
+                      value={completionNotes}
+                      onChange={(e) => setCompletionNotes(e.target.value)}
+                      placeholder="Ex: Serviço realizado conforme planejado / Houve atraso devido ao clima..."
+                      rows={3}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  {/* Resumo Calculado */}
+                  <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <h4 className="font-semibold text-sm mb-2">Resumo</h4>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span>Hectares Aplicados:</span>
+                        <span className="font-medium">{parseFloat(hectaresAplicados) || 0} ha</span>
                       </div>
-                    )}
+                      <div className="flex justify-between">
+                        <span>Valor por Hectare:</span>
+                        <span className="font-medium">R$ {(serviceToComplete.value_per_hectare || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
+                        <span>Valor Total:</span>
+                        <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
+                      </div>
+                      {paymentMethods.length > 0 && (
+                        <div className="pt-1.5 border-t">
+                          <span className="font-medium text-xs">Formas de Pagamento:</span>
+                          {paymentMethods.length === 1 ? (
+                            <div className="mt-1 text-xs">
+                              {paymentMethods[0] === "pix" ? "PIX" : 
+                               paymentMethods[0] === "cartao" ? "Cartão" : 
+                               paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
+                               paymentMethods[0]} - R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}
+                            </div>
+                          ) : (
+                            <div className="mt-1 space-y-0.5">
+                              {paymentMethods.map(m => {
+                                const methodLabel = m === "pix" ? "PIX" : m === "cartao" ? "Cartão" : m === "outro" ? otherPaymentMethod || "Outro" : m;
+                                const value = parseFloat(paymentValues[m] || "0");
+                                return (
+                                  <div key={m} className="flex justify-between text-xs">
+                                    <span>• {methodLabel}:</span>
+                                    <span className="font-medium">R$ {value.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                              <div className="flex justify-between font-bold text-primary pt-1 border-t text-xs">
+                                <span>Total Informado:</span>
+                                <span>R$ {paymentMethods.reduce((sum, m) => sum + parseFloat(paymentValues[m] || "0"), 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <DialogFooter className="gap-2">
+                {/* Footer fixo */}
+                <DialogFooter className="gap-2 pt-4 border-t mt-4 flex-shrink-0">
                   <Button variant="outline" onClick={() => setConcludeDialogOpen(false)}>
                     Cancelar
                   </Button>
@@ -1490,7 +1505,7 @@ useEffect(() => {
                     Confirmar Conclusão
                   </Button>
                 </DialogFooter>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>
