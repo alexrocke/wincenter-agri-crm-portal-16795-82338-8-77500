@@ -24,9 +24,8 @@ const concludeServiceSchema = z.object({
   hectares: z.number()
     .min(0.01, "Hectares deve ser maior que zero")
     .max(10000, "Hectares não pode exceder 10.000"),
-  discountPercent: z.number()
-    .min(0, "Desconto não pode ser negativo")
-    .max(100, "Desconto não pode exceder 100%"),
+  discountValue: z.number()
+    .min(0, "Desconto não pode ser negativo"),
   completionNotes: z.string()
     .trim()
     .min(10, "Observações devem ter pelo menos 10 caracteres")
@@ -81,7 +80,8 @@ export default function Services() {
   const [concludeDialogOpen, setConcludeDialogOpen] = useState(false);
   const [serviceToComplete, setServiceToComplete] = useState<Service | null>(null);
   const [hectaresAplicados, setHectaresAplicados] = useState("");
-  const [discountPercent, setDiscountPercent] = useState("0");
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [discountValue, setDiscountValue] = useState("0");
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
   const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
@@ -450,7 +450,8 @@ useEffect(() => {
   const openConcludeDialog = async (service: Service) => {
     setServiceToComplete(service);
     setHectaresAplicados(service.hectares?.toString() || "");
-    setDiscountPercent("0");
+    setDiscountType("percentage");
+    setDiscountValue("0");
     setPaymentMethods([]);
     setOtherPaymentMethod("");
     setPaymentValues({});
@@ -479,12 +480,12 @@ useEffect(() => {
 
     // Validações com zod
     const hectares = parseFloat(hectaresAplicados) || 0;
-    const discount = parseFloat(discountPercent) || 0;
+    const discount = parseFloat(discountValue) || 0;
     
     try {
       concludeServiceSchema.parse({
         hectares,
-        discountPercent: discount,
+        discountValue: discount,
         completionNotes: completionNotes.trim(),
         otherPaymentMethod: paymentMethods.includes("outro") ? otherPaymentMethod.trim() : undefined,
       });
@@ -508,7 +509,18 @@ useEffect(() => {
 
     const valuePerHectare = serviceToComplete.value_per_hectare || 0;
     const valorBruto = hectares * valuePerHectare;
-    const valorDesconto = valorBruto * (discount / 100);
+    
+    // Calcular desconto baseado no tipo
+    const valorDesconto = discountType === "percentage" 
+      ? valorBruto * (discount / 100)
+      : discount;
+    
+    // Validar se o desconto não é maior que o valor bruto
+    if (valorDesconto > valorBruto) {
+      toast.error("O desconto não pode ser maior que o valor bruto do serviço");
+      return;
+    }
+    
     const totalRecalculado = valorBruto - valorDesconto;
 
     // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos
@@ -654,7 +666,7 @@ useEffect(() => {
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
       setProducts([]);
-      setDiscountPercent("0");
+      setDiscountValue("0");
     } catch (error) {
       console.error("Erro ao concluir serviço:", error);
       toast.error("Erro ao concluir serviço");
@@ -1406,26 +1418,35 @@ useEffect(() => {
                     />
                   </div>
 
-                  {/* Desconto Percentual */}
+                  {/* Desconto */}
                   <div className="space-y-2">
                     <Label className="text-sm">
-                      Desconto (%)
-                      <span className="text-xs text-muted-foreground ml-1">(opcional, 0 a 100)</span>
+                      Desconto
+                      <span className="text-xs text-muted-foreground ml-1">(opcional)</span>
                     </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={discountPercent}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        if (value >= 0 && value <= 100) {
-                          setDiscountPercent(e.target.value);
-                        }
-                      }}
-                      placeholder="0.00"
-                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <select
+                        value={discountType}
+                        onChange={(e) => {
+                          setDiscountType(e.target.value as "percentage" | "fixed");
+                          setDiscountValue("0");
+                        }}
+                        className="col-span-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="percentage">% Percentual</option>
+                        <option value="fixed">R$ Valor Fixo</option>
+                      </select>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={discountType === "percentage" ? "100" : undefined}
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        placeholder="0.00"
+                        className="col-span-2"
+                      />
+                    </div>
                   </div>
 
                   {/* Formas de Pagamento */}
@@ -1516,54 +1537,67 @@ useEffect(() => {
                         <span>Valor Bruto:</span>
                         <span className="font-medium">R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
                       </div>
-                      {parseFloat(discountPercent) > 0 && (
-                        <>
-                          <div className="flex justify-between text-orange-600 dark:text-orange-400">
-                            <span>Desconto ({discountPercent}%):</span>
-                            <span className="font-medium">- R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (parseFloat(discountPercent) / 100)).toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
-                            <span>Valor Final:</span>
-                            <span>R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (1 - parseFloat(discountPercent) / 100)).toFixed(2)}</span>
-                          </div>
-                        </>
-                      )}
-                      {parseFloat(discountPercent) === 0 && (
-                        <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
-                          <span>Valor Total:</span>
-                          <span>R$ {((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {paymentMethods.length > 0 && (
-                        <div className="pt-1.5 border-t">
-                          <span className="font-medium text-xs">Formas de Pagamento:</span>
-                          {paymentMethods.length === 1 ? (
-                            <div className="mt-1 text-xs">
-                              {paymentMethods[0] === "pix" ? "PIX" : 
-                               paymentMethods[0] === "cartao" ? "Cartão" : 
-                               paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
-                               paymentMethods[0]} - R$ {(((parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0)) * (1 - parseFloat(discountPercent) / 100)).toFixed(2)}
-                            </div>
-                          ) : (
-                            <div className="mt-1 space-y-0.5">
-                              {paymentMethods.map(m => {
-                                const methodLabel = m === "pix" ? "PIX" : m === "cartao" ? "Cartão" : m === "outro" ? otherPaymentMethod || "Outro" : m;
-                                const value = parseFloat(paymentValues[m] || "0");
-                                return (
-                                  <div key={m} className="flex justify-between text-xs">
-                                    <span>• {methodLabel}:</span>
-                                    <span className="font-medium">R$ {value.toFixed(2)}</span>
-                                  </div>
-                                );
-                              })}
-                              <div className="flex justify-between font-bold text-primary pt-1 border-t text-xs">
-                                <span>Total Informado:</span>
-                                <span>R$ {paymentMethods.reduce((sum, m) => sum + parseFloat(paymentValues[m] || "0"), 0).toFixed(2)}</span>
+                      {(() => {
+                        const valorBruto = (parseFloat(hectaresAplicados) || 0) * (serviceToComplete.value_per_hectare || 0);
+                        const discount = parseFloat(discountValue) || 0;
+                        const valorDesconto = discountType === "percentage" 
+                          ? valorBruto * (discount / 100)
+                          : discount;
+                        const valorFinal = valorBruto - valorDesconto;
+                        
+                        return (
+                          <>
+                            {discount > 0 && (
+                              <>
+                                <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                                  <span>Desconto ({discountType === "percentage" ? `${discount}%` : `R$ ${discount.toFixed(2)}`}):</span>
+                                  <span className="font-medium">- R$ {valorDesconto.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
+                                  <span>Valor Final:</span>
+                                  <span>R$ {valorFinal.toFixed(2)}</span>
+                                </div>
+                              </>
+                            )}
+                            {discount === 0 && (
+                              <div className="flex justify-between text-base font-bold text-primary pt-1.5 border-t">
+                                <span>Valor Total:</span>
+                                <span>R$ {valorBruto.toFixed(2)}</span>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            )}
+                            {paymentMethods.length > 0 && (
+                              <div className="pt-1.5 border-t">
+                                <span className="font-medium text-xs">Formas de Pagamento:</span>
+                                {paymentMethods.length === 1 ? (
+                                  <div className="mt-1 text-xs">
+                                    {paymentMethods[0] === "pix" ? "PIX" : 
+                                     paymentMethods[0] === "cartao" ? "Cartão" : 
+                                     paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
+                                     paymentMethods[0]} - R$ {valorFinal.toFixed(2)}
+                                  </div>
+                                ) : (
+                                  <div className="mt-1 space-y-0.5">
+                                    {paymentMethods.map(m => {
+                                      const methodLabel = m === "pix" ? "PIX" : m === "cartao" ? "Cartão" : m === "outro" ? otherPaymentMethod || "Outro" : m;
+                                      const value = parseFloat(paymentValues[m] || "0");
+                                      return (
+                                        <div key={m} className="flex justify-between text-xs">
+                                          <span>• {methodLabel}:</span>
+                                          <span className="font-medium">R$ {value.toFixed(2)}</span>
+                                        </div>
+                                      );
+                                    })}
+                                    <div className="flex justify-between font-bold text-primary pt-1 border-t text-xs">
+                                      <span>Total Informado:</span>
+                                      <span>R$ {paymentMethods.reduce((sum, m) => sum + parseFloat(paymentValues[m] || "0"), 0).toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
