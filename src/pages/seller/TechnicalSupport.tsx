@@ -1460,21 +1460,6 @@ export default function TechnicalSupport() {
                     <Label htmlFor="under_warranty">Sob Garantia (valor = R$ 0,00)</Label>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Valor Total (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.total_value}
-                      readOnly
-                      disabled
-                      className="bg-muted font-bold"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Calculado automaticamente: Produtos + Serviços
-                    </p>
-                  </div>
-
                   <div className="space-y-2 md:col-span-2">
                     <Label>Observações Gerais</Label>
                     <Textarea
