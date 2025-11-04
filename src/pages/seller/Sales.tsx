@@ -5,11 +5,12 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, DollarSign, TrendingUp, ShoppingCart, Trash2, User, CheckCircle2, Clock, FileText } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp, ShoppingCart, Trash2, User, CheckCircle2, Clock, FileText, Edit, AlertTriangle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +27,7 @@ interface Sale {
   tax_percent: number;
   region: string;
   client_id: string;
+  seller_auth_id: string;
   payment_received: boolean;
   payment_method_1: string | null;
   payment_method_2: string | null;
@@ -75,6 +77,10 @@ export default function Sales() {
   const [itemDiscount, setItemDiscount] = useState('0');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'received' | 'pending'>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     client_id: '',
     seller_auth_id: user?.id || '',
@@ -402,6 +408,93 @@ export default function Sales() {
 
   const totals = calculateTotals();
 
+  const handleEdit = async (sale: Sale) => {
+    setIsEditing(true);
+    setEditingSaleId(sale.id);
+    
+    // Carregar dados da venda
+    setFormData({
+      client_id: sale.client_id,
+      seller_auth_id: sale.seller_auth_id,
+      sold_at: new Date(sale.sold_at).toISOString().split('T')[0],
+      status: sale.status,
+      tax_percent: sale.tax_percent?.toString() || '',
+      region: sale.region || '',
+      payment_method_1: sale.payment_method_1 || '',
+      payment_method_2: sale.payment_method_2 || '',
+      payment_received: sale.payment_received,
+      final_discount_percent: sale.final_discount_percent?.toString() || '0',
+    });
+    
+    // Carregar itens da venda
+    try {
+      const items = await fetchSaleItems(sale.id);
+      const formattedItems: SaleItem[] = items.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || 'Produto',
+        qty: item.qty,
+        unit_price: item.unit_price,
+        cost: 0, // Will be recalculated
+        discount_percent: item.discount_percent,
+        max_discount: 100,
+      }));
+      
+      setSaleItems(formattedItems);
+      setDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading sale items:', error);
+      toast.error('Erro ao carregar itens da venda');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!saleToDelete) return;
+    
+    try {
+      // Primeiro deletar os itens
+      const { error: itemsError } = await supabase
+        .from('sale_items')
+        .delete()
+        .eq('sale_id', saleToDelete);
+      
+      if (itemsError) throw itemsError;
+      
+      // Depois deletar a venda
+      const { error: saleError } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', saleToDelete);
+      
+      if (saleError) throw saleError;
+      
+      toast.success('Venda excluída com sucesso!');
+      setDeleteDialogOpen(false);
+      setSaleToDelete(null);
+      fetchSales();
+    } catch (error: any) {
+      console.error('Error deleting sale:', error);
+      toast.error('Erro ao excluir venda: ' + error.message);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      client_id: '',
+      seller_auth_id: user?.id || '',
+      sold_at: new Date().toISOString().split('T')[0],
+      status: 'closed',
+      tax_percent: '',
+      region: '',
+      payment_method_1: '',
+      payment_method_2: '',
+      payment_received: false,
+      final_discount_percent: '0',
+    });
+    setSaleItems([]);
+    setIsEditing(false);
+    setEditingSaleId(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -419,7 +512,6 @@ export default function Sales() {
     setIsSubmitting(true);
 
     try {
-      // Criar a venda
       const saleData: any = {
         client_id: formData.client_id,
         seller_auth_id: formData.seller_auth_id || user?.id,
@@ -436,48 +528,73 @@ export default function Sales() {
         final_discount_percent: Number(formData.final_discount_percent) || 0,
       };
 
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .insert([saleData])
-        .select()
-        .single();
+      if (isEditing && editingSaleId) {
+        // Atualizar venda existente
+        const { error: saleError } = await supabase
+          .from('sales')
+          .update(saleData)
+          .eq('id', editingSaleId);
 
-      if (saleError) throw saleError;
+        if (saleError) throw saleError;
 
-      // Criar os itens da venda
-      const itemsData = saleItems.map(item => ({
-        sale_id: sale.id,
-        product_id: item.product_id,
-        qty: item.qty,
-        unit_price: item.unit_price,
-        discount_percent: item.discount_percent,
-      }));
+        // Deletar itens antigos
+        const { error: deleteError } = await supabase
+          .from('sale_items')
+          .delete()
+          .eq('sale_id', editingSaleId);
 
-      const { error: itemsError } = await supabase
-        .from('sale_items')
-        .insert(itemsData);
+        if (deleteError) throw deleteError;
 
-      if (itemsError) throw itemsError;
+        // Inserir novos itens
+        const itemsData = saleItems.map(item => ({
+          sale_id: editingSaleId,
+          product_id: item.product_id,
+          qty: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+        }));
 
-      toast.success('Venda criada com sucesso!');
+        const { error: itemsError } = await supabase
+          .from('sale_items')
+          .insert(itemsData);
+
+        if (itemsError) throw itemsError;
+
+        toast.success('Venda atualizada com sucesso!');
+      } else {
+        // Criar nova venda
+        const { data: sale, error: saleError } = await supabase
+          .from('sales')
+          .insert([saleData])
+          .select()
+          .single();
+
+        if (saleError) throw saleError;
+
+        // Criar os itens da venda
+        const itemsData = saleItems.map(item => ({
+          sale_id: sale.id,
+          product_id: item.product_id,
+          qty: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('sale_items')
+          .insert(itemsData);
+
+        if (itemsError) throw itemsError;
+
+        toast.success('Venda criada com sucesso!');
+      }
+
       setDialogOpen(false);
-      setFormData({
-        client_id: '',
-        seller_auth_id: user?.id || '',
-        sold_at: new Date().toISOString().split('T')[0],
-        status: 'closed',
-        tax_percent: '',
-        region: '',
-        payment_method_1: '',
-        payment_method_2: '',
-        payment_received: false,
-        final_discount_percent: '0',
-      });
-      setSaleItems([]);
+      resetForm();
       fetchSales();
     } catch (error: any) {
-      console.error('Error creating sale:', error);
-      toast.error('Erro ao criar venda: ' + error.message);
+      console.error('Error saving sale:', error);
+      toast.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} venda: ` + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -530,7 +647,10 @@ export default function Sales() {
             <h1 className="text-3xl font-bold">Vendas</h1>
             <p className="text-muted-foreground">Histórico e gestão de vendas</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -539,7 +659,7 @@ export default function Sales() {
             </DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Registrar Nova Venda</DialogTitle>
+                <DialogTitle>{isEditing ? 'Editar Venda' : 'Registrar Nova Venda'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -869,7 +989,7 @@ export default function Sales() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={saleItems.length === 0 || isSubmitting}>
-                  {isSubmitting ? 'Criando...' : 'Criar Venda'}
+                  {isSubmitting ? (isEditing ? 'Atualizando...' : 'Criando...') : (isEditing ? 'Atualizar Venda' : 'Criar Venda')}
                 </Button>
               </form>
             </DialogContent>
@@ -1140,6 +1260,29 @@ export default function Sales() {
                             >
                               <FileText className="h-4 w-4" />
                             </Button>
+                            {!sale.service_id && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(sale)}
+                                  title="Editar venda"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSaleToDelete(sale.id);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  title="Excluir venda"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
                             {userRole === 'admin' && (
                               <Button
                                 size="sm"
@@ -1160,6 +1303,27 @@ export default function Sales() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita e todos os itens da venda também serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSaleToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
