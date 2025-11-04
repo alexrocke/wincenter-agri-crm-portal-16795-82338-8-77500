@@ -209,6 +209,25 @@ export default function TechnicalSupport() {
     }
   }, [formData.under_warranty]);
 
+  // Calcular total_value automaticamente baseado em produtos + serviços
+  useEffect(() => {
+    if (!formData.under_warranty) {
+      const productsTotal = productItems.reduce((sum, item) => {
+        const itemTotal = item.unit_price * item.qty;
+        const discount = itemTotal * (item.discount_percent / 100);
+        return sum + (itemTotal - discount);
+      }, 0);
+
+      const servicesTotal = serviceItems.reduce((sum, item) => {
+        return sum + (item.value * item.qty);
+      }, 0);
+
+      const calculatedTotal = productsTotal + servicesTotal;
+      
+      setFormData(prev => ({ ...prev, total_value: calculatedTotal }));
+    }
+  }, [productItems, serviceItems, formData.under_warranty]);
+
   const fetchServices = async () => {
     try {
       const { data, error } = await supabase
@@ -1426,15 +1445,18 @@ export default function TechnicalSupport() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Valor do Serviço (R$)</Label>
+                    <Label>Valor Total (R$)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.total_value}
-                      onChange={(e) => setFormData(prev => ({ ...prev, total_value: parseFloat(e.target.value) || 0 }))}
-                      disabled={formData.under_warranty}
-                      className={formData.under_warranty ? "bg-muted" : ""}
+                      readOnly
+                      disabled
+                      className="bg-muted font-bold"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Calculado automaticamente: Produtos + Serviços
+                    </p>
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
