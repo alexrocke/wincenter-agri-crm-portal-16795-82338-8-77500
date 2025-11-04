@@ -9,6 +9,7 @@ import { Plus, DollarSign, TrendingUp, ShoppingCart, Trash2, User, CheckCircle2,
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -1162,144 +1163,148 @@ export default function Sales() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-               <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor Bruto</TableHead>
-                  {userRole === 'admin' && (
-                    <>
-                      <TableHead>Custo</TableHead>
-                      <TableHead>Lucro</TableHead>
-                      <TableHead>Margem</TableHead>
-                      <TableHead>Pagamento</TableHead>
-                    </>
-                  )}
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={userRole === 'admin' ? 9 : 5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma venda encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSales.map((sale) => {
-                    const statusInfo = getStatusInfo(sale.status);
-                    const margin = sale.gross_value > 0
-                      ? ((sale.estimated_profit / sale.gross_value) * 100).toFixed(1)
-                      : 0;
-
-                    return (
-                      <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell>
-                          {new Date(sale.sold_at).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">
-                            {sale.clients?.farm_name || 'Cliente não informado'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {sale.clients?.contact_name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(sale.gross_value)}
-                        </TableCell>
-                        {userRole === 'admin' && (
-                          <>
-                            <TableCell className="text-red-600">
-                              {new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format(sale.total_cost)}
-                            </TableCell>
-                            <TableCell className="text-green-600 font-medium">
-                              {new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format(sale.estimated_profit)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{margin}%</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {sale.payment_received ? (
-                                <Badge className="bg-green-100 text-green-800">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Recebido
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-orange-100 text-orange-800">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  Pendente
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell>
-                          <Badge className={statusInfo.color}>
-                            {statusInfo.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleGeneratePDF(sale)}
-                              title="Baixar PDF"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                            {(!sale.service_id || userRole === 'admin') && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(sale)}
-                                  title="Editar venda"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSaleToDelete(sale.id);
-                                    setDeleteDialogOpen(true);
-                                  }}
-                                  title="Excluir venda"
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
-                            )}
-                            {userRole === 'admin' && (
-                              <Button
-                                size="sm"
-                                variant={sale.payment_received ? 'outline' : 'default'}
-                                onClick={() => handleTogglePayment(sale.id, sale.payment_received)}
-                              >
-                                {sale.payment_received ? 'Marcar Pendente' : 'Confirmar Recebimento'}
-                              </Button>
-                            )}
-                          </div>
+            <ScrollArea className="w-full">
+              <div className="min-w-[1200px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Valor Bruto</TableHead>
+                      {userRole === 'admin' && (
+                        <>
+                          <TableHead>Custo</TableHead>
+                          <TableHead>Lucro</TableHead>
+                          <TableHead>Margem</TableHead>
+                          <TableHead>Pagamento</TableHead>
+                        </>
+                      )}
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSales.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={userRole === 'admin' ? 9 : 5} className="text-center py-8 text-muted-foreground">
+                          Nenhuma venda encontrada
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                    ) : (
+                      filteredSales.map((sale) => {
+                        const statusInfo = getStatusInfo(sale.status);
+                        const margin = sale.gross_value > 0
+                          ? ((sale.estimated_profit / sale.gross_value) * 100).toFixed(1)
+                          : 0;
+
+                        return (
+                          <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/50">
+                            <TableCell>
+                              {new Date(sale.sold_at).toLocaleDateString('pt-BR')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">
+                                {sale.clients?.farm_name || 'Cliente não informado'}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {sale.clients?.contact_name}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(sale.gross_value)}
+                            </TableCell>
+                            {userRole === 'admin' && (
+                              <>
+                                <TableCell className="text-red-600">
+                                  {new Intl.NumberFormat('pt-BR', {
+                                    style: 'currency',
+                                    currency: 'BRL',
+                                  }).format(sale.total_cost)}
+                                </TableCell>
+                                <TableCell className="text-green-600 font-medium">
+                                  {new Intl.NumberFormat('pt-BR', {
+                                    style: 'currency',
+                                    currency: 'BRL',
+                                  }).format(sale.estimated_profit)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{margin}%</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {sale.payment_received ? (
+                                    <Badge className="bg-green-100 text-green-800">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Recebido
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-orange-100 text-orange-800">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Pendente
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell>
+                              <Badge className={statusInfo.color}>
+                                {statusInfo.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGeneratePDF(sale)}
+                                  title="Baixar PDF"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                {(!sale.service_id || userRole === 'admin') && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEdit(sale)}
+                                      title="Editar venda"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSaleToDelete(sale.id);
+                                        setDeleteDialogOpen(true);
+                                      }}
+                                      title="Excluir venda"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </>
+                                )}
+                                {userRole === 'admin' && (
+                                  <Button
+                                    size="sm"
+                                    variant={sale.payment_received ? 'outline' : 'default'}
+                                    onClick={() => handleTogglePayment(sale.id, sale.payment_received)}
+                                  >
+                                    {sale.payment_received ? 'Marcar Pendente' : 'Confirmar Recebimento'}
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
