@@ -171,9 +171,37 @@ export default function Sales() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setSales(data || []);
+
+      const baseSales = data || [];
+
+      // Fetch related services to correct spraying totals immediately on UI
+      const serviceIds = baseSales.map((s: any) => s.service_id).filter(Boolean);
+      let servicesById = new Map<string, { id: string; service_type: string; total_value: number | null }>();
+      if (serviceIds.length > 0) {
+        const { data: servicesData, error: servicesError } = await supabase
+          .from('services')
+          .select('id, service_type, total_value')
+          .in('id', serviceIds);
+        if (!servicesError && servicesData) {
+          servicesById = new Map(servicesData.map((sv: any) => [sv.id, sv]));
+        }
+      }
+
+      const corrected = baseSales.map((sale: any) => {
+        const sv = sale.service_id ? servicesById.get(sale.service_id) : undefined;
+        if (sv && sv.service_type === 'spraying' && sv.total_value != null) {
+          return {
+            ...sale,
+            gross_value: sv.total_value,
+            total_cost: 0,
+            estimated_profit: sv.total_value,
+          };
+        }
+        return sale;
+      });
+
+      setSales(corrected);
     } catch (error) {
       console.error('Error fetching sales:', error);
     } finally {

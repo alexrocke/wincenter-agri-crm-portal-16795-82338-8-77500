@@ -87,11 +87,31 @@ export default function AdminSales() {
 
       const usersMap = new Map(usersData?.map(u => [u.auth_user_id, u.name]));
 
-      // Mapear dados do vendedor
-      const salesWithSellers = (data || []).map((sale: any) => ({
-        ...sale,
-        seller_name: usersMap.get(sale.seller_auth_id) || 'N/A'
-      }));
+      // Corrigir valores de serviços de pulverização (usar total do serviço)
+      const baseSales = data || [];
+      const serviceIds = baseSales.map((s: any) => s.service_id).filter(Boolean);
+      let servicesById = new Map<string, { id: string; service_type: string; total_value: number | null }>();
+      if (serviceIds.length > 0) {
+        const { data: servicesData } = await supabase
+          .from('services')
+          .select('id, service_type, total_value')
+          .in('id', serviceIds);
+        if (servicesData) {
+          servicesById = new Map(servicesData.map((sv: any) => [sv.id, sv]));
+        }
+      }
+
+      const salesWithSellers = baseSales.map((sale: any) => {
+        const sv = sale.service_id ? servicesById.get(sale.service_id) : undefined;
+        const corrected = (sv && sv.service_type === 'spraying' && sv.total_value != null)
+          ? { gross_value: sv.total_value, total_cost: 0, estimated_profit: sv.total_value }
+          : {};
+        return {
+          ...sale,
+          ...corrected,
+          seller_name: usersMap.get(sale.seller_auth_id) || 'N/A'
+        };
+      });
 
       setSales(salesWithSellers);
     } catch (error) {
