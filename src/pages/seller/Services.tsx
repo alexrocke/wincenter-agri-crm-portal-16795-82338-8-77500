@@ -639,29 +639,9 @@ useEffect(() => {
         throw saleError;
       }
 
-      // Criar sale_items a partir dos produtos do serviço
-      if (products.length > 0 && insertedSale) {
-        const saleItems = products
-          .filter(p => p.product_id) // Apenas produtos com ID válido
-          .map(p => ({
-            sale_id: insertedSale.id,
-            product_id: p.product_id,
-            qty: 1, // Serviços geralmente têm qty = 1
-            unit_price: p.unit_price || 0,
-            discount_percent: 0,
-          }));
-        
-        if (saleItems.length > 0) {
-          const { error: saleItemsError } = await supabase
-            .from("sale_items")
-            .insert(saleItems);
-            
-          if (saleItemsError) {
-            console.error("Erro ao criar itens da venda:", saleItemsError);
-            // Não lançar erro, apenas logar
-          }
-        }
-      }
+      // Nota: Não criamos sale_items para serviços de pulverização
+      // O valor da venda vem dos hectares aplicados (valor_por_hectare * hectares), não dos produtos
+      // Os produtos usados continuam registrados em service_items apenas para histórico
 
       toast.success(`Serviço concluído e venda de R$ ${totalRecalculado.toFixed(2)}${discount > 0 ? ` (${discountType === 'percentage' ? `${discount}%` : `R$ ${discount.toFixed(2)}`} de desconto)` : ''} gerada com sucesso!`);
       fetchServices();
