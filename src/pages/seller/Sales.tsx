@@ -5,7 +5,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, DollarSign, TrendingUp, ShoppingCart, Trash2, User, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp, ShoppingCart, Trash2, User, CheckCircle2, Clock, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -192,6 +194,115 @@ export default function Sales() {
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Erro ao atualizar status de pagamento');
+    }
+  };
+
+  const fetchSaleItems = async (saleId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('sale_items')
+        .select(`
+          *,
+          products (
+            name,
+            sku
+          )
+        `)
+        .eq('sale_id', saleId);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching sale items:', error);
+      return [];
+    }
+  };
+
+  const handleGeneratePDF = async (sale: Sale) => {
+    try {
+      const saleItems = await fetchSaleItems(sale.id);
+      
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.text('Comprovante de Venda', 14, 20);
+      
+      // Informações gerais
+      doc.setFontSize(10);
+      doc.text(`Data: ${new Date(sale.sold_at).toLocaleDateString('pt-BR')}`, 14, 30);
+      doc.text(`Cliente: ${sale.clients?.farm_name || 'N/A'}`, 14, 36);
+      doc.text(`Contato: ${sale.clients?.contact_name || 'N/A'}`, 14, 42);
+      
+      if (sale.region) {
+        doc.text(`Região: ${sale.region}`, 14, 48);
+      }
+      
+      // Tabela de produtos
+      const tableData = saleItems.map((item: any) => [
+        item.products?.name || 'Produto',
+        item.qty,
+        new Intl.NumberFormat('pt-BR', { 
+          style: 'currency', 
+          currency: 'BRL' 
+        }).format(item.unit_price),
+        `${item.discount_percent}%`,
+        new Intl.NumberFormat('pt-BR', { 
+          style: 'currency', 
+          currency: 'BRL' 
+        }).format(
+          item.unit_price * item.qty * (1 - item.discount_percent / 100)
+        )
+      ]);
+      
+      autoTable(doc, {
+        startY: sale.region ? 55 : 50,
+        head: [['Produto', 'Qtd', 'Preço Unit.', 'Desconto', 'Total']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 102, 204] }
+      });
+      
+      // Resumo de valores
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      doc.setFontSize(12);
+      doc.text('Resumo:', 14, finalY);
+      doc.text(
+        `Valor Total: ${new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(sale.gross_value)}`,
+        14,
+        finalY + 8
+      );
+      
+      // Formas de pagamento
+      let yPos = finalY + 16;
+      if (sale.payment_method_1) {
+        doc.text(`Forma de Pagamento: ${sale.payment_method_1}`, 14, yPos);
+        yPos += 6;
+      }
+      if (sale.payment_method_2) {
+        doc.text(`Forma de Pagamento 2: ${sale.payment_method_2}`, 14, yPos);
+        yPos += 6;
+      }
+      
+      // Status do pagamento
+      doc.text(
+        `Status: ${sale.payment_received ? 'Pagamento Recebido' : 'Pagamento Pendente'}`,
+        14,
+        yPos + 2
+      );
+      
+      // Salvar PDF
+      const fileName = `venda_${sale.clients?.farm_name?.replace(/\s+/g, '_') || 'cliente'}_${new Date(sale.sold_at).toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+      doc.save(fileName);
+      
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast.error('Erro ao gerar PDF da venda');
     }
   };
 
@@ -864,13 +975,13 @@ export default function Sales() {
                     </>
                   )}
                   <TableHead>Status</TableHead>
-                  {userRole === 'admin' && <TableHead>Ação</TableHead>}
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSales.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={userRole === 'admin' ? 9 : 4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={userRole === 'admin' ? 9 : 5} className="text-center py-8 text-muted-foreground">
                       Nenhuma venda encontrada
                     </TableCell>
                   </TableRow>
@@ -937,17 +1048,27 @@ export default function Sales() {
                             {statusInfo.label}
                           </Badge>
                         </TableCell>
-                        {userRole === 'admin' && (
-                          <TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
                             <Button
+                              variant="ghost"
                               size="sm"
-                              variant={sale.payment_received ? 'outline' : 'default'}
-                              onClick={() => handleTogglePayment(sale.id, sale.payment_received)}
+                              onClick={() => handleGeneratePDF(sale)}
+                              title="Baixar PDF"
                             >
-                              {sale.payment_received ? 'Marcar Pendente' : 'Confirmar Recebimento'}
+                              <FileText className="h-4 w-4" />
                             </Button>
-                          </TableCell>
-                        )}
+                            {userRole === 'admin' && (
+                              <Button
+                                size="sm"
+                                variant={sale.payment_received ? 'outline' : 'default'}
+                                onClick={() => handleTogglePayment(sale.id, sale.payment_received)}
+                              >
+                                {sale.payment_received ? 'Marcar Pendente' : 'Confirmar Recebimento'}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
