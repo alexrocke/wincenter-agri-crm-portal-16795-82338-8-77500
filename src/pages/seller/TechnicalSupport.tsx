@@ -1225,10 +1225,7 @@ export default function TechnicalSupport() {
           return sum + ((item.value || 0) * (item.qty || 0));
         }, 0);
 
-        const hasItems = (productItems.length + serviceItems.length) > 0;
-        const totalValue = hasItems 
-          ? (productsTotal + servicesTotal) 
-          : (selectedService.total_value || 0);
+        const totalValue = productsTotal + servicesTotal;
 
         const resumeData = [];
         
@@ -2204,10 +2201,8 @@ export default function TechnicalSupport() {
                   // Calcular total dos serviços
                   const servicesTotal = getServicesTotalFromNotes(service.notes);
                   
-                  // Total = produtos + serviços (se houver serviços) ou produtos + total_value (para registros antigos)
-                  const totalValue = servicesTotal > 0
-                    ? productsTotal + servicesTotal
-                    : productsTotal + (service.total_value || 0);
+                  // Total = produtos + serviços
+                  const totalValue = productsTotal + servicesTotal;
                   
                   return totalValue > 0 ? (
                     <p className="text-lg font-bold text-primary">
@@ -2363,10 +2358,8 @@ export default function TechnicalSupport() {
                     sum + ((item.value || 0) * (item.qty || 0)), 0
                   );
                   
-                  // Total = produtos + serviços se houver itens, senão usa total_value
-                  const displayTotal = (productsTotalView + servicesTotalView) > 0
-                    ? (productsTotalView + servicesTotalView)
-                    : (selectedService.total_value || 0);
+                  // Total = produtos + serviços
+                  const displayTotal = productsTotalView + servicesTotalView;
                   
                   return displayTotal > 0 ? (
                     <div>
