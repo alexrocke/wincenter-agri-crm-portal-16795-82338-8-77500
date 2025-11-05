@@ -227,24 +227,7 @@ export default function TechnicalSupport() {
     }
   }, [formData.under_warranty]);
 
-  // Calcular total_value automaticamente baseado em produtos + serviços
-  useEffect(() => {
-    if (!formData.under_warranty) {
-      const productsTotal = productItems.reduce((sum, item) => {
-        const itemTotal = item.unit_price * item.qty;
-        const discount = itemTotal * (item.discount_percent / 100);
-        return sum + (itemTotal - discount);
-      }, 0);
-
-      const servicesTotal = serviceItems.reduce((sum, item) => {
-        return sum + (item.value * item.qty);
-      }, 0);
-
-      const calculatedTotal = productsTotal + servicesTotal;
-      
-      setFormData(prev => ({ ...prev, total_value: calculatedTotal }));
-    }
-  }, [productItems, serviceItems, formData.under_warranty]);
+  // total_value agora é um campo manual para taxas adicionais (não calculado automaticamente)
 
   const fetchServices = async () => {
     try {
@@ -416,7 +399,7 @@ export default function TechnicalSupport() {
 
         // Inserir novos itens se houver
         if (productItems.length > 0) {
-          const serviceItems = productItems.map(item => ({
+          const productItemsForDb = productItems.map(item => ({
             service_id: selectedService.id,
             product_id: item.product_id,
             product_name: item.product_name,
@@ -427,7 +410,7 @@ export default function TechnicalSupport() {
 
           const { error: itemsError } = await supabase
             .from("service_items")
-            .insert(serviceItems);
+            .insert(productItemsForDb);
 
           if (itemsError) throw itemsError;
         }
@@ -501,7 +484,7 @@ export default function TechnicalSupport() {
 
         // Salvar produtos do serviço
         if (productItems.length > 0) {
-          const serviceItems = productItems.map(item => ({
+          const productItemsForDb = productItems.map(item => ({
             service_id: newService.id,
             product_id: item.product_id,
             product_name: item.product_name,
@@ -512,7 +495,7 @@ export default function TechnicalSupport() {
 
           const { error: serviceItemsError } = await supabase
             .from("service_items")
-            .insert(serviceItems);
+            .insert(productItemsForDb);
 
           if (serviceItemsError) throw serviceItemsError;
 
@@ -537,7 +520,7 @@ export default function TechnicalSupport() {
               const itemTotal = item.unit_price * item.qty;
               const discount = itemTotal * (item.discount_percent / 100);
               return sum + (itemTotal - discount);
-            }, 0);
+            }, 0) + serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) + (formData.total_value || 0);
 
             const totalCost = productItems.reduce((sum, item) => {
               const product = products.find(p => p.id === item.product_id);
@@ -703,7 +686,32 @@ export default function TechnicalSupport() {
       }
     }
 
-    const totalValue = serviceToComplete.total_value || 0;
+    // Calcular o valor total: produtos + serviços + taxa adicional
+    const productsTotal = productItems.reduce((sum: number, item: ProductItem) => {
+      const itemTotal = item.unit_price * item.qty;
+      const discount = itemTotal * (item.discount_percent / 100);
+      return sum + (itemTotal - discount);
+    }, 0);
+    
+    // Extrair serviceItems do notes se existir
+    let servicesFromNotes: ServiceItem[] = [];
+    if (serviceToComplete.notes) {
+      try {
+        const parsedNotes = JSON.parse(serviceToComplete.notes);
+        if (parsedNotes.services && Array.isArray(parsedNotes.services)) {
+          servicesFromNotes = parsedNotes.services;
+        }
+      } catch (e) {
+        console.error("Erro ao fazer parse de notes:", e);
+      }
+    }
+    
+    const servicesTotal = servicesFromNotes.reduce((sum: number, item: ServiceItem) => {
+      return sum + (item.value * item.qty);
+    }, 0);
+    
+    const additionalFee = serviceToComplete.total_value || 0;
+    const totalValue = productsTotal + servicesTotal + additionalFee;
 
     // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos (exceto garantia)
     if (!serviceToComplete.under_warranty) {
@@ -1779,21 +1787,21 @@ export default function TechnicalSupport() {
                         </div>
 
                         {/* Total da Venda (Produtos + Serviços + Valor Serviço) */}
-                        {(formData.total_value > 0 || serviceItems.length > 0) && (
+                        {(serviceItems.length > 0 || formData.total_value > 0) && (
                           <>
-                            {formData.total_value > 0 && (
-                              <div className="flex justify-between items-center px-3 py-2 text-sm">
-                                <span className="text-muted-foreground">+ Valor do Serviço:</span>
-                                <span className="font-medium">
-                                  R$ {formData.total_value.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
                             {serviceItems.length > 0 && (
                               <div className="flex justify-between items-center px-3 py-2 text-sm">
                                 <span className="text-muted-foreground">+ Valor dos Serviços:</span>
                                 <span className="font-medium">
-                                  R$ {serviceItems.reduce((sum, item) => sum + item.value, 0).toFixed(2)}
+                                  R$ {serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {formData.total_value > 0 && (
+                              <div className="flex justify-between items-center px-3 py-2 text-sm">
+                                <span className="text-muted-foreground">+ Taxa de Serviço:</span>
+                                <span className="font-medium">
+                                  R$ {formData.total_value.toFixed(2)}
                                 </span>
                               </div>
                             )}
@@ -1807,8 +1815,8 @@ export default function TechnicalSupport() {
                   const discount = itemTotal * (item.discount_percent / 100);
                   return sum + (itemTotal - discount);
                 }, 0) + 
-                (formData.total_value || 0) +
-                serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0)
+                serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) +
+                (formData.total_value || 0)
               ).toFixed(2)}
                               </span>
                             </div>
@@ -1976,8 +1984,34 @@ export default function TechnicalSupport() {
                       ))
                     )}
 
+                    {/* Campo manual para Taxa de Serviço adicional */}
+                    <Card className="mt-4">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Taxa de Serviço Adicional</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Adicione uma taxa extra se necessário (ex: deslocamento, mão de obra extra, etc.)
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <Label>Valor da Taxa (R$)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={formData.total_value || ""}
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              total_value: parseFloat(e.target.value) || 0 
+                            }))}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     {/* Totalizadores */}
-                    {serviceItems.length > 0 && (
+                    {(serviceItems.length > 0 || productItems.length > 0) && (
                       <div className="space-y-2 mt-4">
           <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
             <span className="font-semibold">Total dos Serviços:</span>
