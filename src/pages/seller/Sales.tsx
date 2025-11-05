@@ -209,13 +209,6 @@ export default function Sales() {
     }
   };
 
-  const getStatusInfo = (status: string) => {
-    const statuses: Record<string, { label: string; color: string }> = {
-      closed: { label: 'Fechada', color: 'bg-green-100 text-green-800' },
-      canceled: { label: 'Cancelada', color: 'bg-red-100 text-red-800' },
-    };
-    return statuses[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
-  };
 
   const handleTogglePayment = async (saleId: string, currentStatus: boolean) => {
     try {
@@ -1204,23 +1197,21 @@ export default function Sales() {
                           <TableHead>Custo</TableHead>
                           <TableHead>Lucro</TableHead>
                           <TableHead>Margem</TableHead>
-                          <TableHead>Pagamento</TableHead>
+                      <TableHead>Pagamento</TableHead>
                         </>
                       )}
-                      <TableHead>Status</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSales.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={userRole === 'admin' ? 9 : 5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={userRole === 'admin' ? 8 : 4} className="text-center py-8 text-muted-foreground">
                           Nenhuma venda encontrada
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredSales.map((sale) => {
-                        const statusInfo = getStatusInfo(sale.status);
                         const margin = sale.gross_value > 0
                           ? ((sale.estimated_profit / sale.gross_value) * 100).toFixed(1)
                           : 0;
@@ -1276,11 +1267,6 @@ export default function Sales() {
                                 </TableCell>
                               </>
                             )}
-                            <TableCell>
-                              <Badge className={statusInfo.color}>
-                                {statusInfo.label}
-                              </Badge>
-                            </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button

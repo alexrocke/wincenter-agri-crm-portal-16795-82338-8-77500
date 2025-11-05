@@ -121,13 +121,6 @@ export default function AdminSales() {
     }
   };
 
-  const getStatusInfo = (status: string) => {
-    const statuses: Record<string, { label: string; color: string }> = {
-      closed: { label: 'Fechada', color: 'bg-green-100 text-green-800' },
-      canceled: { label: 'Cancelada', color: 'bg-red-100 text-red-800' },
-    };
-    return statuses[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
-  };
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthSales = sales.filter(s => 
@@ -296,7 +289,6 @@ export default function AdminSales() {
                     <TableHead>Data</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Vendedor</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Valor Bruto</TableHead>
                     <TableHead>Lucro Est.</TableHead>
                     <TableHead>Pagamento</TableHead>
@@ -306,13 +298,12 @@ export default function AdminSales() {
                 <TableBody>
                   {sales.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
                         Nenhuma venda encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
                     sales.map((sale) => {
-                      const statusInfo = getStatusInfo(sale.status);
                       return (
                         <TableRow key={sale.id}>
                           <TableCell>
@@ -327,11 +318,6 @@ export default function AdminSales() {
                             </div>
                           </TableCell>
                           <TableCell>{sale.seller_name}</TableCell>
-                          <TableCell>
-                            <Badge className={statusInfo.color}>
-                              {statusInfo.label}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="font-medium">
                             {new Intl.NumberFormat('pt-BR', { 
                               style: 'currency', 
