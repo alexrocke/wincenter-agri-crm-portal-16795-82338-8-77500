@@ -195,6 +195,11 @@ export default function Opportunities() {
     }
   };
 
+  // Helper para cálculo preciso de subtotal
+  const calculateItemSubtotal = (quantity: number, unitPrice: number, discountPercent: number): number => {
+    return Math.round(quantity * unitPrice * (1 - discountPercent / 100) * 100) / 100;
+  };
+
   const addProposalProduct = () => {
     if (!selectedNewProduct) {
       toast.error('Selecione um produto');
@@ -216,15 +221,10 @@ export default function Opportunities() {
       return;
     }
 
-    if (proposalProducts.some(p => p.product_id === selectedNewProduct)) {
-      toast.error('Produto já adicionado à proposta');
-      return;
-    }
-
     const product = products.find(p => p.id === selectedNewProduct);
     if (!product) return;
 
-    const subtotal = (newProductPrice * newProductQty) * (1 - newProductDiscount / 100);
+    const subtotal = calculateItemSubtotal(newProductQty, newProductPrice, newProductDiscount);
 
     const newProduct: ProposalProduct = {
       id: crypto.randomUUID(),
@@ -319,7 +319,7 @@ export default function Opportunities() {
       // Products table
       if (productsData.length > 0) {
         const tableData = productsData.map((item: any) => {
-          const subtotal = (item.unit_price * item.quantity) * (1 - item.discount_percent / 100);
+          const subtotal = calculateItemSubtotal(item.quantity, item.unit_price, item.discount_percent);
           return [
             item.products?.name || 'Produto',
             item.products?.sku || '-',
@@ -498,7 +498,7 @@ export default function Opportunities() {
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_percent: item.discount_percent,
-        subtotal: (item.unit_price * item.quantity) * (1 - item.discount_percent / 100),
+        subtotal: calculateItemSubtotal(item.quantity, item.unit_price, item.discount_percent),
       }));
       setProposalProducts(loadedProducts);
       
@@ -521,7 +521,7 @@ export default function Opportunities() {
           quantity: 1,
           unit_price: p.price,
           discount_percent: 0,
-          subtotal: p.price,
+          subtotal: calculateItemSubtotal(1, p.price, 0),
         }));
         setProposalProducts(loadedProducts);
         
@@ -799,7 +799,6 @@ export default function Opportunities() {
                             setNewProductDiscount(0);
                           }
                         }}
-                        excludeIds={proposalProducts.map(p => p.product_id)}
                       />
                     </div>
                     <div className="col-span-2 space-y-2">
