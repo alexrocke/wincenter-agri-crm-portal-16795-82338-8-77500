@@ -79,6 +79,7 @@ export default function Opportunities() {
   const [proposalProducts, setProposalProducts] = useState<ProposalProduct[]>([]);
   const [selectedNewProduct, setSelectedNewProduct] = useState('');
   const [newProductQty, setNewProductQty] = useState(1);
+  const [newProductPrice, setNewProductPrice] = useState(0);
   const [newProductDiscount, setNewProductDiscount] = useState(0);
   const [valueAdjustment, setValueAdjustment] = useState(0);
 
@@ -202,6 +203,11 @@ export default function Opportunities() {
       return;
     }
 
+    if (newProductPrice <= 0) {
+      toast.error('Preço deve ser maior que 0');
+      return;
+    }
+
     if (newProductDiscount < 0 || newProductDiscount > 100) {
       toast.error('Desconto deve estar entre 0 e 100%');
       return;
@@ -215,7 +221,7 @@ export default function Opportunities() {
     const product = products.find(p => p.id === selectedNewProduct);
     if (!product) return;
 
-    const subtotal = (product.price * newProductQty) * (1 - newProductDiscount / 100);
+    const subtotal = (newProductPrice * newProductQty) * (1 - newProductDiscount / 100);
 
     const newProduct: ProposalProduct = {
       id: crypto.randomUUID(),
@@ -223,7 +229,7 @@ export default function Opportunities() {
       product_name: product.name,
       product_sku: product.sku,
       quantity: newProductQty,
-      unit_price: product.price,
+      unit_price: newProductPrice,
       discount_percent: newProductDiscount,
       subtotal,
     };
@@ -231,6 +237,7 @@ export default function Opportunities() {
     setProposalProducts([...proposalProducts, newProduct]);
     setSelectedNewProduct('');
     setNewProductQty(1);
+    setNewProductPrice(0);
     setNewProductDiscount(0);
     updateProposalGrossValue([...proposalProducts, newProduct], valueAdjustment);
   };
@@ -327,6 +334,7 @@ export default function Opportunities() {
     setProposalProducts([]);
     setSelectedNewProduct('');
     setNewProductQty(1);
+    setNewProductPrice(0);
     setNewProductDiscount(0);
     setValueAdjustment(0);
   };
@@ -600,11 +608,17 @@ export default function Opportunities() {
                   <Label className="text-base font-semibold">Produtos da Proposta</Label>
                   
                   <div className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-6 space-y-2">
+                    <div className="col-span-4 space-y-2">
                       <Label className="text-xs">Produto</Label>
                       <ProductAutocomplete
                         value={selectedNewProduct}
-                        onChange={setSelectedNewProduct}
+                        onChange={(productId) => {
+                          setSelectedNewProduct(productId);
+                          const product = products.find(p => p.id === productId);
+                          if (product) {
+                            setNewProductPrice(product.price);
+                          }
+                        }}
                         excludeIds={proposalProducts.map(p => p.product_id)}
                       />
                     </div>
@@ -615,6 +629,16 @@ export default function Opportunities() {
                         min="1"
                         value={newProductQty}
                         onChange={(e) => setNewProductQty(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Valor Unit. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newProductPrice}
+                        onChange={(e) => setNewProductPrice(Number(e.target.value))}
                       />
                     </div>
                     <div className="col-span-2 space-y-2">
@@ -1065,45 +1089,61 @@ export default function Opportunities() {
             <div className="border rounded-lg p-4 space-y-4">
               <Label className="text-base font-semibold">Produtos da Proposta</Label>
               
-              <div className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-6 space-y-2">
-                  <Label className="text-xs">Produto</Label>
-                  <ProductAutocomplete
-                    value={selectedNewProduct}
-                    onChange={setSelectedNewProduct}
-                    excludeIds={proposalProducts.map(p => p.product_id)}
-                  />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label className="text-xs">Qtd</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={newProductQty}
-                    onChange={(e) => setNewProductQty(Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label className="text-xs">Desc. (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newProductDiscount}
-                    onChange={(e) => setNewProductDiscount(Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Button
-                    type="button"
-                    onClick={addProposalProduct}
-                    disabled={!selectedNewProduct}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-4 space-y-2">
+                      <Label className="text-xs">Produto</Label>
+                      <ProductAutocomplete
+                        value={selectedNewProduct}
+                        onChange={(productId) => {
+                          setSelectedNewProduct(productId);
+                          const product = products.find(p => p.id === productId);
+                          if (product) {
+                            setNewProductPrice(product.price);
+                          }
+                        }}
+                        excludeIds={proposalProducts.map(p => p.product_id)}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Qtd</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={newProductQty}
+                        onChange={(e) => setNewProductQty(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Valor Unit. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newProductPrice}
+                        onChange={(e) => setNewProductPrice(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Desc. (%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={newProductDiscount}
+                        onChange={(e) => setNewProductDiscount(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Button
+                        type="button"
+                        onClick={addProposalProduct}
+                        disabled={!selectedNewProduct}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
 
               {proposalProducts.length > 0 && (
                 <div className="border rounded-md">
