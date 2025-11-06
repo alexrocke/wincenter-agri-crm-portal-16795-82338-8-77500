@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart } from 'lucide-react';
+import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { ClientAutocomplete } from '@/components/ClientAutocomplete';
+import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 
 interface Opportunity {
   id: string;
@@ -32,6 +33,17 @@ interface Opportunity {
     contact_name: string;
   };
   seller_name?: string;
+}
+
+interface ProposalProduct {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: number;
+  discount_percent: number;
+  subtotal: number;
 }
 
 export default function Opportunities() {
@@ -62,6 +74,12 @@ export default function Opportunities() {
     payment_method_2: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Multi-product state
+  const [proposalProducts, setProposalProducts] = useState<ProposalProduct[]>([]);
+  const [selectedNewProduct, setSelectedNewProduct] = useState('');
+  const [newProductQty, setNewProductQty] = useState(1);
+  const [newProductDiscount, setNewProductDiscount] = useState(0);
 
   useEffect(() => {
     fetchOpportunities();
@@ -130,7 +148,7 @@ export default function Opportunities() {
             contact_name
           )
         `)
-        .not('stage', 'in', '(won,lost)') // Excluir oportunidades ganhas e perdidas
+        .not('stage', 'in', '(won,lost)')
         .order('created_at', { ascending: false });
 
       if (userRole === 'seller' || userRole === 'technician') {
@@ -141,7 +159,6 @@ export default function Opportunities() {
 
       if (error) throw error;
       
-      // Buscar nomes dos vendedores
       const sellerIds = [...new Set((data || []).map(o => o.seller_auth_id).filter(Boolean))];
       
       let sellersMap: Record<string, string> = {};
@@ -173,13 +190,63 @@ export default function Opportunities() {
     }
   };
 
-  // Calculate gross value from selected products
-  const calculateGrossValueFromProducts = (productIds: string[]) => {
-    if (productIds.length === 0) return 0;
-    return productIds.reduce((sum, productId) => {
-      const product = products.find(p => p.id === productId);
-      return sum + (product?.price || 0);
-    }, 0);
+  const addProposalProduct = () => {
+    if (!selectedNewProduct) {
+      toast.error('Selecione um produto');
+      return;
+    }
+
+    if (newProductQty < 1) {
+      toast.error('Quantidade deve ser maior que 0');
+      return;
+    }
+
+    if (newProductDiscount < 0 || newProductDiscount > 100) {
+      toast.error('Desconto deve estar entre 0 e 100%');
+      return;
+    }
+
+    if (proposalProducts.some(p => p.product_id === selectedNewProduct)) {
+      toast.error('Produto já adicionado à proposta');
+      return;
+    }
+
+    const product = products.find(p => p.id === selectedNewProduct);
+    if (!product) return;
+
+    const subtotal = (product.price * newProductQty) * (1 - newProductDiscount / 100);
+
+    const newProduct: ProposalProduct = {
+      id: crypto.randomUUID(),
+      product_id: product.id,
+      product_name: product.name,
+      product_sku: product.sku,
+      quantity: newProductQty,
+      unit_price: product.price,
+      discount_percent: newProductDiscount,
+      subtotal,
+    };
+
+    setProposalProducts([...proposalProducts, newProduct]);
+    setSelectedNewProduct('');
+    setNewProductQty(1);
+    setNewProductDiscount(0);
+    updateProposalGrossValue([...proposalProducts, newProduct]);
+  };
+
+  const removeProposalProduct = (id: string) => {
+    const updated = proposalProducts.filter(p => p.id !== id);
+    setProposalProducts(updated);
+    updateProposalGrossValue(updated);
+  };
+
+  const calculateProposalTotal = (products: ProposalProduct[]) => {
+    return products.reduce((sum, p) => sum + p.subtotal, 0);
+  };
+
+  const updateProposalGrossValue = (products: ProposalProduct[]) => {
+    const total = calculateProposalTotal(products);
+    setFormData(prev => ({ ...prev, gross_value: String(total) }));
   };
 
   const getStageInfo = (stage: string) => {
@@ -198,12 +265,17 @@ export default function Opportunities() {
     e.preventDefault();
     
     if (isSubmitting) return;
+
+    if (proposalProducts.length === 0 && !formData.gross_value) {
+      toast.error('Adicione pelo menos um produto ou informe o valor bruto');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Calculate gross value from products if products are selected
-      const calculatedGrossValue = formData.product_ids.length > 0 
-        ? calculateGrossValueFromProducts(formData.product_ids)
+      const calculatedGrossValue = proposalProducts.length > 0 
+        ? calculateProposalTotal(proposalProducts)
         : Number(formData.gross_value);
 
       const oppData: any = {
@@ -215,7 +287,7 @@ export default function Opportunities() {
         estimated_margin: Number(formData.estimated_margin) || null,
         expected_close_date: formData.expected_close_date || null,
         history: formData.history || null,
-        product_ids: formData.product_ids.length > 0 ? formData.product_ids : null,
+        product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
       };
 
       const { error } = await supabase
@@ -224,25 +296,33 @@ export default function Opportunities() {
 
       if (error) throw error;
 
-      toast.success('Oportunidade criada com sucesso!');
+      toast.success('Proposta criada com sucesso!');
       setDialogOpen(false);
-      setFormData({
-        client_id: '',
-        stage: 'lead',
-        probability: '10',
-        gross_value: '',
-        estimated_margin: '',
-        expected_close_date: '',
-        history: '',
-        product_ids: [],
-      });
+      resetForm();
       fetchOpportunities();
     } catch (error: any) {
-      console.error('Error creating opportunity:', error);
-      toast.error('Erro ao criar oportunidade: ' + error.message);
+      console.error('Error creating proposal:', error);
+      toast.error('Erro ao criar proposta: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      client_id: '',
+      stage: 'lead',
+      probability: '10',
+      gross_value: '',
+      estimated_margin: '',
+      expected_close_date: '',
+      history: '',
+      product_ids: [],
+    });
+    setProposalProducts([]);
+    setSelectedNewProduct('');
+    setNewProductQty(1);
+    setNewProductDiscount(0);
   };
 
   const handleEdit = (opp: Opportunity) => {
@@ -257,6 +337,27 @@ export default function Opportunities() {
       history: '',
       product_ids: opp.product_ids || [],
     });
+
+    // Load existing products for edit mode (backward compatibility)
+    if (opp.product_ids && opp.product_ids.length > 0) {
+      const loadedProducts: ProposalProduct[] = opp.product_ids.map(productId => {
+        const product = products.find(p => p.id === productId);
+        return {
+          id: crypto.randomUUID(),
+          product_id: productId,
+          product_name: product?.name || 'Produto não encontrado',
+          product_sku: product?.sku || '',
+          quantity: 1, // Default for old records
+          unit_price: product?.price || 0,
+          discount_percent: 0, // Default for old records
+          subtotal: product?.price || 0,
+        };
+      });
+      setProposalProducts(loadedProducts);
+    } else {
+      setProposalProducts([]);
+    }
+
     setEditDialogOpen(true);
   };
 
@@ -264,10 +365,14 @@ export default function Opportunities() {
     e.preventDefault();
     if (!selectedOpp) return;
 
+    if (proposalProducts.length === 0 && !formData.gross_value) {
+      toast.error('Adicione pelo menos um produto ou informe o valor bruto');
+      return;
+    }
+
     try {
-      // Calculate gross value from products if products are selected
-      const calculatedGrossValue = formData.product_ids.length > 0 
-        ? calculateGrossValueFromProducts(formData.product_ids)
+      const calculatedGrossValue = proposalProducts.length > 0 
+        ? calculateProposalTotal(proposalProducts)
         : Number(formData.gross_value);
 
       const { error } = await supabase
@@ -279,15 +384,16 @@ export default function Opportunities() {
           gross_value: calculatedGrossValue,
           estimated_margin: Number(formData.estimated_margin) || null,
           expected_close_date: formData.expected_close_date || null,
-          product_ids: formData.product_ids.length > 0 ? formData.product_ids : null,
+          product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
         })
         .eq('id', selectedOpp.id);
 
       if (error) throw error;
 
-      toast.success('Oportunidade atualizada!');
+      toast.success('Proposta atualizada!');
       setEditDialogOpen(false);
       setSelectedOpp(null);
+      resetForm();
       fetchOpportunities();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
@@ -305,7 +411,7 @@ export default function Opportunities() {
 
       if (error) throw error;
 
-      toast.success('Oportunidade excluída!');
+      toast.success('Proposta excluída!');
       setDeleteDialogOpen(false);
       setSelectedOpp(null);
       fetchOpportunities();
@@ -327,7 +433,6 @@ export default function Opportunities() {
     if (!selectedOpp) return;
 
     try {
-      // Create the sale
       const saleData = {
         client_id: selectedOpp.client_id,
         seller_auth_id: user?.id,
@@ -348,14 +453,14 @@ export default function Opportunities() {
 
       if (saleError) throw saleError;
 
-      // If there are products, create sale items
+      // Create sale items with proper quantities and discounts
       if (selectedOpp.product_ids && selectedOpp.product_ids.length > 0) {
         const saleItems = selectedOpp.product_ids.map(productId => {
           const product = products.find(p => p.id === productId);
           return {
             sale_id: sale.id,
             product_id: productId,
-            qty: 1,
+            qty: 1, // Default for backward compatibility
             unit_price: product?.price || 0,
             discount_percent: 0,
           };
@@ -368,7 +473,6 @@ export default function Opportunities() {
         if (itemsError) throw itemsError;
       }
 
-      // Update opportunity to won
       const { error: oppError } = await supabase
         .from('opportunities')
         .update({ stage: 'won' })
@@ -376,14 +480,26 @@ export default function Opportunities() {
 
       if (oppError) throw oppError;
 
-      toast.success('Oportunidade convertida em venda com sucesso!');
+      toast.success('Proposta convertida em venda com sucesso!');
       setConvertDialogOpen(false);
       setSelectedOpp(null);
       fetchOpportunities();
     } catch (error: any) {
-      console.error('Error converting opportunity to sale:', error);
-      toast.error('Erro ao converter oportunidade: ' + error.message);
+      console.error('Error converting proposal to sale:', error);
+      toast.error('Erro ao converter proposta: ' + error.message);
     }
+  };
+
+  const getProductsSummary = (productIds?: string[]) => {
+    if (!productIds || productIds.length === 0) return '-';
+    
+    const productNames = productIds
+      .map(id => products.find(p => p.id === id)?.name)
+      .filter(Boolean);
+
+    if (productNames.length === 0) return '-';
+    if (productNames.length === 1) return productNames[0];
+    return `${productNames[0]} +${productNames.length - 1}`;
   };
 
   const statsByStage = opportunities.reduce((acc, opp) => {
@@ -414,19 +530,22 @@ export default function Opportunities() {
       <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Funil de Vendas</h1>
-            <p className="text-muted-foreground">Acompanhe suas oportunidades</p>
+            <h1 className="text-3xl font-bold">Propostas de Vendas</h1>
+            <p className="text-muted-foreground">Gerencie suas propostas comerciais</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Nova Oportunidade
+                Nova Proposta
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Nova Oportunidade</DialogTitle>
+                <DialogTitle>Nova Proposta</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -439,6 +558,7 @@ export default function Opportunities() {
                     sellers={sellers}
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="stage">Estágio *</Label>
                   <Select
@@ -458,6 +578,138 @@ export default function Opportunities() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Products Section */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <Label className="text-base font-semibold">Produtos da Proposta</Label>
+                  
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-6 space-y-2">
+                      <Label className="text-xs">Produto</Label>
+                      <ProductAutocomplete
+                        value={selectedNewProduct}
+                        onChange={setSelectedNewProduct}
+                        excludeIds={proposalProducts.map(p => p.product_id)}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Qtd</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={newProductQty}
+                        onChange={(e) => setNewProductQty(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">Desc. (%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={newProductDiscount}
+                        onChange={(e) => setNewProductDiscount(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Button
+                        type="button"
+                        onClick={addProposalProduct}
+                        disabled={!selectedNewProduct}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {proposalProducts.length > 0 && (
+                    <div className="border rounded-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Produto</TableHead>
+                            <TableHead className="text-right">Qtd</TableHead>
+                            <TableHead className="text-right">Preço Unit.</TableHead>
+                            <TableHead className="text-right">Desc.</TableHead>
+                            <TableHead className="text-right">Subtotal</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {proposalProducts.map((product) => (
+                            <TableRow key={product.id}>
+                              <TableCell>
+                                <div className="font-medium">{product.product_name}</div>
+                                <div className="text-xs text-muted-foreground">{product.product_sku}</div>
+                              </TableCell>
+                              <TableCell className="text-right">{product.quantity}</TableCell>
+                              <TableCell className="text-right">
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: 'BRL',
+                                }).format(product.unit_price)}
+                              </TableCell>
+                              <TableCell className="text-right">{product.discount_percent}%</TableCell>
+                              <TableCell className="text-right font-medium">
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: 'BRL',
+                                }).format(product.subtotal)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeProposalProduct(product.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="p-4 border-t bg-muted/50">
+                        <div className="flex justify-between items-center font-semibold">
+                          <span>Valor Total da Proposta:</span>
+                          <span className="text-lg">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(calculateProposalTotal(proposalProducts))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {proposalProducts.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground text-sm border rounded-md bg-muted/20">
+                      Nenhum produto adicionado. Use o formulário acima para adicionar produtos.
+                    </div>
+                  )}
+                </div>
+
+                {/* Manual value - only if no products */}
+                {proposalProducts.length === 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="gross_value">Valor Bruto Manual (R$) *</Label>
+                    <Input
+                      id="gross_value"
+                      type="number"
+                      step="0.01"
+                      value={formData.gross_value}
+                      onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Informe um valor apenas se não adicionar produtos
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="probability">Probabilidade (%)</Label>
@@ -480,64 +732,17 @@ export default function Opportunities() {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="product_ids">Produtos em Negociação (Opcional)</Label>
-                  <Select
-                    value={formData.product_ids[0] || 'none'}
-                    onValueChange={(value) => {
-                      const newProductIds = value !== 'none' ? [value] : [];
-                      const calculatedValue = value !== 'none' ? calculateGrossValueFromProducts([value]) : 0;
-                      setFormData({ 
-                        ...formData, 
-                        product_ids: newProductIds,
-                        gross_value: calculatedValue > 0 ? String(calculatedValue) : formData.gross_value
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um produto (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum produto</SelectItem>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(product.price)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Se selecionar um produto, o valor bruto será calculado automaticamente
-                  </p>
+                  <Label htmlFor="expected_close_date">Previsão de Fechamento</Label>
+                  <Input
+                    id="expected_close_date"
+                    type="date"
+                    value={formData.expected_close_date}
+                    onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="gross_value">
-                      Valor Bruto (R$) {formData.product_ids.length === 0 && '*'}
-                    </Label>
-                    <Input
-                      id="gross_value"
-                      type="number"
-                      step="0.01"
-                      value={formData.gross_value}
-                      onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
-                      required={formData.product_ids.length === 0}
-                      disabled={formData.product_ids.length > 0}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expected_close_date">Previsão de Fechamento</Label>
-                    <Input
-                      id="expected_close_date"
-                      type="date"
-                      value={formData.expected_close_date}
-                      onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
-                    />
-                  </div>
-                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="history">Histórico/Observações</Label>
                   <Textarea
@@ -547,8 +752,9 @@ export default function Opportunities() {
                     rows={3}
                   />
                 </div>
+
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Criando...' : 'Criar Oportunidade'}
+                  {isSubmitting ? 'Criando...' : 'Criar Proposta'}
                 </Button>
               </form>
             </DialogContent>
@@ -558,7 +764,7 @@ export default function Opportunities() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total de Oportunidades</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Propostas</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{opportunities.length}</div>
@@ -619,7 +825,7 @@ export default function Opportunities() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline de Oportunidades</CardTitle>
+            <CardTitle>Pipeline de Propostas</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -627,6 +833,7 @@ export default function Opportunities() {
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Responsável</TableHead>
+                  <TableHead>Produtos</TableHead>
                   <TableHead>Estágio</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Probabilidade</TableHead>
@@ -638,8 +845,8 @@ export default function Opportunities() {
               <TableBody>
                 {opportunities.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Nenhuma oportunidade encontrada
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      Nenhuma proposta encontrada
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -658,6 +865,11 @@ export default function Opportunities() {
                         <TableCell>
                           <div className="text-sm font-medium">
                             {opp.seller_name || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm" title={opp.product_ids?.map(id => products.find(p => p.id === id)?.name).join(', ')}>
+                            {getProductsSummary(opp.product_ids)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -738,10 +950,16 @@ export default function Opportunities() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        setEditDialogOpen(open);
+        if (!open) {
+          resetForm();
+          setSelectedOpp(null);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Oportunidade</DialogTitle>
+            <DialogTitle>Editar Proposta</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
             <div className="space-y-2">
@@ -763,6 +981,7 @@ export default function Opportunities() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="edit_stage">Estágio *</Label>
               <Select
@@ -782,6 +1001,134 @@ export default function Opportunities() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Products Section (same as create) */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <Label className="text-base font-semibold">Produtos da Proposta</Label>
+              
+              <div className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-6 space-y-2">
+                  <Label className="text-xs">Produto</Label>
+                  <ProductAutocomplete
+                    value={selectedNewProduct}
+                    onChange={setSelectedNewProduct}
+                    excludeIds={proposalProducts.map(p => p.product_id)}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-xs">Qtd</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newProductQty}
+                    onChange={(e) => setNewProductQty(Number(e.target.value))}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-xs">Desc. (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newProductDiscount}
+                    onChange={(e) => setNewProductDiscount(Number(e.target.value))}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Button
+                    type="button"
+                    onClick={addProposalProduct}
+                    disabled={!selectedNewProduct}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {proposalProducts.length > 0 && (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="text-right">Preço Unit.</TableHead>
+                        <TableHead className="text-right">Desc.</TableHead>
+                        <TableHead className="text-right">Subtotal</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {proposalProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="font-medium">{product.product_name}</div>
+                            <div className="text-xs text-muted-foreground">{product.product_sku}</div>
+                          </TableCell>
+                          <TableCell className="text-right">{product.quantity}</TableCell>
+                          <TableCell className="text-right">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(product.unit_price)}
+                          </TableCell>
+                          <TableCell className="text-right">{product.discount_percent}%</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(product.subtotal)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeProposalProduct(product.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="p-4 border-t bg-muted/50">
+                    <div className="flex justify-between items-center font-semibold">
+                      <span>Valor Total da Proposta:</span>
+                      <span className="text-lg">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(calculateProposalTotal(proposalProducts))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {proposalProducts.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground text-sm border rounded-md bg-muted/20">
+                  Nenhum produto adicionado. Use o formulário acima para adicionar produtos.
+                </div>
+              )}
+            </div>
+
+            {proposalProducts.length === 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="edit_gross_value">Valor Bruto Manual (R$) *</Label>
+                <Input
+                  id="edit_gross_value"
+                  type="number"
+                  step="0.01"
+                  value={formData.gross_value}
+                  onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
+                  required
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit_probability">Probabilidade (%)</Label>
@@ -804,61 +1151,17 @@ export default function Opportunities() {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="edit_product_ids">Produtos em Negociação (Opcional)</Label>
-              <Select
-                value={formData.product_ids[0] || 'none'}
-                onValueChange={(value) => {
-                  const newProductIds = value !== 'none' ? [value] : [];
-                  const calculatedValue = value !== 'none' ? calculateGrossValueFromProducts([value]) : 0;
-                  setFormData({ 
-                    ...formData, 
-                    product_ids: newProductIds,
-                    gross_value: calculatedValue > 0 ? String(calculatedValue) : formData.gross_value
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um produto (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum produto</SelectItem>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(product.price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="edit_expected_close_date">Previsão de Fechamento</Label>
+              <Input
+                id="edit_expected_close_date"
+                type="date"
+                value={formData.expected_close_date}
+                onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_gross_value">
-                  Valor Bruto (R$) {formData.product_ids.length === 0 && '*'}
-                </Label>
-                <Input
-                  id="edit_gross_value"
-                  type="number"
-                  step="0.01"
-                  value={formData.gross_value}
-                  onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
-                  required={formData.product_ids.length === 0}
-                  disabled={formData.product_ids.length > 0}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_expected_close_date">Previsão de Fechamento</Label>
-                <Input
-                  id="edit_expected_close_date"
-                  type="date"
-                  value={formData.expected_close_date}
-                  onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
-                />
-              </div>
-            </div>
+
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1">
                 Cancelar
@@ -877,7 +1180,7 @@ export default function Opportunities() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta oportunidade? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -897,7 +1200,7 @@ export default function Opportunities() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Você está prestes a converter esta oportunidade em uma venda confirmada.
+              Você está prestes a converter esta proposta em uma venda confirmada.
             </p>
             <div className="space-y-2">
               <Label htmlFor="payment_method_1">Forma de Pagamento 1 *</Label>
@@ -906,50 +1209,40 @@ export default function Opportunities() {
                 onValueChange={(value) => setPaymentData({ ...paymentData, payment_method_1: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione a forma de pagamento" />
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Transferência">Transferência</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment_method_2">Forma de Pagamento 2 (Opcional)</Label>
               <Select
-                value={paymentData.payment_method_2 || 'none'}
-                onValueChange={(value) => setPaymentData({ 
-                  ...paymentData, 
-                  payment_method_2: value === 'none' ? '' : value 
-                })}
+                value={paymentData.payment_method_2}
+                onValueChange={(value) => setPaymentData({ ...paymentData, payment_method_2: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione a forma de pagamento" />
+                  <SelectValue placeholder="Selecione (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Transferência">Transferência</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setConvertDialogOpen(false)} 
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => setConvertDialogOpen(false)} className="flex-1">
                 Cancelar
               </Button>
               <Button 
@@ -957,7 +1250,7 @@ export default function Opportunities() {
                 className="flex-1"
                 disabled={!paymentData.payment_method_1}
               >
-                Confirmar Venda
+                Converter em Venda
               </Button>
             </div>
           </div>
