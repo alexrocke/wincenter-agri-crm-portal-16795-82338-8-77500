@@ -310,14 +310,6 @@ export default function Opportunities() {
       doc.text(`Telefone: ${client?.phone || 'N/A'}`, 14, 59);
       doc.text(`Email: ${client?.email || 'N/A'}`, 14, 66);
       
-      // Proposal info
-      doc.setFontSize(12);
-      doc.text('INFORMAÇÕES DA PROPOSTA', 14, 80);
-      doc.setFontSize(10);
-      doc.text(`Estágio: ${getStageLabel(opp.stage)}`, 14, 90);
-      doc.text(`Probabilidade: ${opp.probability || 0}%`, 14, 97);
-      doc.text(`Data Prevista: ${opp.expected_close_date ? new Date(opp.expected_close_date).toLocaleDateString('pt-BR') : 'N/A'}`, 14, 104);
-      
       // Products table
       if (productsData.length > 0) {
         const tableData = productsData.map(product => [
@@ -330,7 +322,7 @@ export default function Opportunities() {
         ]);
 
         autoTable(doc, {
-          startY: 115,
+          startY: 80,
           head: [['Produto', 'SKU', 'Qtd', 'Valor Unit.', 'Desc.', 'Subtotal']],
           body: tableData,
           theme: 'grid',
