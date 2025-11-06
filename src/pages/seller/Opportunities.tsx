@@ -80,6 +80,7 @@ export default function Opportunities() {
   const [selectedNewProduct, setSelectedNewProduct] = useState('');
   const [newProductQty, setNewProductQty] = useState(1);
   const [newProductDiscount, setNewProductDiscount] = useState(0);
+  const [valueAdjustment, setValueAdjustment] = useState(0);
 
   useEffect(() => {
     fetchOpportunities();
@@ -231,21 +232,25 @@ export default function Opportunities() {
     setSelectedNewProduct('');
     setNewProductQty(1);
     setNewProductDiscount(0);
-    updateProposalGrossValue([...proposalProducts, newProduct]);
+    updateProposalGrossValue([...proposalProducts, newProduct], valueAdjustment);
   };
 
   const removeProposalProduct = (id: string) => {
     const updated = proposalProducts.filter(p => p.id !== id);
     setProposalProducts(updated);
-    updateProposalGrossValue(updated);
+    updateProposalGrossValue(updated, valueAdjustment);
   };
 
   const calculateProposalTotal = (products: ProposalProduct[]) => {
     return products.reduce((sum, p) => sum + p.subtotal, 0);
   };
 
-  const updateProposalGrossValue = (products: ProposalProduct[]) => {
-    const total = calculateProposalTotal(products);
+  const calculateFinalTotal = (products: ProposalProduct[], adjustment: number) => {
+    return calculateProposalTotal(products) + adjustment;
+  };
+
+  const updateProposalGrossValue = (products: ProposalProduct[], adjustment: number = valueAdjustment) => {
+    const total = calculateFinalTotal(products, adjustment);
     setFormData(prev => ({ ...prev, gross_value: String(total) }));
   };
 
@@ -275,7 +280,7 @@ export default function Opportunities() {
     
     try {
       const calculatedGrossValue = proposalProducts.length > 0 
-        ? calculateProposalTotal(proposalProducts)
+        ? calculateFinalTotal(proposalProducts, valueAdjustment)
         : Number(formData.gross_value);
 
       const oppData: any = {
@@ -323,6 +328,7 @@ export default function Opportunities() {
     setSelectedNewProduct('');
     setNewProductQty(1);
     setNewProductDiscount(0);
+    setValueAdjustment(0);
   };
 
   const handleEdit = (opp: Opportunity) => {
@@ -358,6 +364,16 @@ export default function Opportunities() {
       setProposalProducts([]);
     }
 
+    // Calculate adjustment from difference between stored value and products total
+    const productsTotal = opp.product_ids && opp.product_ids.length > 0 
+      ? opp.product_ids.reduce((sum, productId) => {
+          const product = products.find(p => p.id === productId);
+          return sum + (product?.price || 0);
+        }, 0)
+      : 0;
+    const adjustment = productsTotal > 0 ? opp.gross_value - productsTotal : 0;
+    setValueAdjustment(adjustment);
+
     setEditDialogOpen(true);
   };
 
@@ -372,7 +388,7 @@ export default function Opportunities() {
 
     try {
       const calculatedGrossValue = proposalProducts.length > 0 
-        ? calculateProposalTotal(proposalProducts)
+        ? calculateFinalTotal(proposalProducts, valueAdjustment)
         : Number(formData.gross_value);
 
       const { error } = await supabase
@@ -671,14 +687,35 @@ export default function Opportunities() {
                           ))}
                         </TableBody>
                       </Table>
-                      <div className="p-4 border-t bg-muted/50">
-                        <div className="flex justify-between items-center font-semibold">
-                          <span>Valor Total da Proposta:</span>
-                          <span className="text-lg">
+                      <div className="p-4 border-t bg-muted/50 space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Subtotal dos Produtos:</span>
+                          <span>
                             {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
                               currency: 'BRL',
                             }).format(calculateProposalTotal(proposalProducts))}
+                          </span>
+                        </div>
+                        {valueAdjustment !== 0 && (
+                          <div className="flex justify-between items-center text-sm">
+                            <span>Ajuste de Valor:</span>
+                            <span className={valueAdjustment > 0 ? 'text-green-600' : 'text-red-600'}>
+                              {valueAdjustment > 0 ? '+' : ''}
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(valueAdjustment)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center font-semibold text-lg pt-2 border-t">
+                          <span>Total da Proposta:</span>
+                          <span>
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(calculateFinalTotal(proposalProducts, valueAdjustment))}
                           </span>
                         </div>
                       </div>
@@ -691,6 +728,28 @@ export default function Opportunities() {
                     </div>
                   )}
                 </div>
+
+                {/* Value adjustment - only if there are products */}
+                {proposalProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="value_adjustment">Ajuste de Valor (R$)</Label>
+                    <Input
+                      id="value_adjustment"
+                      type="number"
+                      step="0.01"
+                      value={valueAdjustment}
+                      onChange={(e) => {
+                        const adjustment = Number(e.target.value);
+                        setValueAdjustment(adjustment);
+                        updateProposalGrossValue(proposalProducts, adjustment);
+                      }}
+                      placeholder="0.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use valores positivos para acréscimos ou negativos para descontos adicionais
+                    </p>
+                  </div>
+                )}
 
                 {/* Manual value - only if no products */}
                 {proposalProducts.length === 0 && (
@@ -1094,40 +1153,83 @@ export default function Opportunities() {
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="p-4 border-t bg-muted/50">
-                    <div className="flex justify-between items-center font-semibold">
-                      <span>Valor Total da Proposta:</span>
-                      <span className="text-lg">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(calculateProposalTotal(proposalProducts))}
-                      </span>
+                      <div className="p-4 border-t bg-muted/50 space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Subtotal dos Produtos:</span>
+                          <span>
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(calculateProposalTotal(proposalProducts))}
+                          </span>
+                        </div>
+                        {valueAdjustment !== 0 && (
+                          <div className="flex justify-between items-center text-sm">
+                            <span>Ajuste de Valor:</span>
+                            <span className={valueAdjustment > 0 ? 'text-green-600' : 'text-red-600'}>
+                              {valueAdjustment > 0 ? '+' : ''}
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(valueAdjustment)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center font-semibold text-lg pt-2 border-t">
+                          <span>Total da Proposta:</span>
+                          <span>
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(calculateFinalTotal(proposalProducts, valueAdjustment))}
+                          </span>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {proposalProducts.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground text-sm border rounded-md bg-muted/20">
+                      Nenhum produto adicionado. Use o formulário acima para adicionar produtos.
+                    </div>
+                  )}
+                </div>
+
+                {/* Value adjustment for edit - only if there are products */}
+                {proposalProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_value_adjustment">Ajuste de Valor (R$)</Label>
+                    <Input
+                      id="edit_value_adjustment"
+                      type="number"
+                      step="0.01"
+                      value={valueAdjustment}
+                      onChange={(e) => {
+                        const adjustment = Number(e.target.value);
+                        setValueAdjustment(adjustment);
+                        updateProposalGrossValue(proposalProducts, adjustment);
+                      }}
+                      placeholder="0.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use valores positivos para acréscimos ou negativos para descontos adicionais
+                    </p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {proposalProducts.length === 0 && (
-                <div className="text-center py-6 text-muted-foreground text-sm border rounded-md bg-muted/20">
-                  Nenhum produto adicionado. Use o formulário acima para adicionar produtos.
-                </div>
-              )}
-            </div>
-
-            {proposalProducts.length === 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="edit_gross_value">Valor Bruto Manual (R$) *</Label>
-                <Input
-                  id="edit_gross_value"
-                  type="number"
-                  step="0.01"
-                  value={formData.gross_value}
-                  onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
-                  required
-                />
-              </div>
-            )}
+                {proposalProducts.length === 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_gross_value">Valor Bruto Manual (R$) *</Label>
+                    <Input
+                      id="edit_gross_value"
+                      type="number"
+                      step="0.01"
+                      value={formData.gross_value}
+                      onChange={(e) => setFormData({ ...formData, gross_value: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
