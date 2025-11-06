@@ -83,6 +83,7 @@ export default function Opportunities() {
   const [newProductQty, setNewProductQty] = useState(1);
   const [newProductPrice, setNewProductPrice] = useState(0);
   const [newProductDiscount, setNewProductDiscount] = useState(0);
+  const [newProductOriginalPrice, setNewProductOriginalPrice] = useState(0);
   const [valueAdjustment, setValueAdjustment] = useState(0);
 
   useEffect(() => {
@@ -241,6 +242,7 @@ export default function Opportunities() {
     setNewProductQty(1);
     setNewProductPrice(0);
     setNewProductDiscount(0);
+    setNewProductOriginalPrice(0);
     updateProposalGrossValue([...proposalProducts, newProduct], valueAdjustment);
   };
 
@@ -284,15 +286,19 @@ export default function Opportunities() {
         .eq('id', opp.client_id)
         .single();
 
-      // Fetch products details
-      let productsData: any[] = [];
-      if (opp.product_ids && opp.product_ids.length > 0) {
-        const { data } = await supabase
-          .from('products')
-          .select('*')
-          .in('id', opp.product_ids);
-        productsData = data || [];
-      }
+      // Fetch opportunity items with product details
+      const { data: oppItems } = await supabase
+        .from('opportunity_items')
+        .select(`
+          *,
+          products (
+            name,
+            sku
+          )
+        `)
+        .eq('opportunity_id', opp.id);
+
+      const productsData = oppItems || [];
 
       // Create PDF
       const doc = new jsPDF();
@@ -312,14 +318,17 @@ export default function Opportunities() {
       
       // Products table
       if (productsData.length > 0) {
-        const tableData = productsData.map(product => [
-          product.name,
-          product.sku || '-',
-          '1',
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price),
-          '0%',
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
-        ]);
+        const tableData = productsData.map((item: any) => {
+          const subtotal = (item.unit_price * item.quantity) * (1 - item.discount_percent / 100);
+          return [
+            item.products?.name || 'Produto',
+            item.products?.sku || '-',
+            item.quantity.toString(),
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+            `${item.discount_percent}%`,
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)
+          ];
+        });
 
         autoTable(doc, {
           startY: 80,
@@ -397,11 +406,30 @@ export default function Opportunities() {
         product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
       };
 
-      const { error } = await supabase
+      const { data: newOpp, error } = await supabase
         .from('opportunities')
-        .insert([oppData]);
+        .insert([oppData])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Insert opportunity items
+      if (proposalProducts.length > 0 && newOpp) {
+        const items = proposalProducts.map(p => ({
+          opportunity_id: newOpp.id,
+          product_id: p.product_id,
+          quantity: p.quantity,
+          unit_price: p.unit_price,
+          discount_percent: p.discount_percent,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('opportunity_items')
+          .insert(items);
+
+        if (itemsError) throw itemsError;
+      }
 
       toast.success('Proposta criada com sucesso!');
       setDialogOpen(false);
@@ -431,10 +459,11 @@ export default function Opportunities() {
     setNewProductQty(1);
     setNewProductPrice(0);
     setNewProductDiscount(0);
+    setNewProductOriginalPrice(0);
     setValueAdjustment(0);
   };
 
-  const handleEdit = (opp: Opportunity) => {
+  const handleEdit = async (opp: Opportunity) => {
     setSelectedOpp(opp);
     setFormData({
       client_id: opp.client_id,
@@ -447,47 +476,77 @@ export default function Opportunities() {
       product_ids: opp.product_ids || [],
     });
 
-    // Load existing products for edit mode (backward compatibility)
-    if (opp.product_ids && opp.product_ids.length > 0) {
-      const loadedProducts: ProposalProduct[] = opp.product_ids.map(productId => {
-        const product = products.find(p => p.id === productId);
-        return {
-          id: crypto.randomUUID(),
-          product_id: productId,
-          product_name: product?.name || 'Produto não encontrado',
-          product_sku: product?.sku || '',
-          quantity: 1, // Default for old records
-          unit_price: product?.price || 0,
-          discount_percent: 0, // Default for old records
-          subtotal: product?.price || 0,
-        };
-      });
+    // Load products from opportunity_items first, fallback to product_ids for backward compatibility
+    const { data: oppItems } = await supabase
+      .from('opportunity_items')
+      .select(`
+        *,
+        products (
+          name,
+          sku
+        )
+      `)
+      .eq('opportunity_id', opp.id);
+
+    if (oppItems && oppItems.length > 0) {
+      // New system: load from opportunity_items
+      const loadedProducts: ProposalProduct[] = oppItems.map((item: any) => ({
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        product_name: item.products?.name || 'Produto',
+        product_sku: item.products?.sku || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percent: item.discount_percent,
+        subtotal: (item.unit_price * item.quantity) * (1 - item.discount_percent / 100),
+      }));
       setProposalProducts(loadedProducts);
+      
+      const productsTotal = loadedProducts.reduce((sum, p) => sum + p.subtotal, 0);
+      const adjustment = opp.gross_value - productsTotal;
+      setValueAdjustment(adjustment);
+    } else if (opp.product_ids && opp.product_ids.length > 0) {
+      // Backward compatibility: load from product_ids
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', opp.product_ids);
+
+      if (productsData) {
+        const loadedProducts: ProposalProduct[] = productsData.map(p => ({
+          id: crypto.randomUUID(),
+          product_id: p.id,
+          product_name: p.name,
+          product_sku: p.sku,
+          quantity: 1,
+          unit_price: p.price,
+          discount_percent: 0,
+          subtotal: p.price,
+        }));
+        setProposalProducts(loadedProducts);
+        
+        const productsTotal = loadedProducts.reduce((sum, p) => sum + p.subtotal, 0);
+        const adjustment = opp.gross_value - productsTotal;
+        setValueAdjustment(adjustment);
+      }
     } else {
       setProposalProducts([]);
+      setValueAdjustment(0);
     }
-
-    // Calculate adjustment from difference between stored value and products total
-    const productsTotal = opp.product_ids && opp.product_ids.length > 0 
-      ? opp.product_ids.reduce((sum, productId) => {
-          const product = products.find(p => p.id === productId);
-          return sum + (product?.price || 0);
-        }, 0)
-      : 0;
-    const adjustment = productsTotal > 0 ? opp.gross_value - productsTotal : 0;
-    setValueAdjustment(adjustment);
 
     setEditDialogOpen(true);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedOpp) return;
+    if (!selectedOpp || isSubmitting) return;
 
     if (proposalProducts.length === 0 && !formData.gross_value) {
       toast.error('Adicione pelo menos um produto ou informe o valor bruto');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const calculatedGrossValue = proposalProducts.length > 0 
@@ -509,6 +568,28 @@ export default function Opportunities() {
 
       if (error) throw error;
 
+      // Delete existing items and insert new ones
+      await supabase
+        .from('opportunity_items')
+        .delete()
+        .eq('opportunity_id', selectedOpp.id);
+
+      if (proposalProducts.length > 0) {
+        const items = proposalProducts.map(p => ({
+          opportunity_id: selectedOpp.id,
+          product_id: p.product_id,
+          quantity: p.quantity,
+          unit_price: p.unit_price,
+          discount_percent: p.discount_percent,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('opportunity_items')
+          .insert(items);
+
+        if (itemsError) throw itemsError;
+      }
+
       toast.success('Proposta atualizada!');
       setEditDialogOpen(false);
       setSelectedOpp(null);
@@ -516,6 +597,8 @@ export default function Opportunities() {
       fetchOpportunities();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -712,6 +795,8 @@ export default function Opportunities() {
                           const product = products.find(p => p.id === productId);
                           if (product) {
                             setNewProductPrice(product.price);
+                            setNewProductOriginalPrice(product.price);
+                            setNewProductDiscount(0);
                           }
                         }}
                         excludeIds={proposalProducts.map(p => p.product_id)}
@@ -733,17 +818,34 @@ export default function Opportunities() {
                         step="0.01"
                         min="0"
                         value={newProductPrice}
-                        onChange={(e) => setNewProductPrice(Number(e.target.value))}
+                        onChange={(e) => {
+                          const newPrice = Number(e.target.value);
+                          setNewProductPrice(newPrice);
+                          // Auto-calculate discount percentage
+                          if (newProductOriginalPrice > 0) {
+                            const discountPercent = ((newProductOriginalPrice - newPrice) / newProductOriginalPrice) * 100;
+                            setNewProductDiscount(Math.max(0, Math.round(discountPercent * 100) / 100));
+                          }
+                        }}
                       />
                     </div>
                     <div className="col-span-2 space-y-2">
                       <Label className="text-xs">Desc. (%)</Label>
                       <Input
                         type="number"
+                        step="0.01"
                         min="0"
                         max="100"
                         value={newProductDiscount}
-                        onChange={(e) => setNewProductDiscount(Number(e.target.value))}
+                        onChange={(e) => {
+                          const discount = Number(e.target.value);
+                          setNewProductDiscount(discount);
+                          // Auto-calculate price from discount
+                          if (newProductOriginalPrice > 0) {
+                            const newPrice = newProductOriginalPrice * (1 - discount / 100);
+                            setNewProductPrice(Math.round(newPrice * 100) / 100);
+                          }
+                        }}
                       />
                     </div>
                     <div className="col-span-2">
@@ -1202,6 +1304,8 @@ export default function Opportunities() {
                           const product = products.find(p => p.id === productId);
                           if (product) {
                             setNewProductPrice(product.price);
+                            setNewProductOriginalPrice(product.price);
+                            setNewProductDiscount(0);
                           }
                         }}
                         excludeIds={proposalProducts.map(p => p.product_id)}
@@ -1223,17 +1327,34 @@ export default function Opportunities() {
                         step="0.01"
                         min="0"
                         value={newProductPrice}
-                        onChange={(e) => setNewProductPrice(Number(e.target.value))}
+                        onChange={(e) => {
+                          const newPrice = Number(e.target.value);
+                          setNewProductPrice(newPrice);
+                          // Auto-calculate discount percentage
+                          if (newProductOriginalPrice > 0) {
+                            const discountPercent = ((newProductOriginalPrice - newPrice) / newProductOriginalPrice) * 100;
+                            setNewProductDiscount(Math.max(0, Math.round(discountPercent * 100) / 100));
+                          }
+                        }}
                       />
                     </div>
                     <div className="col-span-2 space-y-2">
                       <Label className="text-xs">Desc. (%)</Label>
                       <Input
                         type="number"
+                        step="0.01"
                         min="0"
                         max="100"
                         value={newProductDiscount}
-                        onChange={(e) => setNewProductDiscount(Number(e.target.value))}
+                        onChange={(e) => {
+                          const discount = Number(e.target.value);
+                          setNewProductDiscount(discount);
+                          // Auto-calculate price from discount
+                          if (newProductOriginalPrice > 0) {
+                            const newPrice = newProductOriginalPrice * (1 - discount / 100);
+                            setNewProductPrice(Math.round(newPrice * 100) / 100);
+                          }
+                        }}
                       />
                     </div>
                     <div className="col-span-2">
