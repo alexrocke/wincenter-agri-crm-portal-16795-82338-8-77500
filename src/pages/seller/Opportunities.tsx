@@ -5,7 +5,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart, X } from 'lucide-react';
+import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart, X, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -259,6 +261,107 @@ export default function Opportunities() {
   const updateProposalGrossValue = (products: ProposalProduct[], adjustment: number = valueAdjustment) => {
     const total = calculateFinalTotal(products, adjustment);
     setFormData(prev => ({ ...prev, gross_value: String(total) }));
+  };
+
+  const getStageLabel = (stage: string) => {
+    const labels: Record<string, string> = {
+      lead: 'Lead',
+      qualified: 'Qualificado',
+      proposal: 'Proposta',
+      closing: 'Fechamento',
+      won: 'Ganha',
+      lost: 'Perdida'
+    };
+    return labels[stage] || stage;
+  };
+
+  const handleDownloadPDF = async (opp: Opportunity) => {
+    try {
+      // Fetch client details
+      const { data: client } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', opp.client_id)
+        .single();
+
+      // Fetch products details
+      let productsData: any[] = [];
+      if (opp.product_ids && opp.product_ids.length > 0) {
+        const { data } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', opp.product_ids);
+        productsData = data || [];
+      }
+
+      // Create PDF
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(20);
+      doc.text('PROPOSTA COMERCIAL', 105, 20, { align: 'center' });
+      
+      // Client info
+      doc.setFontSize(12);
+      doc.text('DADOS DO CLIENTE', 14, 35);
+      doc.setFontSize(10);
+      doc.text(`Fazenda: ${client?.farm_name || 'N/A'}`, 14, 45);
+      doc.text(`Contato: ${client?.contact_name || 'N/A'}`, 14, 52);
+      doc.text(`Telefone: ${client?.phone || 'N/A'}`, 14, 59);
+      doc.text(`Email: ${client?.email || 'N/A'}`, 14, 66);
+      
+      // Proposal info
+      doc.setFontSize(12);
+      doc.text('INFORMAÇÕES DA PROPOSTA', 14, 80);
+      doc.setFontSize(10);
+      doc.text(`Estágio: ${getStageLabel(opp.stage)}`, 14, 90);
+      doc.text(`Probabilidade: ${opp.probability || 0}%`, 14, 97);
+      doc.text(`Data Prevista: ${opp.expected_close_date ? new Date(opp.expected_close_date).toLocaleDateString('pt-BR') : 'N/A'}`, 14, 104);
+      
+      // Products table
+      if (productsData.length > 0) {
+        const tableData = productsData.map(product => [
+          product.name,
+          product.sku || '-',
+          '1',
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price),
+          '0%',
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
+        ]);
+
+        autoTable(doc, {
+          startY: 115,
+          head: [['Produto', 'SKU', 'Qtd', 'Valor Unit.', 'Desc.', 'Subtotal']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [66, 66, 66] },
+        });
+      }
+
+      // Total
+      const finalY = (doc as any).lastAutoTable?.finalY || 115;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(
+        `Valor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(opp.gross_value)}`,
+        14,
+        finalY + 15
+      );
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'normal');
+      doc.text('Esta proposta tem validade de 30 dias a partir da data de emissão.', 105, 280, { align: 'center' });
+      
+      // Save PDF
+      const fileName = `Proposta_${client?.farm_name?.replace(/\s+/g, '_') || 'Cliente'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Erro ao gerar PDF');
+    }
   };
 
   const getStageInfo = (stage: string) => {
@@ -993,6 +1096,14 @@ export default function Opportunities() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadPDF(opp)}
+                              title="Baixar PDF"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                             {!['won', 'lost'].includes(opp.stage) && (
                               <Button
                                 variant="outline"
