@@ -14,6 +14,7 @@ interface NotificationData {
   message: string;
   category: string | null;
   created_at: string;
+  metadata?: any;
 }
 
 interface UserData {
@@ -120,19 +121,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Construir payload estruturado
     const payload = {
-      userName: user.name,
-      userEmail: user.email,
-      userPhone: user.phone,
-      categoryLabel: categoryLabel,
-      notificationTitle: notification.title,
-      notificationMessage: notification.message,
-      notificationKind: notification.kind,
-      notificationId: notification.id,
-      timestamp: notification.created_at
+      // Dados do usuário
+      user: {
+        id: notification.user_auth_id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone
+      },
+      
+      // Dados da notificação
+      notification: {
+        id: notification.id,
+        kind: notification.kind,
+        title: notification.title,
+        message: notification.message, // Mantém para retrocompatibilidade
+        category: notification.category,
+        categoryLabel: categoryLabel,
+        timestamp: notification.created_at
+      },
+      
+      // Dados estruturados do metadata
+      data: notification.metadata || {}
     };
 
-    console.log('📤 Enviando para n8n:', { userName: user.name, category: notification.category });
+    console.log('📤 Enviando para n8n:', { 
+      userName: user.name, 
+      category: notification.category,
+      hasMetadata: !!notification.metadata 
+    });
 
     // Enviar para n8n
     const n8nResponse = await fetch(webhookUrl, {
