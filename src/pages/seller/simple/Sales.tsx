@@ -193,8 +193,8 @@ export default function SimplifiedSales() {
                 <div className="space-y-4">
                   <Label>Adicione os Produtos</Label>
                   <ProductQuickAdd
-                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty }))}
-                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price })))}
+                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty, discount_percent: 0 }))}
+                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price, discount_percent: 0 })))}
                   />
                   <Button onClick={() => setStep(3)} size="lg" className="w-full">
                     Continuar
@@ -303,8 +303,8 @@ export default function SimplifiedSales() {
                 <div className="space-y-4">
                   <Label>Adicione os Produtos</Label>
                   <ProductQuickAdd
-                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty }))}
-                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price })))}
+                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty, discount_percent: 0 }))}
+                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price, discount_percent: 0 })))}
                   />
                   <Button onClick={() => setStep(3)} size="lg" className="w-full">
                     Continuar
