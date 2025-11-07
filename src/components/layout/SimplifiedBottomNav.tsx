@@ -18,7 +18,7 @@ import {
 const mainLinks = [
   { to: '/seller/simple/dashboard', icon: Home, label: 'Início' },
   { to: '/seller/simple/clients', icon: Users, label: 'Clientes' },
-  { to: '/notifications', icon: Bell, label: 'Avisos' },
+  { to: '/seller/simple/notifications', icon: Bell, label: 'Avisos' },
 ];
 
 const menuItems = [

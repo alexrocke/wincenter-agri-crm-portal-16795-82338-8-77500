@@ -46,6 +46,7 @@ import SimplifiedServices from "./pages/seller/simple/Services";
 import SimplifiedDemonstrations from "./pages/seller/simple/Demonstrations";
 import SimplifiedTechnicalSupport from "./pages/seller/simple/TechnicalSupport";
 import SimplifiedTasks from "./pages/seller/simple/Tasks";
+import SimplifiedNotifications from "./pages/seller/simple/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -359,6 +360,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SimplifiedTasks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/notifications"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedNotifications />
                 </ProtectedRoute>
               }
             />
