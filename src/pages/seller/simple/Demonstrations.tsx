@@ -57,10 +57,11 @@ export default function SimplifiedDemonstrations() {
           clients (
             contact_name,
             farm_name,
-            city
+            city,
+            phone,
+            whatsapp
           )
         `)
-        .contains('assigned_users', [user.id])
         .eq('status', filter)
         .order('date', { ascending: filter === 'scheduled' });
 

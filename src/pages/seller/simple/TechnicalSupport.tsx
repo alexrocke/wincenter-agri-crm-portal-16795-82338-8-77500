@@ -49,11 +49,12 @@ export default function SimplifiedTechnicalSupport() {
           clients (
             contact_name,
             farm_name,
-            city
+            city,
+            phone,
+            whatsapp
           )
         `)
-        .in('service_type', ['maintenance', 'revision'])
-        .contains('assigned_users', [user.id])
+        .in('service_category', ['maintenance', 'revision', 'warranty', 'followup'])
         .eq('status', filter)
         .order('date', { ascending: filter === 'scheduled' });
 
@@ -113,6 +114,7 @@ export default function SimplifiedTechnicalSupport() {
     createSupportMutation.mutate({
       client_id: selectedClientId,
       service_type: 'maintenance',
+      service_category: 'maintenance',
       date,
       equipment_model: equipmentModel,
       equipment_serial: equipmentSerial,

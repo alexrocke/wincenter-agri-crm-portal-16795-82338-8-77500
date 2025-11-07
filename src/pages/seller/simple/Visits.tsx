@@ -45,10 +45,11 @@ export default function SimplifiedVisits() {
           clients (
             contact_name,
             farm_name,
-            city
+            city,
+            phone,
+            whatsapp
           )
         `)
-        .eq('seller_auth_id', user.id)
         .order('scheduled_at', { ascending: filter === 'upcoming' });
 
       if (filter !== 'upcoming') {
