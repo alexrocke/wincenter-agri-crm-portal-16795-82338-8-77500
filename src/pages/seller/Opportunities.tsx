@@ -1165,15 +1165,13 @@ export default function Opportunities() {
                   <TableHead>Estágio</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Probabilidade</TableHead>
-                  <TableHead>Margem Est.</TableHead>
-                  <TableHead>Previsão</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {opportunities.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhuma proposta encontrada
                     </TableCell>
                   </TableRow>
@@ -1224,17 +1222,6 @@ export default function Opportunities() {
                             </div>
                             <span className="text-sm font-medium">{opp.probability || 0}%</span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                            {opp.estimated_margin || 0}%
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {opp.expected_close_date
-                            ? new Date(opp.expected_close_date).toLocaleDateString('pt-BR')
-                            : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-2">
