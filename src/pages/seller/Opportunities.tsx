@@ -294,7 +294,7 @@ export default function Opportunities() {
     const labels: Record<string, string> = {
       lead: 'Lead',
       qualified: 'Qualificado',
-      proposal: 'Proposta',
+      proposal: 'Orçamento',
       closing: 'Fechamento',
       won: 'Ganha',
       lost: 'Perdida'
@@ -330,7 +330,7 @@ export default function Opportunities() {
       
       // Title
       doc.setFontSize(20);
-      doc.text('PROPOSTA COMERCIAL', 105, 20, { align: 'center' });
+      doc.text('ORÇAMENTO COMERCIAL', 105, 20, { align: 'center' });
       
       // Client info
       doc.setFontSize(12);
@@ -377,10 +377,10 @@ export default function Opportunities() {
       // Footer
       doc.setFontSize(8);
       doc.setFont(undefined, 'normal');
-      doc.text('Esta proposta tem validade de 30 dias a partir da data de emissão.', 105, 280, { align: 'center' });
+      doc.text('Este orçamento tem validade de 30 dias a partir da data de emissão.', 105, 280, { align: 'center' });
       
       // Save PDF
-      const fileName = `Proposta_${client?.farm_name?.replace(/\s+/g, '_') || 'Cliente'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Orcamento_${client?.farm_name?.replace(/\s+/g, '_') || 'Cliente'}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
       toast.success('PDF gerado com sucesso!');
@@ -391,10 +391,10 @@ export default function Opportunities() {
   };
 
   const getStageInfo = (stage: string) => {
-    const stages: Record<string, { label: string; color: string }> = {
+      const stages: Record<string, { label: string; color: string }> = {
       lead: { label: 'Lead', color: 'bg-blue-100 text-blue-800' },
       qualified: { label: 'Qualificado', color: 'bg-purple-100 text-purple-800' },
-      proposal: { label: 'Proposta', color: 'bg-yellow-100 text-yellow-800' },
+      proposal: { label: 'Orçamento', color: 'bg-yellow-100 text-yellow-800' },
       closing: { label: 'Fechamento', color: 'bg-orange-100 text-orange-800' },
       won: { label: 'Ganha', color: 'bg-green-100 text-green-800' },
       lost: { label: 'Perdida', color: 'bg-red-100 text-red-800' },
@@ -456,13 +456,13 @@ export default function Opportunities() {
         if (itemsError) throw itemsError;
       }
 
-      toast.success('Proposta criada com sucesso!');
+      toast.success('Orçamento criado com sucesso!');
       setDialogOpen(false);
       resetForm();
       fetchOpportunities();
     } catch (error: any) {
       console.error('Error creating proposal:', error);
-      toast.error('Erro ao criar proposta: ' + error.message);
+      toast.error('Erro ao criar orçamento: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -616,7 +616,7 @@ export default function Opportunities() {
         if (itemsError) throw itemsError;
       }
 
-      toast.success('Proposta atualizada!');
+      toast.success('Orçamento atualizado!');
       setEditDialogOpen(false);
       setSelectedOpp(null);
       resetForm();
@@ -639,7 +639,7 @@ export default function Opportunities() {
 
       if (error) throw error;
 
-      toast.success('Proposta excluída!');
+      toast.success('Orçamento excluído!');
       setDeleteDialogOpen(false);
       setSelectedOpp(null);
       fetchOpportunities();
@@ -708,13 +708,13 @@ export default function Opportunities() {
 
       if (oppError) throw oppError;
 
-      toast.success('Proposta convertida em venda com sucesso!');
+      toast.success('Orçamento convertido em venda com sucesso!');
       setConvertDialogOpen(false);
       setSelectedOpp(null);
       fetchOpportunities();
     } catch (error: any) {
       console.error('Error converting proposal to sale:', error);
-      toast.error('Erro ao converter proposta: ' + error.message);
+      toast.error('Erro ao converter orçamento: ' + error.message);
     }
   };
 
@@ -758,8 +758,8 @@ export default function Opportunities() {
       <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Propostas de Vendas</h1>
-            <p className="text-muted-foreground">Gerencie suas propostas comerciais</p>
+            <h1 className="text-3xl font-bold">Orçamentos</h1>
+            <p className="text-muted-foreground">Gerencie seus orçamentos comerciais</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
@@ -768,12 +768,13 @@ export default function Opportunities() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Nova Proposta
+                Novo Orçamento
               </Button>
             </DialogTrigger>
+
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Nova Proposta</DialogTitle>
+                <DialogTitle>Novo Orçamento</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -799,7 +800,7 @@ export default function Opportunities() {
                     <SelectContent>
                       <SelectItem value="lead">Lead</SelectItem>
                       <SelectItem value="qualified">Qualificado</SelectItem>
-                      <SelectItem value="proposal">Proposta</SelectItem>
+                      <SelectItem value="proposal">Orçamento</SelectItem>
                       <SelectItem value="closing">Fechamento</SelectItem>
                       <SelectItem value="won">Ganha</SelectItem>
                       <SelectItem value="lost">Perdida</SelectItem>
@@ -809,7 +810,7 @@ export default function Opportunities() {
 
                 {/* Products Section */}
                 <div className="border rounded-lg p-4 space-y-4">
-                  <Label className="text-base font-semibold">Produtos da Proposta</Label>
+                  <Label className="text-base font-semibold">Produtos do Orçamento</Label>
                   
                   <div className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-4 space-y-2">
@@ -1084,7 +1085,7 @@ export default function Opportunities() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Criando...' : 'Criar Proposta'}
+                  {isSubmitting ? 'Criando...' : 'Criar Orçamento'}
                 </Button>
               </form>
             </DialogContent>
@@ -1094,7 +1095,7 @@ export default function Opportunities() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total de Propostas</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Orçamentos</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{opportunities.length}</div>
@@ -1155,7 +1156,7 @@ export default function Opportunities() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline de Propostas</CardTitle>
+            <CardTitle>Pipeline de Orçamentos</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -1174,7 +1175,7 @@ export default function Opportunities() {
                 {opportunities.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma proposta encontrada
+                      Nenhum orçamento encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1284,7 +1285,7 @@ export default function Opportunities() {
       }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Proposta</DialogTitle>
+            <DialogTitle>Editar Orçamento</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
             <div className="space-y-2">
@@ -1319,7 +1320,7 @@ export default function Opportunities() {
                 <SelectContent>
                   <SelectItem value="lead">Lead</SelectItem>
                   <SelectItem value="qualified">Qualificado</SelectItem>
-                  <SelectItem value="proposal">Proposta</SelectItem>
+                  <SelectItem value="proposal">Orçamento</SelectItem>
                   <SelectItem value="closing">Fechamento</SelectItem>
                   <SelectItem value="won">Ganha</SelectItem>
                   <SelectItem value="lost">Perdida</SelectItem>
@@ -1329,7 +1330,7 @@ export default function Opportunities() {
 
             {/* Products Section (same as create) */}
             <div className="border rounded-lg p-4 space-y-4">
-              <Label className="text-base font-semibold">Produtos da Proposta</Label>
+              <Label className="text-base font-semibold">Produtos do Orçamento</Label>
               
                   <div className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-4 space-y-2">
@@ -1618,7 +1619,7 @@ export default function Opportunities() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1638,7 +1639,7 @@ export default function Opportunities() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Você está prestes a converter esta proposta em uma venda confirmada.
+              Você está prestes a converter este orçamento em uma venda confirmada.
             </p>
             <div className="space-y-2">
               <Label htmlFor="payment_method_1">Forma de Pagamento 1 *</Label>

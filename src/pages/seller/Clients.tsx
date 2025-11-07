@@ -421,7 +421,7 @@ export default function Clients() {
         (demonstrations && demonstrations.length > 0) ||
         (opportunities && opportunities.length > 0)
       ) {
-        toast.error('Este cliente possui serviços, vendas, visitas, demonstrações ou oportunidades relacionadas e não pode ser excluído.');
+        toast.error('Este cliente possui serviços, vendas, visitas, demonstrações ou orçamentos relacionados e não pode ser excluído.');
         setDeleteDialogOpen(false);
         setClientToDelete(null);
         return;

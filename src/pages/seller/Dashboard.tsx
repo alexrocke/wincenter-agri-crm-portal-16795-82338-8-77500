@@ -192,7 +192,7 @@ export default function SellerDashboard() {
               { icon: MapPin, label: 'Visitas', path: '/seller/visits' },
               { icon: Briefcase, label: 'Serviços', path: '/seller/services' },
               { icon: Users, label: 'Clientes', path: '/seller/clients' },
-              { icon: TrendingUp, label: 'Oportunidades', path: '/seller/opportunities' },
+              { icon: TrendingUp, label: 'Orçamentos', path: '/seller/opportunities' },
               { icon: Plus, label: 'Venda', path: '/seller/sales' },
             ].map((item) => (
               <Card

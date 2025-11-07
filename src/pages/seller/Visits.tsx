@@ -1111,7 +1111,7 @@ export default function Visits() {
                           <SelectContent>
                             <SelectItem value="lead">Lead</SelectItem>
                             <SelectItem value="qualified">Qualificado</SelectItem>
-                            <SelectItem value="proposal">Proposta</SelectItem>
+                            <SelectItem value="proposal">Orçamento</SelectItem>
                             <SelectItem value="closing">Fechamento</SelectItem>
                             <SelectItem value="won">Ganho</SelectItem>
                             <SelectItem value="lost">Perdido</SelectItem>

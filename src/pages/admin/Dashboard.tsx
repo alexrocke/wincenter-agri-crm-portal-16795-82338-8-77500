@@ -199,7 +199,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.conversionRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground mt-1">
-                De oportunidades para vendas
+                De orçamentos para vendas
               </p>
             </CardContent>
           </Card>

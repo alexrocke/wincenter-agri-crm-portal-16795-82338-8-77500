@@ -260,7 +260,7 @@ export default function Goals() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="proposals_goal">Meta de Propostas</Label>
+                    <Label htmlFor="proposals_goal">Meta de Orçamentos</Label>
                     <Input
                       id="proposals_goal"
                       type="number"
@@ -385,7 +385,7 @@ export default function Goals() {
                           <span className="text-2xl font-bold">{goal.visits_goal || 0}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm text-muted-foreground">Meta de Propostas</span>
+                          <span className="text-sm text-muted-foreground">Meta de Orçamentos</span>
                           <span className="text-2xl font-bold">{goal.proposals_goal || 0}</span>
                         </div>
                       </div>
@@ -444,7 +444,7 @@ export default function Goals() {
                           <span className="text-2xl font-bold">{goal.visits_goal || 0}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm text-muted-foreground">Meta de Propostas</span>
+                          <span className="text-sm text-muted-foreground">Meta de Orçamentos</span>
                           <span className="text-2xl font-bold">{goal.proposals_goal || 0}</span>
                         </div>
                       </div>
