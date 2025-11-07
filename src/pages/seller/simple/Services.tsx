@@ -52,7 +52,8 @@ export default function SimplifiedServices() {
             phone,
             whatsapp
           )
-        `);
+        `)
+        .eq('service_type', 'spraying');
 
       // Mapear filtro: "Em Andamento" inclui 'open' e 'in_progress'
       if (filter === 'in_progress') {
@@ -111,14 +112,14 @@ export default function SimplifiedServices() {
   };
 
   const handleSubmit = () => {
-    if (!selectedClientId || !serviceType || !date) {
+    if (!selectedClientId || !date) {
       toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' });
       return;
     }
 
     createServiceMutation.mutate({
       client_id: selectedClientId,
-      service_type: serviceType,
+      service_type: 'spraying',
       date,
       notes,
       hectares: hectares ? parseFloat(hectares) : null,
@@ -264,20 +265,6 @@ export default function SimplifiedServices() {
                   onSelect={(client) => setSelectedClientId(client.id)}
                   selectedId={selectedClientId}
                 />
-              </div>
-
-              <div>
-                <Label>Tipo de Serviço *</Label>
-                <Select value={serviceType} onValueChange={setServiceType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="spraying">Pulverização</SelectItem>
-                    <SelectItem value="maintenance">Manutenção</SelectItem>
-                    <SelectItem value="revision">Revisão</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div>
