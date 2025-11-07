@@ -258,27 +258,17 @@ export default function Opportunities() {
 
     const updatedProducts = [...proposalProducts];
     const product = { ...updatedProducts[productIndex] };
-    
-    // Get original product price for discount calculation
-    const originalProduct = products.find(p => p.id === product.product_id);
-    const originalPrice = originalProduct?.price || product.unit_price;
 
-    // Update the field
+    // Update the field WITHOUT cross-calculation
     if (field === 'quantity') {
       product.quantity = Math.max(1, value);
     } else if (field === 'unit_price') {
       product.unit_price = Math.max(0, value);
-      // Recalculate discount based on original price
-      if (originalPrice > 0) {
-        product.discount_percent = Math.round(((originalPrice - product.unit_price) / originalPrice) * 100 * 100) / 100;
-      }
     } else if (field === 'discount_percent') {
       product.discount_percent = Math.max(0, Math.min(100, value));
-      // Recalculate unit price based on discount
-      product.unit_price = Math.round(originalPrice * (1 - product.discount_percent / 100) * 100) / 100;
     }
 
-    // Recalculate subtotal
+    // Recalculate subtotal with current values
     product.subtotal = calculateItemSubtotal(product.quantity, product.unit_price, product.discount_percent);
     
     updatedProducts[productIndex] = product;
