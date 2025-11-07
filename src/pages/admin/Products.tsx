@@ -1032,7 +1032,7 @@ export default function Products() {
                   </TableRow>
                 ) : (
                   paginatedProducts.map((product) => {
-                    const margin = product.price > 0 ? ((product.price - product.cost) / product.price * 100) : 0;
+                    const margin = product.cost > 0 ? ((product.price - product.cost) / product.cost * 100) : 0;
                     const isLowStock = product.stock <= product.low_stock_threshold;
 
                     return (
