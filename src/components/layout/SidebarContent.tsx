@@ -45,7 +45,7 @@ const sellerGroups = [
     icon: TrendingUp,
     storageKey: 'sidebar-comercial-open',
     items: [
-      { to: '/seller/opportunities', icon: TrendingUp, label: 'Oportunidades' },
+      { to: '/seller/opportunities', icon: TrendingUp, label: 'Orçamentos' },
       { to: '/seller/sales', icon: ShoppingCart, label: 'Vendas' },
       { to: '/seller/commissions', icon: DollarSign, label: 'Comissões' },
     ],

@@ -50,7 +50,7 @@ const sellerGroups = [
     title: 'Comercial',
     icon: TrendingUp,
     items: [
-      { to: '/seller/opportunities', icon: TrendingUp, label: 'Oportunidades' },
+      { to: '/seller/opportunities', icon: TrendingUp, label: 'Orçamentos' },
       { to: '/seller/sales', icon: ShoppingCart, label: 'Vendas' },
       { to: '/seller/commissions', icon: DollarSign, label: 'Comissões' },
     ],
