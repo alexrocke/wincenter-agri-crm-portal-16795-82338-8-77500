@@ -71,46 +71,68 @@ serve(async (req) => {
     console.log(`🚫 Produtos sem estoque: ${outOfStock.length}`);
     console.log(`⚠️ Produtos com estoque baixo: ${lowStock.length}`);
 
-    // 4. Criar notificações para produtos sem estoque
+    // 4. Criar notificações para produtos sem estoque (com deduplicação)
     if (outOfStock.length > 0) {
       for (const admin of admins) {
         const message = outOfStock.length === 1
           ? `Produto "${outOfStock[0]}" está SEM ESTOQUE!`
           : `${outOfStock.length} produtos estão SEM ESTOQUE: ${outOfStock.slice(0, 3).join(', ')}${outOfStock.length > 3 ? '...' : ''}`;
 
-        const { error: notifyError } = await supabase.rpc('create_notification', {
+        // Verificar se deve criar notificação (não notificar se já notificou nas últimas 24h)
+        const { data: shouldNotify } = await supabase.rpc('should_create_notification', {
           p_user_auth_id: admin.auth_user_id,
-          p_kind: 'alert',
+          p_category: 'stock',
           p_title: 'Produtos Sem Estoque! ⚠️',
-          p_message: message,
+          p_hours_threshold: 24
         });
 
-        if (notifyError) {
-          console.error('Erro ao criar notificação (sem estoque):', notifyError);
-        } else {
-          notificationsCreated++;
+        if (shouldNotify) {
+          const { error: notifyError } = await supabase.rpc('create_notification', {
+            p_user_auth_id: admin.auth_user_id,
+            p_kind: 'alert',
+            p_title: 'Produtos Sem Estoque! ⚠️',
+            p_message: message,
+            p_category: 'stock'
+          });
+
+          if (notifyError) {
+            console.error('Erro ao criar notificação (sem estoque):', notifyError);
+          } else {
+            notificationsCreated++;
+          }
         }
       }
     }
 
-    // 5. Criar notificações para produtos com estoque baixo
+    // 5. Criar notificações para produtos com estoque baixo (com deduplicação)
     if (lowStock.length > 0) {
       for (const admin of admins) {
         const message = lowStock.length === 1
           ? `Produto "${lowStock[0]}" está com estoque baixo!`
           : `${lowStock.length} produtos com estoque baixo: ${lowStock.slice(0, 3).join(', ')}${lowStock.length > 3 ? '...' : ''}`;
 
-        const { error: notifyError } = await supabase.rpc('create_notification', {
+        // Verificar se deve criar notificação (não notificar se já notificou nas últimas 24h)
+        const { data: shouldNotify } = await supabase.rpc('should_create_notification', {
           p_user_auth_id: admin.auth_user_id,
-          p_kind: 'warning',
+          p_category: 'stock',
           p_title: 'Estoque Baixo',
-          p_message: message,
+          p_hours_threshold: 24
         });
 
-        if (notifyError) {
-          console.error('Erro ao criar notificação (estoque baixo):', notifyError);
-        } else {
-          notificationsCreated++;
+        if (shouldNotify) {
+          const { error: notifyError } = await supabase.rpc('create_notification', {
+            p_user_auth_id: admin.auth_user_id,
+            p_kind: 'warning',
+            p_title: 'Estoque Baixo',
+            p_message: message,
+            p_category: 'stock'
+          });
+
+          if (notifyError) {
+            console.error('Erro ao criar notificação (estoque baixo):', notifyError);
+          } else {
+            notificationsCreated++;
+          }
         }
       }
     }

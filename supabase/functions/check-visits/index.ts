@@ -95,40 +95,90 @@ serve(async (req) => {
         (now.getTime() - info.lastVisit.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // 4a. Notificar vendedor se passaram 30 dias
-      if (daysSinceLastVisit >= 30 && daysSinceLastVisit % 30 === 0) {
+      // 4a. Notificar vendedor se passaram 30 dias (com tracker para evitar spam)
+      if (daysSinceLastVisit >= 30 && daysSinceLastVisit < 90) {
         console.log(`⏰ Vendedor precisa visitar ${info.clientName} (${daysSinceLastVisit} dias)`);
         
-        const { error: notifyError } = await supabase.rpc('create_notification', {
-          p_user_auth_id: info.sellerId,
-          p_kind: 'warning',
-          p_title: 'Visita Pendente',
-          p_message: `Já fazem ${daysSinceLastVisit} dias desde a última visita ao cliente ${info.clientName}. Agende uma nova visita!`,
-        });
+        // Verificar tracker - notificar apenas a cada 7 dias
+        const { data: trackerData } = await supabase
+          .from('notification_tracker')
+          .select('last_notified_at')
+          .eq('notification_type', 'visit_30days')
+          .eq('reference_id', clientId)
+          .eq('user_auth_id', info.sellerId)
+          .single();
 
-        if (notifyError) {
-          console.error('Erro ao criar notificação para vendedor:', notifyError);
-        } else {
-          notificationsCreated++;
+        const shouldNotify = !trackerData || 
+          (now.getTime() - new Date(trackerData.last_notified_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+
+        if (shouldNotify) {
+          const { error: notifyError } = await supabase.rpc('create_notification', {
+            p_user_auth_id: info.sellerId,
+            p_kind: 'warning',
+            p_title: 'Visita Pendente',
+            p_message: `Já fazem ${daysSinceLastVisit} dias desde a última visita ao cliente ${info.clientName}. Agende uma nova visita!`,
+            p_category: 'visit'
+          });
+
+          if (!notifyError) {
+            notificationsCreated++;
+            
+            // Atualizar tracker
+            await supabase
+              .from('notification_tracker')
+              .upsert({
+                notification_type: 'visit_30days',
+                reference_id: clientId,
+                user_auth_id: info.sellerId,
+                last_notified_at: now.toISOString()
+              });
+          } else {
+            console.error('Erro ao criar notificação para vendedor:', notifyError);
+          }
         }
       }
 
-      // 4b. Notificar admin se passaram 90 dias
-      if (daysSinceLastVisit >= 90 && daysSinceLastVisit % 90 === 0) {
+      // 4b. Notificar admin se passaram 90 dias (com tracker)
+      if (daysSinceLastVisit >= 90) {
         console.log(`🚨 Admin: vendedor não visitou ${info.clientName} em ${daysSinceLastVisit} dias`);
         
         for (const admin of admins || []) {
-          const { error: notifyError } = await supabase.rpc('create_notification', {
-            p_user_auth_id: admin.auth_user_id,
-            p_kind: 'alert',
-            p_title: 'Cliente Sem Visita há 90+ Dias! ⚠️',
-            p_message: `Cliente ${info.clientName} não recebe visita há ${daysSinceLastVisit} dias!`,
-          });
+          // Verificar tracker - notificar apenas a cada 7 dias
+          const { data: trackerData } = await supabase
+            .from('notification_tracker')
+            .select('last_notified_at')
+            .eq('notification_type', 'visit_90days')
+            .eq('reference_id', clientId)
+            .eq('user_auth_id', admin.auth_user_id)
+            .single();
 
-          if (notifyError) {
-            console.error('Erro ao criar notificação para admin:', notifyError);
-          } else {
-            notificationsCreated++;
+          const shouldNotify = !trackerData || 
+            (now.getTime() - new Date(trackerData.last_notified_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+
+          if (shouldNotify) {
+            const { error: notifyError } = await supabase.rpc('create_notification', {
+              p_user_auth_id: admin.auth_user_id,
+              p_kind: 'alert',
+              p_title: 'Cliente Sem Visita há 90+ Dias! ⚠️',
+              p_message: `Cliente ${info.clientName} não recebe visita há ${daysSinceLastVisit} dias!`,
+              p_category: 'visit'
+            });
+
+            if (!notifyError) {
+              notificationsCreated++;
+              
+              // Atualizar tracker
+              await supabase
+                .from('notification_tracker')
+                .upsert({
+                  notification_type: 'visit_90days',
+                  reference_id: clientId,
+                  user_auth_id: admin.auth_user_id,
+                  last_notified_at: now.toISOString()
+                });
+            } else {
+              console.error('Erro ao criar notificação para admin:', notifyError);
+            }
           }
         }
       }

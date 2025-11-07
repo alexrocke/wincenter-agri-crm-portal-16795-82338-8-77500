@@ -416,6 +416,33 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_tracker: {
+        Row: {
+          created_at: string
+          id: string
+          last_notified_at: string
+          notification_type: string
+          reference_id: string
+          user_auth_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_notified_at?: string
+          notification_type: string
+          reference_id: string
+          user_auth_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_notified_at?: string
+          notification_type?: string
+          reference_id?: string
+          user_auth_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           category: string | null
@@ -1378,6 +1405,15 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       recalc_sale_totals: { Args: { p_sale: string }; Returns: undefined }
+      should_create_notification: {
+        Args: {
+          p_category: string
+          p_hours_threshold?: number
+          p_title: string
+          p_user_auth_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       commission_base:
