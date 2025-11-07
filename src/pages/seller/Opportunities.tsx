@@ -27,6 +27,7 @@ interface Opportunity {
   gross_value: number;
   estimated_margin: number;
   expected_close_date: string;
+  history?: string;
   client_id: string;
   seller_auth_id: string;
   product_ids?: string[];
@@ -496,7 +497,7 @@ export default function Opportunities() {
       gross_value: String(opp.gross_value || 0),
       estimated_margin: String(opp.estimated_margin || 0),
       expected_close_date: opp.expected_close_date || '',
-      history: '',
+      history: opp.history || '',
       product_ids: opp.product_ids || [],
     });
 
@@ -586,6 +587,7 @@ export default function Opportunities() {
           gross_value: calculatedGrossValue,
           estimated_margin: Number(formData.estimated_margin) || null,
           expected_close_date: formData.expected_close_date || null,
+          history: formData.history || null,
           product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
         })
         .eq('id', selectedOpp.id);
@@ -1585,6 +1587,16 @@ export default function Opportunities() {
                 type="date"
                 value={formData.expected_close_date}
                 onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_history">Histórico/Observações</Label>
+              <Textarea
+                id="edit_history"
+                value={formData.history}
+                onChange={(e) => setFormData({ ...formData, history: e.target.value })}
+                rows={3}
               />
             </div>
 
