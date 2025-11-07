@@ -2,6 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { Home, Users, TrendingUp, Package, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSimplifiedMode } from '@/hooks/useSimplifiedMode';
+import { SimplifiedBottomNav } from './SimplifiedBottomNav';
 
 const sellerLinks = [
   { to: '/seller/dashboard', icon: Home, label: 'Dashboard' },
@@ -13,6 +15,11 @@ const sellerLinks = [
 
 export function BottomNav() {
   const { unreadCount } = useNotifications();
+  const { isSimplified } = useSimplifiedMode();
+
+  if (isSimplified) {
+    return <SimplifiedBottomNav />;
+  }
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-md border-t border-border shadow-lg">

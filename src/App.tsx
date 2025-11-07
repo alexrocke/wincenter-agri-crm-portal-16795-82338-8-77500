@@ -35,6 +35,18 @@ import SellerProducts from "./pages/seller/Products";
 import Tasks from "./pages/seller/Tasks";
 import NotFound from "./pages/NotFound";
 
+// Simplified mobile pages
+import SimplifiedDashboard from "./pages/seller/simple/Dashboard";
+import SimplifiedBudgets from "./pages/seller/simple/Budgets";
+import SimplifiedSales from "./pages/seller/simple/Sales";
+import SimplifiedClients from "./pages/seller/simple/Clients";
+import SimplifiedProducts from "./pages/seller/simple/Products";
+import SimplifiedVisits from "./pages/seller/simple/Visits";
+import SimplifiedServices from "./pages/seller/simple/Services";
+import SimplifiedDemonstrations from "./pages/seller/simple/Demonstrations";
+import SimplifiedTechnicalSupport from "./pages/seller/simple/TechnicalSupport";
+import SimplifiedTasks from "./pages/seller/simple/Tasks";
+
 const queryClient = new QueryClient();
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -265,6 +277,88 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Tasks />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Simplified Mobile Routes */}
+            <Route
+              path="/seller/simple/dashboard"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/budgets"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedBudgets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/sales"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedSales />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/clients"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedClients />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/products"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/visits"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedVisits />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/services"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedServices />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/demonstrations"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedDemonstrations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/technical-support"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedTechnicalSupport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/simple/tasks"
+              element={
+                <ProtectedRoute>
+                  <SimplifiedTasks />
                 </ProtectedRoute>
               }
             />
