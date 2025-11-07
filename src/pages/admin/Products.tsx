@@ -215,10 +215,10 @@ export default function Products() {
   };
 
   const calculatePrice = (cost: number, margin: number, tax: number): number => {
-    // Preço = Custo / (1 - (Margem% + Imposto%)/100)
+    // Preço = Custo × (1 + (Margem% + Imposto%)/100)
+    // Markup simples sobre o custo
     const totalPercent = margin + tax;
-    if (totalPercent >= 100) return cost; // Evitar divisão por zero ou negativo
-    return cost / (1 - totalPercent / 100);
+    return cost * (1 + totalPercent / 100);
   };
 
   const handleCostChange = (value: string) => {
