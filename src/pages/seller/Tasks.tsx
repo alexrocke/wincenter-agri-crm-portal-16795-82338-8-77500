@@ -235,12 +235,12 @@ export default function Tasks() {
               />
             </div>
             <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full md:w-auto">
-              <TabsList className="grid grid-cols-5 w-full md:w-auto">
-                <TabsTrigger value="all">Todas</TabsTrigger>
-                <TabsTrigger value="pending">Pendente</TabsTrigger>
-                <TabsTrigger value="in_progress">Em andamento</TabsTrigger>
-                <TabsTrigger value="completed">Concluída</TabsTrigger>
-                <TabsTrigger value="cancelled">Cancelada</TabsTrigger>
+              <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full md:w-auto gap-1">
+                <TabsTrigger value="all" className="text-xs md:text-sm">Todas</TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs md:text-sm">Pendente</TabsTrigger>
+                <TabsTrigger value="in_progress" className="text-xs md:text-sm col-span-2 md:col-span-1">Em andamento</TabsTrigger>
+                <TabsTrigger value="completed" className="text-xs md:text-sm">Concluída</TabsTrigger>
+                <TabsTrigger value="cancelled" className="text-xs md:text-sm">Cancelada</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

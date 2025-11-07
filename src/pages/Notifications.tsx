@@ -138,9 +138,10 @@ export default function Notifications() {
             </p>
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
-              <Check className="mr-2 h-4 w-4" />
-              Marcar todas como lidas
+            <Button variant="outline" onClick={markAllAsRead} className="shrink-0">
+              <Check className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Marcar todas como lidas</span>
+              <span className="md:hidden">Marcar</span>
             </Button>
           )}
         </div>

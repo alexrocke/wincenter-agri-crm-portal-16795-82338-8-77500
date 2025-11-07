@@ -1157,11 +1157,12 @@ export default function Sales() {
             <div className="flex justify-between items-center">
               <CardTitle>Histórico de Vendas</CardTitle>
               {userRole === 'admin' && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant={paymentFilter === 'all' ? 'default' : 'outline'}
                     onClick={() => setPaymentFilter('all')}
+                    className="flex-shrink-0"
                   >
                     Todas
                   </Button>
@@ -1169,6 +1170,7 @@ export default function Sales() {
                     size="sm"
                     variant={paymentFilter === 'received' ? 'default' : 'outline'}
                     onClick={() => setPaymentFilter('received')}
+                    className="flex-shrink-0"
                   >
                     Recebidas
                   </Button>
@@ -1176,6 +1178,7 @@ export default function Sales() {
                     size="sm"
                     variant={paymentFilter === 'pending' ? 'default' : 'outline'}
                     onClick={() => setPaymentFilter('pending')}
+                    className="flex-shrink-0"
                   >
                     Pendentes
                   </Button>

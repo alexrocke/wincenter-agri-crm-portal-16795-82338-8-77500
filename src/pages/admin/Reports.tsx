@@ -369,28 +369,29 @@ export default function Reports() {
                     </p>
                   ) : (
                     sellerData.map((seller, index) => (
-                      <div key={seller.email} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                      <div key={seller.email} className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
                             {index + 1}
                           </div>
-                          <div>
-                            <div className="font-medium">{seller.name}</div>
-                            <div className="text-sm text-muted-foreground">{seller.email}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{seller.name}</div>
+                            <div className="text-sm text-muted-foreground truncate">{seller.email}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold">
+                        <div className="text-left md:text-right flex-shrink-0">
+                          <div className="font-bold whitespace-nowrap">
                             {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
                               currency: 'BRL',
                             }).format(seller.totalRevenue)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {seller.totalSales} vendas • Lucro: {new Intl.NumberFormat('pt-BR', {
+                            <div className="md:inline">{seller.totalSales} vendas</div>
+                            <div className="md:inline"> • Lucro: {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
                               currency: 'BRL',
-                            }).format(seller.totalProfit)}
+                            }).format(seller.totalProfit)}</div>
                           </div>
                         </div>
                       </div>
