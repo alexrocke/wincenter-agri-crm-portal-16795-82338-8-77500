@@ -100,7 +100,7 @@ export default function SimplifiedDashboard() {
           <SimplifiedStats
             icon={DollarSign}
             label="Vendas do Mês"
-            value={`R$ ${stats.monthlySales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            value={`R$ ${stats.monthlySales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             color="text-green-600"
           />
           <SimplifiedStats
