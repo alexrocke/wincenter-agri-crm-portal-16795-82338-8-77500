@@ -252,6 +252,40 @@ export default function Opportunities() {
     updateProposalGrossValue(updated, valueAdjustment);
   };
 
+  const updateProposalProduct = (productId: string, field: 'quantity' | 'unit_price' | 'discount_percent', value: number) => {
+    const productIndex = proposalProducts.findIndex(p => p.id === productId);
+    if (productIndex === -1) return;
+
+    const updatedProducts = [...proposalProducts];
+    const product = { ...updatedProducts[productIndex] };
+    
+    // Get original product price for discount calculation
+    const originalProduct = products.find(p => p.id === product.product_id);
+    const originalPrice = originalProduct?.price || product.unit_price;
+
+    // Update the field
+    if (field === 'quantity') {
+      product.quantity = Math.max(1, value);
+    } else if (field === 'unit_price') {
+      product.unit_price = Math.max(0, value);
+      // Recalculate discount based on original price
+      if (originalPrice > 0) {
+        product.discount_percent = Math.round(((originalPrice - product.unit_price) / originalPrice) * 100 * 100) / 100;
+      }
+    } else if (field === 'discount_percent') {
+      product.discount_percent = Math.max(0, Math.min(100, value));
+      // Recalculate unit price based on discount
+      product.unit_price = Math.round(originalPrice * (1 - product.discount_percent / 100) * 100) / 100;
+    }
+
+    // Recalculate subtotal
+    product.subtotal = calculateItemSubtotal(product.quantity, product.unit_price, product.discount_percent);
+    
+    updatedProducts[productIndex] = product;
+    setProposalProducts(updatedProducts);
+    updateProposalGrossValue(updatedProducts, valueAdjustment);
+  };
+
   const calculateProposalTotal = (products: ProposalProduct[]) => {
     return products.reduce((sum, p) => sum + p.subtotal, 0);
   };
@@ -879,14 +913,39 @@ export default function Opportunities() {
                                 <div className="font-medium">{product.product_name}</div>
                                 <div className="text-xs text-muted-foreground">{product.product_sku}</div>
                               </TableCell>
-                              <TableCell className="text-right">{product.quantity}</TableCell>
                               <TableCell className="text-right">
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: 'BRL',
-                                }).format(product.unit_price)}
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={product.quantity}
+                                  onChange={(e) => updateProposalProduct(product.id, 'quantity', parseFloat(e.target.value) || 1)}
+                                  className="w-20 text-right"
+                                />
                               </TableCell>
-                              <TableCell className="text-right">{product.discount_percent}%</TableCell>
+                              <TableCell className="text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={product.unit_price}
+                                  onChange={(e) => updateProposalProduct(product.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                                  className="w-28 text-right"
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={product.discount_percent}
+                                    onChange={(e) => updateProposalProduct(product.id, 'discount_percent', parseFloat(e.target.value) || 0)}
+                                    className="w-20 text-right"
+                                  />
+                                  <span className="text-sm">%</span>
+                                </div>
+                              </TableCell>
                               <TableCell className="text-right font-medium">
                                 {new Intl.NumberFormat('pt-BR', {
                                   style: 'currency',
