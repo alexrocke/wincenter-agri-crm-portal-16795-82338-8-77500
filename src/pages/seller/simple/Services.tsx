@@ -41,7 +41,7 @@ export default function SimplifiedServices() {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('services')
         .select(`
           *,
@@ -52,10 +52,18 @@ export default function SimplifiedServices() {
             phone,
             whatsapp
           )
-        `)
-        .eq('status', filter)
-        .order('date', { ascending: filter === 'scheduled' });
+        `);
 
+      // Mapear filtro: "Em Andamento" inclui 'open' e 'in_progress'
+      if (filter === 'in_progress') {
+        query = query.in('status', ['open', 'in_progress']);
+      } else {
+        query = query.eq('status', filter);
+      }
+
+      query = query.order('date', { ascending: filter === 'scheduled' });
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -132,6 +140,7 @@ export default function SimplifiedServices() {
   const getStatusBadge = (status: string) => {
     const badges = {
       scheduled: { label: 'Agendado', color: 'bg-blue-100 text-blue-800' },
+      open: { label: 'Em Aberto', color: 'bg-orange-100 text-orange-800' },
       in_progress: { label: 'Em Andamento', color: 'bg-yellow-100 text-yellow-800' },
       completed: { label: 'Concluído', color: 'bg-green-100 text-green-800' }
     };
@@ -220,13 +229,13 @@ export default function SimplifiedServices() {
                   <Button
                     size="sm"
                     className="w-full mt-4"
-                    onClick={() => updateServiceStatusMutation.mutate({ id: service.id, status: 'in_progress' })}
+                    onClick={() => updateServiceStatusMutation.mutate({ id: service.id, status: 'open' })}
                   >
                     Iniciar Serviço
                   </Button>
                 )}
 
-                {service.status === 'in_progress' && (
+                {(service.status === 'open' || service.status === 'in_progress') && (
                   <Button
                     size="sm"
                     className="w-full mt-4"

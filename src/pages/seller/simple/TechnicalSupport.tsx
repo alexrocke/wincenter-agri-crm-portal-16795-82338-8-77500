@@ -42,7 +42,7 @@ export default function SimplifiedTechnicalSupport() {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('services')
         .select(`
           *,
@@ -54,10 +54,18 @@ export default function SimplifiedTechnicalSupport() {
             whatsapp
           )
         `)
-        .in('service_category', ['maintenance', 'revision', 'warranty', 'followup'])
-        .eq('status', filter)
-        .order('date', { ascending: filter === 'scheduled' });
+        .in('service_category', ['maintenance', 'revision', 'warranty', 'followup']);
 
+      // Mapear filtro: "Em Andamento" inclui 'open' e 'in_progress'
+      if (filter === 'in_progress') {
+        query = query.in('status', ['open', 'in_progress']);
+      } else {
+        query = query.eq('status', filter);
+      }
+
+      query = query.order('date', { ascending: filter === 'scheduled' });
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -129,6 +137,7 @@ export default function SimplifiedTechnicalSupport() {
   const getStatusBadge = (status: string) => {
     const badges = {
       scheduled: { label: 'Agendado', color: 'bg-blue-100 text-blue-800', icon: Clock },
+      open: { label: 'Em Aberto', color: 'bg-orange-100 text-orange-800', icon: AlertCircle },
       in_progress: { label: 'Em Andamento', color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       completed: { label: 'Concluído', color: 'bg-green-100 text-green-800', icon: CheckCircle }
     };
@@ -228,13 +237,13 @@ export default function SimplifiedTechnicalSupport() {
                   <Button
                     size="sm"
                     className="w-full mt-3"
-                    onClick={() => updateSupportStatusMutation.mutate({ id: support.id, status: 'in_progress' })}
+                    onClick={() => updateSupportStatusMutation.mutate({ id: support.id, status: 'open' })}
                   >
                     Iniciar Atendimento
                   </Button>
                 )}
 
-                {support.status === 'in_progress' && (
+                {(support.status === 'open' || support.status === 'in_progress') && (
                   <Button
                     size="sm"
                     className="w-full mt-3"
