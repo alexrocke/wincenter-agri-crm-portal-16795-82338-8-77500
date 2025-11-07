@@ -409,27 +409,30 @@ useEffect(() => {
 
         if (products.length > 0 && newService) {
           const hectares = parseFloat(formData.hectares) || 0;
-          const serviceItems = products.map(p => {
-            const dose = parseFloat(p.dose_per_hectare) || 0;
-            const volumeTotal = hectares * (dose / 1000);
-            const unitPrice = p.unit_price || 0;
-            return {
-              service_id: newService.id,
-              product_id: p.product_id || null,
-              product_name: p.name,
-              dose_per_hectare: dose,
-              volume_total: volumeTotal,
-              bottles_qty: null,
-              qty: 1,
-              unit_price: unitPrice,
-              discount_percent: 0,
-            };
-          });
+          const itemsToPersist = products.filter(p => !!p.product_id);
+          if (itemsToPersist.length > 0) {
+            const serviceItems = itemsToPersist.map(p => {
+              const dose = parseFloat(p.dose_per_hectare) || 0;
+              const volumeTotal = hectares * (dose / 1000);
+              const unitPrice = p.unit_price || 0;
+              return {
+                service_id: newService.id,
+                product_id: p.product_id,
+                product_name: p.name,
+                dose_per_hectare: dose,
+                volume_total: volumeTotal,
+                bottles_qty: null,
+                qty: 1,
+                unit_price: unitPrice,
+                discount_percent: 0,
+              };
+            });
 
-          const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
-          if (itemsError) {
-            console.error("Erro ao salvar produtos:", itemsError);
-            throw itemsError;
+            const { error: itemsError } = await supabase.from("service_items").insert(serviceItems);
+            if (itemsError) {
+              console.error("Erro ao salvar produtos:", itemsError);
+              throw itemsError;
+            }
           }
         }
         
