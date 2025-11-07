@@ -1447,14 +1447,39 @@ export default function Opportunities() {
                             <div className="font-medium">{product.product_name}</div>
                             <div className="text-xs text-muted-foreground">{product.product_sku}</div>
                           </TableCell>
-                          <TableCell className="text-right">{product.quantity}</TableCell>
                           <TableCell className="text-right">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(product.unit_price)}
+                            <Input
+                              type="number"
+                              min="1"
+                              value={product.quantity}
+                              onChange={(e) => updateProposalProduct(product.id, 'quantity', parseFloat(e.target.value) || 1)}
+                              className="w-20 text-right"
+                            />
                           </TableCell>
-                          <TableCell className="text-right">{product.discount_percent}%</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={product.unit_price}
+                              onChange={(e) => updateProposalProduct(product.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                              className="w-28 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={product.discount_percent}
+                                onChange={(e) => updateProposalProduct(product.id, 'discount_percent', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right"
+                              />
+                              <span className="text-sm">%</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right font-medium">
                             {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
