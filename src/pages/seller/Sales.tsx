@@ -318,8 +318,7 @@ export default function Sales() {
       
       // Tabela de produtos
       const tableData = saleItems.map((item: any) => {
-        const itemSubtotal = item.unit_price * item.qty;
-        const itemTotal = itemSubtotal * (1 - item.discount_percent / 100);
+        const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
         return [
           item.products?.name || 'Produto',
           item.qty.toString(),
@@ -327,7 +326,6 @@ export default function Sales() {
             style: 'currency', 
             currency: 'BRL' 
           }).format(item.unit_price),
-          `${item.discount_percent}%`,
           new Intl.NumberFormat('pt-BR', { 
             style: 'currency', 
             currency: 'BRL' 
@@ -335,26 +333,23 @@ export default function Sales() {
         ];
       });
       
-      // Calcular valores
-      const subtotal = saleItems.reduce((sum: number, item: any) => {
+      // Calcular subtotal original (sem nenhum desconto aplicado)
+      const subtotalOriginal = saleItems.reduce((sum: number, item: any) => {
         return sum + (item.unit_price * item.qty);
       }, 0);
       
-      const discountFromItems = saleItems.reduce((sum: number, item: any) => {
-        return sum + (item.unit_price * item.qty * item.discount_percent / 100);
-      }, 0);
+      // Valor final é o gross_value (já inclui todos os descontos)
+      const valorFinal = sale.gross_value;
       
-      const totalAfterItemDiscounts = subtotal - discountFromItems;
-      
-      const finalDiscountAmount = sale.final_discount_percent 
-        ? totalAfterItemDiscounts * (sale.final_discount_percent / 100)
-        : 0;
-      
-      const totalDiscountAmount = discountFromItems + finalDiscountAmount;
+      // Desconto total aplicado
+      const descontoTotal = subtotalOriginal - valorFinal;
+      const descontoPercent = subtotalOriginal > 0 
+        ? ((descontoTotal / subtotalOriginal) * 100).toFixed(1)
+        : '0';
       
       autoTable(doc, {
         startY: yPos,
-        head: [['Produto', 'Qtd', 'Preço Unit.', 'Desc.', 'Total']],
+        head: [['Produto', 'Qtd', 'Preço Unit.', 'Total']],
         body: tableData,
         theme: 'striped',
         headStyles: { 
@@ -368,11 +363,10 @@ export default function Sales() {
           cellPadding: 3
         },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { halign: 'center', cellWidth: 20 },
-          2: { halign: 'right', cellWidth: 30 },
-          3: { halign: 'center', cellWidth: 20 },
-          4: { halign: 'right', cellWidth: 35 }
+          0: { cellWidth: 90 },
+          1: { halign: 'center', cellWidth: 25 },
+          2: { halign: 'right', cellWidth: 35 },
+          3: { halign: 'right', cellWidth: 35 }
         }
       });
       
@@ -382,7 +376,7 @@ export default function Sales() {
       // Box para resumo
       doc.setDrawColor(200, 200, 200);
       doc.setFillColor(248, 249, 250);
-      doc.rect(14, yPos - 5, 182, 58, 'FD');
+      doc.rect(14, yPos - 5, 182, 48, 'FD');
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -391,20 +385,20 @@ export default function Sales() {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Subtotal (produtos):`, 18, yPos);
+      doc.text(`Subtotal (s/ desconto):`, 18, yPos);
       doc.text(new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
-      }).format(subtotal), 190, yPos, { align: 'right' });
+      }).format(subtotalOriginal), 190, yPos, { align: 'right' });
       yPos += 6;
       
-      if (totalDiscountAmount > 0) {
+      if (descontoTotal > 0) {
         doc.setTextColor(220, 53, 69);
-        doc.text(`Desconto Total:`, 18, yPos);
+        doc.text(`Desconto aplicado (${descontoPercent}%):`, 18, yPos);
         doc.text(`- ${new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL'
-        }).format(totalDiscountAmount)}`, 190, yPos, { align: 'right' });
+        }).format(descontoTotal)}`, 190, yPos, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         yPos += 6;
       }
@@ -421,29 +415,7 @@ export default function Sales() {
       doc.text(new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
-      }).format(sale.gross_value), 190, yPos, { align: 'right' });
-      yPos += 8;
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Custo Total: ${new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(sale.total_cost)}`, 18, yPos);
-      yPos += 5;
-      
-      const profitPercent = sale.gross_value > 0 
-        ? ((sale.estimated_profit / sale.gross_value) * 100).toFixed(1)
-        : '0.0';
-      
-      doc.setTextColor(40, 167, 69);
-      doc.text(`Lucro Estimado: ${new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(sale.estimated_profit)} (${profitPercent}%)`, 18, yPos);
-      doc.setTextColor(0, 0, 0);
-      
+      }).format(valorFinal), 190, yPos, { align: 'right' });
       yPos += 10;
       
       // Informações de pagamento
@@ -1382,13 +1354,13 @@ export default function Sales() {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Cliente</TableHead>
-                      <TableHead>Valor Bruto</TableHead>
+                      <TableHead>Valor Final</TableHead>
                       {userRole === 'admin' && (
                         <>
                           <TableHead>Custo</TableHead>
                           <TableHead>Lucro</TableHead>
                           <TableHead>Margem</TableHead>
-                      <TableHead>Pagamento</TableHead>
+                          <TableHead>Pagamento</TableHead>
                         </>
                       )}
                       <TableHead>Ações</TableHead>
