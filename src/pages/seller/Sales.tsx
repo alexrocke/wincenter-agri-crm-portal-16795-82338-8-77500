@@ -747,6 +747,7 @@ export default function Sales() {
         cost: 0, // Will be recalculated
         discount_percent: item.discount_percent,
         max_discount: 100,
+        is_service: item.is_service || false, // Preservar flag de serviço
       }));
       
       setSaleItems(formattedItems);
@@ -1213,61 +1214,64 @@ export default function Sales() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {saleItems.filter((item: any) => !item.is_service).map((item, index) => {
-                                  const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
-                                  return (
-                                    <TableRow key={index}>
-                                      <TableCell className="font-medium">{item.product_name}</TableCell>
-                                      <TableCell className="text-right">
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          step="1"
-                                          value={item.qty}
-                                          onChange={(e) => handleUpdateSaleItem(index, 'qty', e.target.value)}
-                                          className="w-20 text-right h-8"
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
-                                          value={item.unit_price}
-                                          onChange={(e) => handleUpdateSaleItem(index, 'unit_price', e.target.value)}
-                                          className="w-28 text-right h-8"
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="100"
-                                          step="0.1"
-                                          value={item.discount_percent}
-                                          onChange={(e) => handleUpdateSaleItem(index, 'discount_percent', e.target.value)}
-                                          className="w-20 text-right h-8"
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-right font-medium">
-                                        {new Intl.NumberFormat('pt-BR', {
-                                          style: 'currency',
-                                          currency: 'BRL',
-                                        }).format(itemTotal)}
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleRemoveProduct(index)}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
+                                {saleItems
+                                  .map((item, originalIndex) => ({ item, originalIndex }))
+                                  .filter(({ item }) => !item.is_service)
+                                  .map(({ item, originalIndex }) => {
+                                    const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
+                                    return (
+                                      <TableRow key={originalIndex}>
+                                        <TableCell className="font-medium">{item.product_name}</TableCell>
+                                        <TableCell className="text-right">
+                                          <Input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={item.qty}
+                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'qty', e.target.value)}
+                                            className="w-20 text-right h-8"
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={item.unit_price}
+                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'unit_price', e.target.value)}
+                                            className="w-28 text-right h-8"
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.1"
+                                            value={item.discount_percent}
+                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'discount_percent', e.target.value)}
+                                            className="w-20 text-right h-8"
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                          {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                          }).format(itemTotal)}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRemoveProduct(originalIndex)}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
                               </TableBody>
                             </Table>
                           </div>
@@ -1289,27 +1293,30 @@ export default function Sales() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {saleItems.filter((item: any) => item.is_service).map((item, index) => {
-                                  const itemTotal = item.unit_price * item.qty;
-                                  return (
-                                    <TableRow key={`service-${index}`}>
-                                      <TableCell className="font-medium text-primary">{item.product_name}</TableCell>
-                                      <TableCell className="text-right">{item.qty}</TableCell>
-                                      <TableCell className="text-right">
-                                        {new Intl.NumberFormat('pt-BR', {
-                                          style: 'currency',
-                                          currency: 'BRL',
-                                        }).format(item.unit_price)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-medium text-primary">
-                                        {new Intl.NumberFormat('pt-BR', {
-                                          style: 'currency',
-                                          currency: 'BRL',
-                                        }).format(itemTotal)}
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
+                                {saleItems
+                                  .map((item, originalIndex) => ({ item, originalIndex }))
+                                  .filter(({ item }) => item.is_service)
+                                  .map(({ item, originalIndex }) => {
+                                    const itemTotal = item.unit_price * item.qty;
+                                    return (
+                                      <TableRow key={`service-${originalIndex}`}>
+                                        <TableCell className="font-medium text-primary">{item.product_name}</TableCell>
+                                        <TableCell className="text-right">{item.qty}</TableCell>
+                                        <TableCell className="text-right">
+                                          {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                          }).format(item.unit_price)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium text-primary">
+                                          {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                          }).format(itemTotal)}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
                               </TableBody>
                             </Table>
                           </div>
