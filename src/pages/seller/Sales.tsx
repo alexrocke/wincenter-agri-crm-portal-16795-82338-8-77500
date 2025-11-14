@@ -338,11 +338,21 @@ export default function Sales() {
         return sum + (item.unit_price * item.qty);
       }, 0);
       
-      // Valor final é o gross_value (já inclui todos os descontos)
-      const valorFinal = sale.gross_value;
+      // Total com descontos individuais dos itens aplicados
+      const totalComDescontoDeItem = saleItems.reduce((sum: number, item: any) => {
+        const itemTotal = item.unit_price * item.qty;
+        const itemComDesconto = itemTotal * (1 - item.discount_percent / 100);
+        return sum + itemComDesconto;
+      }, 0);
       
-      // Desconto total aplicado
+      // Aplicar desconto final da venda (se houver)
+      const finalDiscountPercent = sale.final_discount_percent || 0;
+      const valorFinal = totalComDescontoDeItem * (1 - finalDiscountPercent / 100);
+      
+      // Desconto total em reais
       const descontoTotal = subtotalOriginal - valorFinal;
+      
+      // Desconto total em percentual
       const descontoPercent = subtotalOriginal > 0 
         ? ((descontoTotal / subtotalOriginal) * 100).toFixed(1)
         : '0';
