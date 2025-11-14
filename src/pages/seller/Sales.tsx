@@ -404,6 +404,23 @@ export default function Sales() {
     setSaleItems(saleItems.filter((_, i) => i !== index));
   };
 
+  const handleUpdateSaleItem = (index: number, field: 'qty' | 'unit_price' | 'discount_percent', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    
+    // Validação
+    if (field === 'qty' && numValue <= 0) return;
+    if (field === 'unit_price' && numValue < 0) return;
+    if (field === 'discount_percent' && (numValue < 0 || numValue > 100)) return;
+    
+    const updatedItems = [...saleItems];
+    updatedItems[index] = {
+      ...updatedItems[index],
+      [field]: numValue,
+    };
+    
+    setSaleItems(updatedItems);
+  };
+
   const calculateTotals = () => {
     let totalGross = 0;
     let totalCost = 0;
@@ -905,14 +922,37 @@ export default function Sales() {
                             return (
                               <TableRow key={index}>
                                 <TableCell className="font-medium">{item.product_name}</TableCell>
-                                <TableCell className="text-right">{item.qty}</TableCell>
                                 <TableCell className="text-right">
-                                  {new Intl.NumberFormat('pt-BR', {
-                                    style: 'currency',
-                                    currency: 'BRL',
-                                  }).format(item.unit_price)}
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value={item.qty}
+                                    onChange={(e) => handleUpdateSaleItem(index, 'qty', e.target.value)}
+                                    className="w-20 text-right h-8"
+                                  />
                                 </TableCell>
-                                <TableCell className="text-right">{item.discount_percent}%</TableCell>
+                                <TableCell className="text-right">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unit_price}
+                                    onChange={(e) => handleUpdateSaleItem(index, 'unit_price', e.target.value)}
+                                    className="w-28 text-right h-8"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value={item.discount_percent}
+                                    onChange={(e) => handleUpdateSaleItem(index, 'discount_percent', e.target.value)}
+                                    className="w-20 text-right h-8"
+                                  />
+                                </TableCell>
                                 <TableCell className="text-right font-medium">
                                   {new Intl.NumberFormat('pt-BR', {
                                     style: 'currency',
