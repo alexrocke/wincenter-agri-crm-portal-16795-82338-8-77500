@@ -57,6 +57,7 @@ interface SaleItem {
   discount_percent: number;
   max_discount: number;
   is_service?: boolean;
+  is_service_product?: boolean;
 }
 
 interface Seller {
@@ -230,7 +231,7 @@ export default function Sales() {
 
   const fetchSaleItems = async (saleId: string) => {
     try {
-      // Buscar sale_items normais (produtos)
+      // 1. Buscar sale_items normais (produtos já faturados)
       const { data: items, error: itemsError } = await supabase
         .from('sale_items')
         .select(`
@@ -244,7 +245,7 @@ export default function Sales() {
       
       if (itemsError) throw itemsError;
       
-      // Buscar venda para verificar se tem service_id
+      // 2. Buscar venda para verificar service_id
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .select('service_id')
@@ -253,8 +254,32 @@ export default function Sales() {
       
       if (saleError) throw saleError;
       
-      // Se tiver service_id, buscar serviços do campo notes
+      let allItems = [...(items || [])];
+      
+      // 3. Se vinculado a serviço, buscar produtos e serviços do serviço
       if (sale?.service_id) {
+        // 3a. Buscar produtos de service_items
+        const { data: serviceItems, error: serviceItemsError } = await supabase
+          .from('service_items')
+          .select('*, products(name, sku, cost)')
+          .eq('service_id', sale.service_id);
+        
+        if (!serviceItemsError && serviceItems) {
+          const productPseudoItems = serviceItems.map((item: any) => ({
+            id: `service-product-${item.id}`,
+            sale_id: saleId,
+            product_id: item.product_id,
+            qty: item.qty,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent || 0,
+            products: item.products,
+            is_service_product: true // Flag para identificar
+          }));
+          
+          allItems = [...allItems, ...productPseudoItems];
+        }
+        
+        // 3b. Buscar serviços de services.notes
         const { data: service, error: serviceError } = await supabase
           .from('services')
           .select('notes')
@@ -283,7 +308,7 @@ export default function Sales() {
                 is_service: true
               }));
               
-              return [...(items || []), ...serviceItems];
+              allItems = [...allItems, ...serviceItems];
             }
           } catch (e) {
             console.error('Error parsing service notes:', e);
@@ -291,7 +316,7 @@ export default function Sales() {
         }
       }
       
-      return items || [];
+      return allItems;
     } catch (error) {
       console.error('Error fetching sale items:', error);
       return [];
@@ -366,8 +391,9 @@ export default function Sales() {
       
       yPos += 4;
       
-      // Separar produtos e serviços
-      const produtos = saleItems.filter((item: any) => !item.is_service);
+      // Separar produtos normais, produtos do serviço e serviços
+      const produtosNormais = saleItems.filter((item: any) => !item.is_service && !item.is_service_product);
+      const produtosDoServico = saleItems.filter((item: any) => item.is_service_product);
       const servicos = saleItems.filter((item: any) => item.is_service);
       
       // Calcular subtotal original (sem nenhum desconto aplicado)
@@ -395,7 +421,11 @@ export default function Sales() {
         : '0';
       
       // Calcular valores separados
-      const valorProdutos = produtos.reduce((sum, item: any) => {
+      const valorProdutosNormais = produtosNormais.reduce((sum, item: any) => {
+        return sum + (item.unit_price * item.qty * (1 - item.discount_percent / 100));
+      }, 0);
+      
+      const valorProdutosServico = produtosDoServico.reduce((sum, item: any) => {
         return sum + (item.unit_price * item.qty * (1 - item.discount_percent / 100));
       }, 0);
       
@@ -403,14 +433,14 @@ export default function Sales() {
         return sum + (item.unit_price * item.qty);
       }, 0);
       
-      // Tabela de Produtos (se houver)
-      if (produtos.length > 0) {
+      // Tabela de Produtos Normais (se houver)
+      if (produtosNormais.length > 0) {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('PRODUTOS', 14, yPos);
         yPos += 5;
         
-        const produtosTableData = produtos.map((item: any) => {
+        const produtosTableData = produtosNormais.map((item: any) => {
           const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
           return [
             item.products?.name || 'Produto',
@@ -433,6 +463,57 @@ export default function Sales() {
           theme: 'striped',
           headStyles: { 
             fillColor: [0, 102, 204],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 10
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 3
+          },
+          columnStyles: {
+            0: { cellWidth: 90 },
+            1: { halign: 'center', cellWidth: 25 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 }
+          }
+        });
+        
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
+      
+      // Tabela de Produtos do Serviço Técnico (se houver)
+      if (produtosDoServico.length > 0) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(102, 51, 153); // Roxo para diferenciar
+        doc.text('PRODUTOS UTILIZADOS NO SERVIÇO TÉCNICO', 14, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+        
+        const produtosServicoTableData = produtosDoServico.map((item: any) => {
+          const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
+          return [
+            item.products?.name || 'Produto',
+            item.qty.toString(),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(item.unit_price),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(itemTotal)
+          ];
+        });
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Produto', 'Qtd', 'Preço Unit.', 'Total']],
+          body: produtosServicoTableData,
+          theme: 'striped',
+          headStyles: { 
+            fillColor: [102, 51, 153],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             fontSize: 10
@@ -507,7 +588,8 @@ export default function Sales() {
       // Box para resumo
       doc.setDrawColor(200, 200, 200);
       doc.setFillColor(248, 249, 250);
-      const boxHeight = (valorProdutos > 0 && valorServicos > 0) ? 58 : 48;
+      const totalProdutos = valorProdutosNormais + valorProdutosServico;
+      const boxHeight = (totalProdutos > 0 && valorServicos > 0) ? 58 : 48;
       doc.rect(14, yPos - 5, 182, boxHeight, 'FD');
       
       doc.setFontSize(12);
@@ -519,13 +601,13 @@ export default function Sales() {
       doc.setFont('helvetica', 'normal');
       
       // Valor dos Produtos (se houver)
-      if (valorProdutos > 0) {
+      if (totalProdutos > 0) {
         doc.text('Valor dos Produtos:', 18, yPos);
         doc.text(
           new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL'
-          }).format(valorProdutos),
+          }).format(totalProdutos),
           170,
           yPos,
           { align: 'right' }
@@ -747,7 +829,8 @@ export default function Sales() {
         cost: 0, // Will be recalculated
         discount_percent: item.discount_percent,
         max_discount: 100,
-        is_service: item.is_service || false, // Preservar flag de serviço
+        is_service: item.is_service || false,
+        is_service_product: item.is_service_product || false, // Preservar flag de produto de serviço
       }));
       
       setSaleItems(formattedItems);
@@ -856,8 +939,8 @@ export default function Sales() {
 
         if (deleteError) throw deleteError;
 
-        // Inserir novos itens (apenas produtos, serviços permanecem em services.notes)
-        const productItems = saleItems.filter(item => !item.is_service);
+        // Inserir novos itens (apenas produtos não vinculados a serviços, serviços permanecem em services.notes)
+        const productItems = saleItems.filter(item => !item.is_service && !item.is_service_product);
         const itemsData = productItems.map(item => ({
           sale_id: editingSaleId,
           product_id: item.product_id,
@@ -1219,39 +1302,65 @@ export default function Sales() {
                                   .filter(({ item }) => !item.is_service)
                                   .map(({ item, originalIndex }) => {
                                     const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
+                                    const isServiceProduct = item.is_service_product;
+                                    
                                     return (
-                                      <TableRow key={originalIndex}>
-                                        <TableCell className="font-medium">{item.product_name}</TableCell>
-                                        <TableCell className="text-right">
-                                          <Input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            value={item.qty}
-                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'qty', e.target.value)}
-                                            className="w-20 text-right h-8"
-                                          />
+                                      <TableRow key={originalIndex} className={isServiceProduct ? "bg-muted/30" : ""}>
+                                        <TableCell className="font-medium">
+                                          {item.product_name}
+                                          {isServiceProduct && (
+                                            <Badge variant="outline" className="ml-2 text-xs">
+                                              Do Serviço Técnico
+                                            </Badge>
+                                          )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={item.unit_price}
-                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'unit_price', e.target.value)}
-                                            className="w-28 text-right h-8"
-                                          />
+                                          {isServiceProduct ? (
+                                            <span className="text-muted-foreground px-3">{item.qty}</span>
+                                          ) : (
+                                            <Input
+                                              type="number"
+                                              min="1"
+                                              step="1"
+                                              value={item.qty}
+                                              onChange={(e) => handleUpdateSaleItem(originalIndex, 'qty', e.target.value)}
+                                              className="w-20 text-right h-8"
+                                            />
+                                          )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            step="0.1"
-                                            value={item.discount_percent}
-                                            onChange={(e) => handleUpdateSaleItem(originalIndex, 'discount_percent', e.target.value)}
-                                            className="w-20 text-right h-8"
-                                          />
+                                          {isServiceProduct ? (
+                                            <span className="text-muted-foreground px-3">
+                                              {new Intl.NumberFormat('pt-BR', {
+                                                style: 'currency',
+                                                currency: 'BRL',
+                                              }).format(item.unit_price)}
+                                            </span>
+                                          ) : (
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={item.unit_price}
+                                              onChange={(e) => handleUpdateSaleItem(originalIndex, 'unit_price', e.target.value)}
+                                              className="w-28 text-right h-8"
+                                            />
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          {isServiceProduct ? (
+                                            <span className="text-muted-foreground px-3">{item.discount_percent}%</span>
+                                          ) : (
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max="100"
+                                              step="0.1"
+                                              value={item.discount_percent}
+                                              onChange={(e) => handleUpdateSaleItem(originalIndex, 'discount_percent', e.target.value)}
+                                              className="w-20 text-right h-8"
+                                            />
+                                          )}
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
                                           {new Intl.NumberFormat('pt-BR', {
@@ -1260,14 +1369,16 @@ export default function Sales() {
                                           }).format(itemTotal)}
                                         </TableCell>
                                         <TableCell>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleRemoveProduct(originalIndex)}
-                                          >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                          </Button>
+                                          {!isServiceProduct && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleRemoveProduct(originalIndex)}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                          )}
                                         </TableCell>
                                       </TableRow>
                                     );

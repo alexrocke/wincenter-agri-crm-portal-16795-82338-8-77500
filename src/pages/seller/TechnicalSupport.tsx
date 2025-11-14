@@ -369,12 +369,26 @@ export default function TechnicalSupport() {
         }
       }
 
+      // Calcular total_value automaticamente
+      const productsTotal = productItems.reduce((sum, item) => {
+        const itemTotal = item.unit_price * item.qty;
+        const discount = itemTotal * (item.discount_percent / 100);
+        return sum + (itemTotal - discount);
+      }, 0);
+
+      const servicesTotal = serviceItems.reduce((sum, item) => {
+        return sum + (item.value * item.qty);
+      }, 0);
+
+      const calculatedTotalValue = productsTotal + servicesTotal;
+
       const serviceData = {
         ...formData,
         date: formData.date.toISOString(),
         service_type: "maintenance" as const,
         created_by: user?.id,
         status: formData.status as any,
+        total_value: calculatedTotalValue,
         notes: JSON.stringify({
           general: formData.notes,
           services: serviceItems
@@ -710,8 +724,8 @@ export default function TechnicalSupport() {
       return sum + (item.value * item.qty);
     }, 0);
     
-    const additionalFee = serviceToComplete.total_value || 0;
-    const totalValue = productsTotal + servicesTotal + additionalFee;
+    // Total calculado automaticamente: produtos + serviços
+    const totalValue = productsTotal + servicesTotal;
 
     // VALIDAÇÃO: Não permitir conclusão sem valor e sem produtos (exceto garantia)
     if (!serviceToComplete.under_warranty) {
@@ -1817,8 +1831,7 @@ export default function TechnicalSupport() {
                   const discount = itemTotal * (item.discount_percent / 100);
                   return sum + (itemTotal - discount);
                 }, 0) + 
-                serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) +
-                (formData.total_value || 0)
+                serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0)
               ).toFixed(2)}
                               </span>
                             </div>
@@ -1986,31 +1999,7 @@ export default function TechnicalSupport() {
                       ))
                     )}
 
-                    {/* Campo manual para Taxa de Serviço adicional */}
-                    <Card className="mt-4">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Taxa de Serviço Adicional</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                          Adicione uma taxa extra se necessário (ex: deslocamento, mão de obra extra, etc.)
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <Label>Valor da Taxa (R$)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            value={formData.total_value || ""}
-                            onChange={(e) => setFormData(prev => ({ 
-                              ...prev, 
-                              total_value: parseFloat(e.target.value) || 0 
-                            }))}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    {/* Taxa de serviço será calculada automaticamente como produtos + serviços */}
 
                     {/* Totalizadores */}
                     {(serviceItems.length > 0 || productItems.length > 0) && (
@@ -2032,8 +2021,7 @@ export default function TechnicalSupport() {
                                 const discount = itemTotal * (item.discount_percent / 100);
                                 return sum + (itemTotal - discount);
                               }, 0) + 
-                              serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) +
-                              (formData.total_value || 0)
+                              serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0)
                             ).toFixed(2)}
                           </span>
                         </div>
