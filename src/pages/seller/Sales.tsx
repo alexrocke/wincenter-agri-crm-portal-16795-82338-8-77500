@@ -229,7 +229,8 @@ export default function Sales() {
 
   const fetchSaleItems = async (saleId: string) => {
     try {
-      const { data, error } = await supabase
+      // Buscar sale_items normais (produtos)
+      const { data: items, error: itemsError } = await supabase
         .from('sale_items')
         .select(`
           *,
@@ -240,8 +241,56 @@ export default function Sales() {
         `)
         .eq('sale_id', saleId);
       
-      if (error) throw error;
-      return data || [];
+      if (itemsError) throw itemsError;
+      
+      // Buscar venda para verificar se tem service_id
+      const { data: sale, error: saleError } = await supabase
+        .from('sales')
+        .select('service_id')
+        .eq('id', saleId)
+        .single();
+      
+      if (saleError) throw saleError;
+      
+      // Se tiver service_id, buscar serviços do campo notes
+      if (sale?.service_id) {
+        const { data: service, error: serviceError } = await supabase
+          .from('services')
+          .select('notes')
+          .eq('id', sale.service_id)
+          .single();
+        
+        if (!serviceError && service?.notes) {
+          try {
+            const notesData = typeof service.notes === 'string' 
+              ? JSON.parse(service.notes) 
+              : service.notes;
+            
+            // Adicionar serviços como "pseudo-items"
+            if (notesData.services && Array.isArray(notesData.services)) {
+              const serviceItems = notesData.services.map((srv: any, index: number) => ({
+                id: `service-${index}`,
+                sale_id: saleId,
+                product_id: null,
+                qty: srv.qty || 1,
+                unit_price: srv.value || 0,
+                discount_percent: 0,
+                products: {
+                  name: srv.description || 'Serviço',
+                  sku: null
+                },
+                is_service: true
+              }));
+              
+              return [...(items || []), ...serviceItems];
+            }
+          } catch (e) {
+            console.error('Error parsing service notes:', e);
+          }
+        }
+      }
+      
+      return items || [];
     } catch (error) {
       console.error('Error fetching sale items:', error);
       return [];
@@ -316,22 +365,9 @@ export default function Sales() {
       
       yPos += 4;
       
-      // Tabela de produtos
-      const tableData = saleItems.map((item: any) => {
-        const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
-        return [
-          item.products?.name || 'Produto',
-          item.qty.toString(),
-          new Intl.NumberFormat('pt-BR', { 
-            style: 'currency', 
-            currency: 'BRL' 
-          }).format(item.unit_price),
-          new Intl.NumberFormat('pt-BR', { 
-            style: 'currency', 
-            currency: 'BRL' 
-          }).format(itemTotal)
-        ];
-      });
+      // Separar produtos e serviços
+      const produtos = saleItems.filter((item: any) => !item.is_service);
+      const servicos = saleItems.filter((item: any) => item.is_service);
       
       // Calcular subtotal original (sem nenhum desconto aplicado)
       const subtotalOriginal = saleItems.reduce((sum: number, item: any) => {
@@ -357,36 +393,121 @@ export default function Sales() {
         ? ((descontoTotal / subtotalOriginal) * 100).toFixed(1)
         : '0';
       
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Produto', 'Qtd', 'Preço Unit.', 'Total']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [0, 102, 204],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 10
-        },
-        styles: {
-          fontSize: 9,
-          cellPadding: 3
-        },
-        columnStyles: {
-          0: { cellWidth: 90 },
-          1: { halign: 'center', cellWidth: 25 },
-          2: { halign: 'right', cellWidth: 35 },
-          3: { halign: 'right', cellWidth: 35 }
-        }
-      });
+      // Calcular valores separados
+      const valorProdutos = produtos.reduce((sum, item: any) => {
+        return sum + (item.unit_price * item.qty * (1 - item.discount_percent / 100));
+      }, 0);
+      
+      const valorServicos = servicos.reduce((sum, item: any) => {
+        return sum + (item.unit_price * item.qty);
+      }, 0);
+      
+      // Tabela de Produtos (se houver)
+      if (produtos.length > 0) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PRODUTOS', 14, yPos);
+        yPos += 5;
+        
+        const produtosTableData = produtos.map((item: any) => {
+          const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
+          return [
+            item.products?.name || 'Produto',
+            item.qty.toString(),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(item.unit_price),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(itemTotal)
+          ];
+        });
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Produto', 'Qtd', 'Preço Unit.', 'Total']],
+          body: produtosTableData,
+          theme: 'striped',
+          headStyles: { 
+            fillColor: [0, 102, 204],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 10
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 3
+          },
+          columnStyles: {
+            0: { cellWidth: 90 },
+            1: { halign: 'center', cellWidth: 25 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 }
+          }
+        });
+        
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
+      
+      // Tabela de Serviços (se houver)
+      if (servicos.length > 0) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('SERVIÇOS REALIZADOS', 14, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+        
+        const servicosTableData = servicos.map((item: any) => {
+          const itemTotal = item.unit_price * item.qty;
+          return [
+            item.products?.name || 'Serviço',
+            item.qty.toString(),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(item.unit_price),
+            new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL' 
+            }).format(itemTotal)
+          ];
+        });
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Serviço', 'Qtd', 'Valor Unit.', 'Total']],
+          body: servicosTableData,
+          theme: 'striped',
+          headStyles: { 
+            fillColor: [0, 102, 204],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 10
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 3
+          },
+          columnStyles: {
+            0: { cellWidth: 90 },
+            1: { halign: 'center', cellWidth: 25 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 }
+          }
+        });
+        
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
       
       // Resumo financeiro
-      yPos = (doc as any).lastAutoTable.finalY + 10;
-      
       // Box para resumo
       doc.setDrawColor(200, 200, 200);
       doc.setFillColor(248, 249, 250);
-      doc.rect(14, yPos - 5, 182, 48, 'FD');
+      const boxHeight = (valorProdutos > 0 && valorServicos > 0) ? 58 : 48;
+      doc.rect(14, yPos - 5, 182, boxHeight, 'FD');
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -395,38 +516,76 @@ export default function Sales() {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Subtotal (s/ desconto):`, 18, yPos);
-      doc.text(new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(subtotalOriginal), 190, yPos, { align: 'right' });
-      yPos += 6;
       
-      if (descontoTotal > 0) {
+      // Valor dos Produtos (se houver)
+      if (valorProdutos > 0) {
+        doc.text('Valor dos Produtos:', 18, yPos);
+        doc.text(
+          new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(valorProdutos),
+          170,
+          yPos,
+          { align: 'right' }
+        );
+        yPos += 7;
+      }
+      
+      // Valor dos Serviços (se houver)
+      if (valorServicos > 0) {
+        doc.setTextColor(0, 102, 204);
+        doc.text('Valor dos Serviços:', 18, yPos);
+        doc.text(
+          new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(valorServicos),
+          170,
+          yPos,
+          { align: 'right' }
+        );
+        doc.setTextColor(0, 0, 0);
+        yPos += 7;
+      }
+      
+      // Desconto (se houver)
+      if (descontoTotal > 0.01) {
         doc.setTextColor(220, 53, 69);
         doc.text(`Desconto aplicado (${descontoPercent}%):`, 18, yPos);
-        doc.text(`- ${new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).format(descontoTotal)}`, 190, yPos, { align: 'right' });
+        doc.text(
+          `- ${new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(descontoTotal)}`,
+          170,
+          yPos,
+          { align: 'right' }
+        );
         doc.setTextColor(0, 0, 0);
-        yPos += 6;
+        yPos += 7;
       }
       
       // Linha separadora
-      doc.setDrawColor(0, 102, 204);
-      doc.setLineWidth(0.8);
+      doc.setLineWidth(0.5);
       doc.line(18, yPos, 192, yPos);
       yPos += 7;
       
-      doc.setFontSize(13);
+      // Valor Total
+      doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('VALOR TOTAL:', 18, yPos);
-      doc.text(new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(valorFinal), 190, yPos, { align: 'right' });
-      yPos += 10;
+      doc.setTextColor(0, 150, 0);
+      doc.text(
+        new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(valorFinal),
+        170,
+        yPos,
+        { align: 'right' }
+      );
+      doc.setTextColor(0, 0, 0);
       
       // Informações de pagamento
       doc.setFontSize(11);
@@ -1032,78 +1191,128 @@ export default function Sales() {
                     </div>
                   </div>
 
-                  {/* Lista de Produtos Adicionados */}
+                  {/* Lista de Produtos e Serviços Adicionados */}
                   {saleItems.length > 0 && (
-                    <div className="border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Produto</TableHead>
-                            <TableHead className="text-right">Qtd</TableHead>
-                            <TableHead className="text-right">Preço Un.</TableHead>
-                            <TableHead className="text-right">Desc %</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="w-12"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {saleItems.map((item, index) => {
-                            const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
-                            return (
-                              <TableRow key={index}>
-                                <TableCell className="font-medium">{item.product_name}</TableCell>
-                                <TableCell className="text-right">
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    value={item.qty}
-                                    onChange={(e) => handleUpdateSaleItem(index, 'qty', e.target.value)}
-                                    className="w-20 text-right h-8"
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={item.unit_price}
-                                    onChange={(e) => handleUpdateSaleItem(index, 'unit_price', e.target.value)}
-                                    className="w-28 text-right h-8"
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
-                                    value={item.discount_percent}
-                                    onChange={(e) => handleUpdateSaleItem(index, 'discount_percent', e.target.value)}
-                                    className="w-20 text-right h-8"
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right font-medium">
-                                  {new Intl.NumberFormat('pt-BR', {
-                                    style: 'currency',
-                                    currency: 'BRL',
-                                  }).format(itemTotal)}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveProduct(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                    <div className="space-y-4">
+                      {/* Produtos */}
+                      {saleItems.filter((item: any) => !item.is_service).length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Produtos</h4>
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Produto</TableHead>
+                                  <TableHead className="text-right">Qtd</TableHead>
+                                  <TableHead className="text-right">Preço Un.</TableHead>
+                                  <TableHead className="text-right">Desc %</TableHead>
+                                  <TableHead className="text-right">Total</TableHead>
+                                  <TableHead className="w-12"></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {saleItems.filter((item: any) => !item.is_service).map((item, index) => {
+                                  const itemTotal = item.unit_price * item.qty * (1 - item.discount_percent / 100);
+                                  return (
+                                    <TableRow key={index}>
+                                      <TableCell className="font-medium">{item.product_name}</TableCell>
+                                      <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          step="1"
+                                          value={item.qty}
+                                          onChange={(e) => handleUpdateSaleItem(index, 'qty', e.target.value)}
+                                          className="w-20 text-right h-8"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={item.unit_price}
+                                          onChange={(e) => handleUpdateSaleItem(index, 'unit_price', e.target.value)}
+                                          className="w-28 text-right h-8"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          step="0.1"
+                                          value={item.discount_percent}
+                                          onChange={(e) => handleUpdateSaleItem(index, 'discount_percent', e.target.value)}
+                                          className="w-20 text-right h-8"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium">
+                                        {new Intl.NumberFormat('pt-BR', {
+                                          style: 'currency',
+                                          currency: 'BRL',
+                                        }).format(itemTotal)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleRemoveProduct(index)}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Serviços */}
+                      {saleItems.filter((item: any) => item.is_service).length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2 text-primary">Serviços Realizados</h4>
+                          <div className="border rounded-lg overflow-hidden border-primary/20 bg-primary/5">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Serviço</TableHead>
+                                  <TableHead className="text-right">Qtd</TableHead>
+                                  <TableHead className="text-right">Valor Un.</TableHead>
+                                  <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {saleItems.filter((item: any) => item.is_service).map((item, index) => {
+                                  const itemTotal = item.unit_price * item.qty;
+                                  return (
+                                    <TableRow key={`service-${index}`}>
+                                      <TableCell className="font-medium text-primary">{item.product_name}</TableCell>
+                                      <TableCell className="text-right">{item.qty}</TableCell>
+                                      <TableCell className="text-right">
+                                        {new Intl.NumberFormat('pt-BR', {
+                                          style: 'currency',
+                                          currency: 'BRL',
+                                        }).format(item.unit_price)}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium text-primary">
+                                        {new Intl.NumberFormat('pt-BR', {
+                                          style: 'currency',
+                                          currency: 'BRL',
+                                        }).format(itemTotal)}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
