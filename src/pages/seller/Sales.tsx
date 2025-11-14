@@ -49,13 +49,14 @@ interface Product {
 }
 
 interface SaleItem {
-  product_id: string;
+  product_id: string | null;
   product_name: string;
   qty: number;
   unit_price: number;
   cost: number;
   discount_percent: number;
   max_discount: number;
+  is_service?: boolean;
 }
 
 interface Seller {
@@ -854,8 +855,9 @@ export default function Sales() {
 
         if (deleteError) throw deleteError;
 
-        // Inserir novos itens
-        const itemsData = saleItems.map(item => ({
+        // Inserir novos itens (apenas produtos, serviços permanecem em services.notes)
+        const productItems = saleItems.filter(item => !item.is_service);
+        const itemsData = productItems.map(item => ({
           sale_id: editingSaleId,
           product_id: item.product_id,
           qty: item.qty,
