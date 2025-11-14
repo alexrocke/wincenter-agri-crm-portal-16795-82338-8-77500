@@ -252,96 +252,209 @@ export default function Sales() {
     try {
       const saleItems = await fetchSaleItems(sale.id);
       
+      // Verificar se há itens
+      if (!saleItems || saleItems.length === 0) {
+        toast.error('Esta venda não possui produtos. Não é possível gerar o PDF.');
+        return;
+      }
+
+      // Buscar informações da empresa
+      const { data: siteSettings } = await supabase
+        .from('site_settings')
+        .select('*')
+        .single();
+      
       const doc = new jsPDF();
+      let yPos = 20;
+
+      // Logo da empresa (se existir)
+      if (siteSettings?.logo_url) {
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = siteSettings.logo_url;
+          await new Promise((resolve) => {
+            img.onload = () => {
+              doc.addImage(img, 'PNG', 14, yPos, 30, 30);
+              resolve(true);
+            };
+            img.onerror = () => resolve(false);
+          });
+          yPos += 35;
+        } catch (error) {
+          console.log('Erro ao carregar logo:', error);
+          yPos += 5;
+        }
+      }
       
-      // Header
-      doc.setFontSize(20);
-      doc.text('Comprovante de Venda', 14, 20);
+      // Nome da empresa e cabeçalho
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('COMPROVANTE DE VENDA', 14, yPos);
+      yPos += 10;
       
-      // Informações gerais
-      doc.setFontSize(10);
-      doc.text(`Data: ${new Date(sale.sold_at).toLocaleDateString('pt-BR')}`, 14, 30);
-      doc.text(`Cliente: ${sale.clients?.farm_name || 'N/A'}`, 14, 36);
-      doc.text(`Contato: ${sale.clients?.contact_name || 'N/A'}`, 14, 42);
+      // Linha separadora
+      doc.setDrawColor(0, 102, 204);
+      doc.setLineWidth(0.5);
+      doc.line(14, yPos, 196, yPos);
+      yPos += 8;
+      
+      // Informações da venda
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Data: ${new Date(sale.sold_at).toLocaleDateString('pt-BR')}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Cliente: ${sale.clients?.farm_name || 'N/A'}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Contato: ${sale.clients?.contact_name || 'N/A'}`, 14, yPos);
+      yPos += 6;
       
       if (sale.region) {
-        doc.text(`Região: ${sale.region}`, 14, 48);
+        doc.text(`Região: ${sale.region}`, 14, yPos);
+        yPos += 6;
       }
+      
+      yPos += 4;
       
       // Tabela de produtos
-      const tableData = saleItems.map((item: any) => [
-        item.products?.name || 'Produto',
-        item.qty,
-        new Intl.NumberFormat('pt-BR', { 
-          style: 'currency', 
-          currency: 'BRL' 
-        }).format(item.unit_price),
-        `${item.discount_percent}%`,
-        new Intl.NumberFormat('pt-BR', { 
-          style: 'currency', 
-          currency: 'BRL' 
-        }).format(
-          item.unit_price * item.qty * (1 - item.discount_percent / 100)
-        )
-      ]);
-      
-      // Calcular subtotal dos produtos
-      const subtotal = saleItems.reduce((sum: number, item: any) => {
-        return sum + (item.unit_price * item.qty * (1 - item.discount_percent / 100));
-      }, 0);
-      
-      autoTable(doc, {
-        startY: sale.region ? 55 : 50,
-        head: [['Produto', 'Qtd', 'Preço Unit.', 'Desconto', 'Total']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [0, 102, 204] }
+      const tableData = saleItems.map((item: any) => {
+        const itemSubtotal = item.unit_price * item.qty;
+        const itemTotal = itemSubtotal * (1 - item.discount_percent / 100);
+        return [
+          item.products?.name || 'Produto',
+          item.qty.toString(),
+          new Intl.NumberFormat('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL' 
+          }).format(item.unit_price),
+          `${item.discount_percent}%`,
+          new Intl.NumberFormat('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL' 
+          }).format(itemTotal)
+        ];
       });
       
-      // Resumo de valores
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      // Calcular valores
+      const subtotal = saleItems.reduce((sum: number, item: any) => {
+        return sum + (item.unit_price * item.qty);
+      }, 0);
+      
+      const discountFromItems = saleItems.reduce((sum: number, item: any) => {
+        return sum + (item.unit_price * item.qty * item.discount_percent / 100);
+      }, 0);
+      
+      const totalAfterItemDiscounts = subtotal - discountFromItems;
+      
+      const finalDiscountAmount = sale.final_discount_percent 
+        ? totalAfterItemDiscounts * (sale.final_discount_percent / 100)
+        : 0;
+      
+      const totalDiscountAmount = discountFromItems + finalDiscountAmount;
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Produto', 'Qtd', 'Preço Unit.', 'Desc.', 'Total']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [0, 102, 204],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        styles: {
+          fontSize: 9,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { halign: 'center', cellWidth: 20 },
+          2: { halign: 'right', cellWidth: 30 },
+          3: { halign: 'center', cellWidth: 20 },
+          4: { halign: 'right', cellWidth: 35 }
+        }
+      });
+      
+      // Resumo financeiro
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Box para resumo
+      doc.setDrawColor(200, 200, 200);
+      doc.setFillColor(248, 249, 250);
+      doc.rect(14, yPos - 5, 182, 58, 'FD');
       
       doc.setFontSize(12);
-      doc.text('Resumo:', 14, finalY);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RESUMO FINANCEIRO', 18, yPos);
+      yPos += 8;
       
-      let yPos = finalY + 8;
-      doc.text(
-        `Subtotal: ${new Intl.NumberFormat('pt-BR', {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Subtotal (produtos):`, 18, yPos);
+      doc.text(new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(subtotal), 190, yPos, { align: 'right' });
+      yPos += 6;
+      
+      if (totalDiscountAmount > 0) {
+        doc.setTextColor(220, 53, 69);
+        doc.text(`Desconto Total:`, 18, yPos);
+        doc.text(`- ${new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL'
-        }).format(subtotal)}`,
-        14,
-        yPos
-      );
-      
-      // Mostrar desconto final se existir
-      if (sale.final_discount_percent && sale.final_discount_percent > 0) {
+        }).format(totalDiscountAmount)}`, 190, yPos, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
         yPos += 6;
-        const discountAmount = subtotal * (sale.final_discount_percent / 100);
-        doc.text(
-          `Desconto Final (${sale.final_discount_percent}%): - ${new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(discountAmount)}`,
-          14,
-          yPos
-        );
       }
       
-      yPos += 6;
-      doc.setFontSize(14);
-      doc.text(
-        `Valor Total: ${new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).format(sale.gross_value)}`,
-        14,
-        yPos
-      );
-      doc.setFontSize(12);
+      // Linha separadora
+      doc.setDrawColor(0, 102, 204);
+      doc.setLineWidth(0.8);
+      doc.line(18, yPos, 192, yPos);
+      yPos += 7;
       
-      // Formas de pagamento
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('VALOR TOTAL:', 18, yPos);
+      doc.text(new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(sale.gross_value), 190, yPos, { align: 'right' });
+      yPos += 8;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Custo Total: ${new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(sale.total_cost)}`, 18, yPos);
+      yPos += 5;
+      
+      const profitPercent = sale.gross_value > 0 
+        ? ((sale.estimated_profit / sale.gross_value) * 100).toFixed(1)
+        : '0.0';
+      
+      doc.setTextColor(40, 167, 69);
+      doc.text(`Lucro Estimado: ${new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(sale.estimated_profit)} (${profitPercent}%)`, 18, yPos);
+      doc.setTextColor(0, 0, 0);
+      
       yPos += 10;
+      
+      // Informações de pagamento
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INFORMAÇÕES DE PAGAMENTO', 14, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
       if (sale.payment_method_1) {
         doc.text(`Forma de Pagamento: ${sale.payment_method_1}`, 14, yPos);
         yPos += 6;
@@ -351,11 +464,27 @@ export default function Sales() {
         yPos += 6;
       }
       
-      // Status do pagamento
+      // Status do pagamento com cor
+      if (sale.payment_received) {
+        doc.setTextColor(40, 167, 69);
+        doc.setFont('helvetica', 'bold');
+        doc.text('✓ Pagamento Recebido', 14, yPos);
+      } else {
+        doc.setTextColor(255, 193, 7);
+        doc.setFont('helvetica', 'bold');
+        doc.text('⏱ Pagamento Pendente', 14, yPos);
+      }
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      
+      // Rodapé
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
       doc.text(
-        `Status: ${sale.payment_received ? 'Pagamento Recebido' : 'Pagamento Pendente'}`,
-        14,
-        yPos + 2
+        `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`,
+        105,
+        280,
+        { align: 'center' }
       );
       
       // Salvar PDF
@@ -602,13 +731,20 @@ export default function Sales() {
         toast.success('Venda atualizada com sucesso!');
       } else {
         // Criar nova venda
+        console.log('📝 Criando venda...', saleData);
+        
         const { data: sale, error: saleError } = await supabase
           .from('sales')
           .insert([saleData])
           .select()
           .single();
 
-        if (saleError) throw saleError;
+        if (saleError) {
+          console.error('❌ Erro ao criar venda:', saleError);
+          throw new Error(`Erro ao criar venda: ${saleError.message}`);
+        }
+
+        console.log('✅ Venda criada com sucesso:', sale);
 
         // Criar os itens da venda
         const itemsData = saleItems.map(item => ({
@@ -619,12 +755,24 @@ export default function Sales() {
           discount_percent: item.discount_percent,
         }));
 
-        const { error: itemsError } = await supabase
+        console.log('📦 Inserindo itens da venda:', itemsData);
+
+        const { error: itemsError, data: insertedItems } = await supabase
           .from('sale_items')
-          .insert(itemsData);
+          .insert(itemsData)
+          .select();
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('❌ Erro ao inserir itens:', itemsError);
+          
+          // Rollback: deletar a venda criada
+          console.log('🔄 Executando rollback: deletando venda criada...');
+          await supabase.from('sales').delete().eq('id', sale.id);
+          
+          throw new Error(`Erro ao adicionar produtos: ${itemsError.message}`);
+        }
 
+        console.log('✅ Itens inseridos com sucesso:', insertedItems);
         toast.success('Venda criada com sucesso!');
       }
 
@@ -632,8 +780,8 @@ export default function Sales() {
       resetForm();
       fetchSales();
     } catch (error: any) {
-      console.error('Error saving sale:', error);
-      toast.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} venda: ` + error.message);
+      console.error('💥 Erro ao salvar venda:', error);
+      toast.error(error.message || `Erro ao ${isEditing ? 'atualizar' : 'criar'} venda`);
     } finally {
       setIsSubmitting(false);
     }
