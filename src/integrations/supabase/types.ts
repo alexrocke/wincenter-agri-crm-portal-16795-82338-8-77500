@@ -453,6 +453,7 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message: string | null
+          metadata: Json | null
           read: boolean
           title: string | null
           user_auth_id: string
@@ -468,6 +469,7 @@ export type Database = {
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
+          metadata?: Json | null
           read?: boolean
           title?: string | null
           user_auth_id: string
@@ -483,6 +485,7 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           message?: string | null
+          metadata?: Json | null
           read?: boolean
           title?: string | null
           user_auth_id?: string
