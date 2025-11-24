@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +31,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ClientHistoryDialog } from '@/components/client-history/ClientHistoryDialog';
+import { ClientDeviceStats } from '@/components/clients/ClientDeviceStats';
+import { ClientsWithDevicesSection } from '@/components/clients/ClientsWithDevicesSection';
+import { ClientAdvancedFilters } from '@/components/clients/ClientAdvancedFilters';
 
 interface Client {
   id: string;
@@ -49,6 +53,8 @@ interface Client {
   cep?: string;
   owner_user_id?: string;
   seller_auth_id?: string;
+  device_count?: number;
+  region?: string;
 }
 
 interface Seller {
@@ -167,6 +173,11 @@ export default function Clients() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   
+  // Filtros
+  const [deviceFilter, setDeviceFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
+  
 
   useEffect(() => {
     fetchClients();
@@ -219,12 +230,31 @@ export default function Clients() {
         }
       }
       
+      // Buscar contagem de dispositivos para cada cliente
+      const clientIds = (data || []).map(c => c.id);
+      let devicesCountMap: Record<string, number> = {};
+      
+      if (clientIds.length > 0) {
+        const { data: devicesData } = await supabase
+          .from('client_drone_info')
+          .select('client_id')
+          .in('client_id', clientIds);
+        
+        if (devicesData) {
+          devicesCountMap = devicesData.reduce((acc, device) => {
+            acc[device.client_id] = (acc[device.client_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+        }
+      }
+      
       const clientsWithSeller = (data || []).map((client: any) => {
         // Priorizar owner_user_id (técnico responsável), depois seller_auth_id (criador)
         const sellerName = usersMap[client.owner_user_id] || usersMap[client.seller_auth_id] || 'N/A';
         return {
           ...client,
           seller_name: sellerName,
+          device_count: devicesCountMap[client.id] || 0,
         };
       });
       
@@ -255,11 +285,43 @@ export default function Clients() {
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    client.farm_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.city?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter(client => {
+    // Filtro de busca textual
+    const matchesSearch = 
+      client.farm_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.city?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtro de dispositivos
+    const matchesDeviceFilter =
+      deviceFilter === 'all' ? true :
+      deviceFilter === 'with' ? ((client.device_count || 0) > 0) :
+      ((client.device_count || 0) === 0);
+    
+    // Filtro de status
+    const matchesStatusFilter =
+      statusFilter === 'all' ? true :
+      client.relationship_status === statusFilter;
+    
+    // Filtro de região
+    const matchesRegionFilter =
+      regionFilter === 'all' ? true :
+      client.region === regionFilter;
+    
+    return matchesSearch && matchesDeviceFilter && matchesStatusFilter && matchesRegionFilter;
+  });
+
+  // Estatísticas
+  const clientsWithDevices = clients.filter(c => (c.device_count || 0) > 0);
+  const totalDevices = clients.reduce((acc, c) => acc + (c.device_count || 0), 0);
+  const availableRegions = [...new Set(clients.map(c => c.region).filter(Boolean))] as string[];
+
+  const handleClearFilters = () => {
+    setDeviceFilter('all');
+    setStatusFilter('all');
+    setRegionFilter('all');
+    setSearchTerm('');
+  };
 
   // Paginação
   const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
@@ -1019,6 +1081,49 @@ export default function Clients() {
           </Card>
         </div>
 
+        {/* Estatísticas de Dispositivos */}
+        <ClientDeviceStats
+          totalClients={clients.length}
+          clientsWithDevices={clientsWithDevices.length}
+          totalDevices={totalDevices}
+        />
+
+        {/* Seção Especial: Clientes com Equipamentos */}
+        <ClientsWithDevicesSection
+          clients={clientsWithDevices.map(c => ({
+            id: c.id,
+            farm_name: c.farm_name,
+            contact_name: c.contact_name,
+            phone: c.phone,
+            whatsapp: c.whatsapp,
+            city: c.city,
+            state: c.state,
+            device_count: c.device_count || 0,
+            relationship_status: c.relationship_status,
+          }))}
+          onViewClient={(clientId) => {
+            const client = clients.find(c => c.id === clientId);
+            if (client) handleViewHistory(client);
+          }}
+          onCall={(phone) => window.open(`tel:${phone}`, '_self')}
+          onWhatsApp={handleWhatsApp}
+        />
+
+        {/* Filtros Avançados */}
+        <ClientAdvancedFilters
+          deviceFilter={deviceFilter}
+          statusFilter={statusFilter}
+          regionFilter={regionFilter}
+          onDeviceFilterChange={setDeviceFilter}
+          onStatusFilterChange={setStatusFilter}
+          onRegionFilterChange={setRegionFilter}
+          onClearFilters={handleClearFilters}
+          totalClients={clients.length}
+          clientsWithDevices={clientsWithDevices.length}
+          clientsWithoutDevices={clients.length - clientsWithDevices.length}
+          availableRegions={availableRegions}
+        />
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1065,7 +1170,15 @@ export default function Clients() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{client.farm_name || 'Sem nome'}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{client.farm_name || 'Sem nome'}</div>
+                          {(client.device_count || 0) > 0 && (
+                            <Badge variant="secondary" className="shrink-0">
+                              <Smartphone className="h-3 w-3 mr-1" />
+                              {client.device_count}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>
