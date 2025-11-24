@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+import { format, subDays, subMonths, subYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import {
@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ClientHistoryDialog } from '@/components/client-history/ClientHistoryDialog';
 
 interface Client {
   id: string;
@@ -165,6 +166,7 @@ export default function Clients() {
   const itemsPerPage = 20;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  
 
   useEffect(() => {
     fetchClients();
@@ -779,6 +781,7 @@ export default function Clients() {
       toast.error('Erro ao excluir dispositivo: ' + error.message);
     }
   };
+
 
   if (loading) {
     return (
