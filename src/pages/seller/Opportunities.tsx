@@ -552,8 +552,29 @@ export default function Opportunities() {
       }
 
       // ===== CONDIÇÕES COMERCIAIS =====
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Calcular altura necessária para o box de condições
+      let observationsHeight = 0;
+      let splitHistory: string[] = [];
+      if (opp.history) {
+        splitHistory = doc.splitTextToSize(opp.history, pageWidth - 40);
+        observationsHeight = splitHistory.length * 5 + 15; // altura do texto + espaçamento
+      }
+      
+      const conditionsBaseHeight = 52; // altura base para as 4 condições
+      const totalConditionsHeight = conditionsBaseHeight + observationsHeight;
+      const spaceNeeded = totalConditionsHeight + 80; // condições + assinaturas + margem
+      
+      // Verificar se precisa de nova página
+      if (currentY + spaceNeeded > pageHeight - 20) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      // Desenhar box com altura dinâmica
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.roundedRect(14, currentY, pageWidth - 28, 50, 2, 2, 'F');
+      doc.roundedRect(14, currentY, pageWidth - 28, totalConditionsHeight, 2, 2, 'F');
       
       doc.setFontSize(12);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -568,34 +589,37 @@ export default function Opportunities() {
       doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
       doc.setFont(undefined, 'normal');
-      currentY += 20;
       
-      doc.text('• Validade do orçamento: 30 dias', 20, currentY);
-      doc.text('• Forma de pagamento: A combinar', 20, currentY + 6);
-      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, currentY + 12);
-      doc.text('• Garantia: Conforme especificação do fabricante', 20, currentY + 18);
+      let conditionsY = currentY + 20;
+      doc.text('• Validade do orçamento: 30 dias', 20, conditionsY);
+      doc.text('• Forma de pagamento: A combinar', 20, conditionsY + 6);
+      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, conditionsY + 12);
+      doc.text('• Garantia: Conforme especificação do fabricante', 20, conditionsY + 18);
       
       if (opp.history) {
-        currentY += 24;
+        conditionsY += 28;
         doc.setFont(undefined, 'bold');
-        doc.text('Observações:', 20, currentY);
+        doc.text('Observações:', 20, conditionsY);
         doc.setFont(undefined, 'normal');
-        const splitHistory = doc.splitTextToSize(opp.history, pageWidth - 40);
-        doc.text(splitHistory, 20, currentY + 5);
-        currentY += splitHistory.length * 4 + 8;
-      } else {
-        currentY += 42;
+        doc.text(splitHistory, 20, conditionsY + 5);
       }
+      
+      currentY += totalConditionsHeight + 25;
 
       // ===== ÁREA DE ASSINATURAS =====
-      currentY += 18;
-      const signatureY = currentY + 25;
+      // Verificar se há espaço para assinaturas
+      if (currentY + 50 > pageHeight - 30) {
+        doc.addPage();
+        currentY = 20;
+      }
       
       // Texto acima das assinaturas
       doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
       doc.setFont(undefined, 'normal');
       doc.text('Declaro estar de acordo com as condições acima apresentadas:', 14, currentY);
+      
+      const signatureY = currentY + 20;
       
       // Assinatura vendedor
       doc.setDrawColor(100, 100, 100);
@@ -617,8 +641,8 @@ export default function Opportunities() {
       doc.setFontSize(8);
       doc.text(client?.contact_name || '', 147, signatureY + 10, { align: 'center' });
 
-      // ===== FOOTER =====
-      const footerY = signatureY + 25;
+      // ===== FOOTER FIXO NO RODAPÉ =====
+      const footerY = pageHeight - 20;
       
       // Linha verde
       doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
