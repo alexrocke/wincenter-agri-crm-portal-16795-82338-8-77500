@@ -377,47 +377,11 @@ export default function Opportunities() {
       validityDate.setDate(validityDate.getDate() + 30);
       doc.text(`Validade: ${validityDate.toLocaleDateString('pt-BR')}`, pageWidth - 14, currentY + 22, { align: 'right' });
 
-      currentY += 30;
-
-      // Linha verde separadora
-      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setLineWidth(1.5);
-      doc.line(14, currentY, pageWidth - 14, currentY);
-      
-      currentY += 10;
-
-      // ===== DADOS DO VENDEDOR (se disponível) =====
-      if (userProfile?.name) {
-        doc.setFillColor(248, 249, 250);
-        doc.roundedRect(14, currentY, pageWidth - 28, 20, 2, 2, 'F');
-        
-        currentY += 6;
-        doc.setFontSize(9);
-        doc.setTextColor(80, 80, 80);
-        doc.setFont(undefined, 'bold');
-        doc.text('Vendedor:', 18, currentY);
-        doc.setFont(undefined, 'normal');
-        doc.text(userProfile.name, 40, currentY);
-        
-        if (userProfile.email) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Email:', 18, currentY + 5);
-          doc.setFont(undefined, 'normal');
-          doc.text(userProfile.email, 33, currentY + 5);
-        }
-        
-        if (userProfile.phone) {
-          doc.setFont(undefined, 'bold');
-          doc.text('Telefone:', 18, currentY + 10);
-          doc.setFont(undefined, 'normal');
-          doc.text(userProfile.phone, 40, currentY + 10);
-        }
-        currentY += 26;
-      }
+      currentY += 20;
 
       // ===== DADOS DO CLIENTE =====
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.roundedRect(14, currentY, pageWidth - 28, 50, 2, 2, 'F');
+      doc.roundedRect(14, currentY, pageWidth - 28, 42, 2, 2, 'F');
       
       doc.setFontSize(12);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -432,7 +396,7 @@ export default function Opportunities() {
       doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
       doc.setFont(undefined, 'normal');
-      currentY += 20;
+      currentY += 18;
       
       doc.setFont(undefined, 'bold');
       doc.text('Fazenda:', 18, currentY);
@@ -440,24 +404,24 @@ export default function Opportunities() {
       doc.text(client?.farm_name || client?.contact_name || 'N/A', 40, currentY);
       
       doc.setFont(undefined, 'bold');
-      doc.text('Contato:', 18, currentY + 6);
+      doc.text('Contato:', 18, currentY + 5);
       doc.setFont(undefined, 'normal');
-      doc.text(client?.contact_name || 'N/A', 40, currentY + 6);
+      doc.text(client?.contact_name || 'N/A', 40, currentY + 5);
       
       const location = [client?.city, client?.state].filter(Boolean).join(', ') || 'N/A';
       doc.setFont(undefined, 'bold');
-      doc.text('Localização:', 18, currentY + 12);
+      doc.text('Localização:', 18, currentY + 10);
       doc.setFont(undefined, 'normal');
-      doc.text(location, 45, currentY + 12);
+      doc.text(location, 45, currentY + 10);
       
       if (client?.phone || client?.whatsapp) {
         doc.setFont(undefined, 'bold');
-        doc.text('Telefone:', 18, currentY + 18);
+        doc.text('Telefone:', 18, currentY + 15);
         doc.setFont(undefined, 'normal');
-        doc.text(client?.phone || client?.whatsapp || '', 40, currentY + 18);
+        doc.text(client?.phone || client?.whatsapp || '', 40, currentY + 15);
       }
       
-      currentY += 42;
+      currentY += 35;
 
       // ===== TABELA DE PRODUTOS =====
       if (productsData.length > 0) {
@@ -559,10 +523,10 @@ export default function Opportunities() {
       let splitHistory: string[] = [];
       if (opp.history) {
         splitHistory = doc.splitTextToSize(opp.history, pageWidth - 40);
-        observationsHeight = splitHistory.length * 5 + 15; // altura do texto + espaçamento
+        observationsHeight = splitHistory.length * 4.5 + 12;
       }
       
-      const conditionsBaseHeight = 52; // altura base para as 4 condições
+      const conditionsBaseHeight = 45;
       const totalConditionsHeight = conditionsBaseHeight + observationsHeight;
       const spaceNeeded = totalConditionsHeight + 80; // condições + assinaturas + margem
       
@@ -590,21 +554,21 @@ export default function Opportunities() {
       doc.setTextColor(60, 60, 60);
       doc.setFont(undefined, 'normal');
       
-      let conditionsY = currentY + 20;
+      let conditionsY = currentY + 18;
       doc.text('• Validade do orçamento: 30 dias', 20, conditionsY);
-      doc.text('• Forma de pagamento: A combinar', 20, conditionsY + 6);
-      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, conditionsY + 12);
-      doc.text('• Garantia: Conforme especificação do fabricante', 20, conditionsY + 18);
+      doc.text('• Forma de pagamento: A combinar', 20, conditionsY + 5);
+      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, conditionsY + 10);
+      doc.text('• Garantia: Conforme especificação do fabricante', 20, conditionsY + 15);
       
       if (opp.history) {
-        conditionsY += 28;
+        conditionsY += 22;
         doc.setFont(undefined, 'bold');
         doc.text('Observações:', 20, conditionsY);
         doc.setFont(undefined, 'normal');
         doc.text(splitHistory, 20, conditionsY + 5);
       }
       
-      currentY += totalConditionsHeight + 25;
+      currentY += totalConditionsHeight + 18;
 
       // ===== ÁREA DE ASSINATURAS =====
       // Verificar se há espaço para assinaturas
@@ -619,7 +583,7 @@ export default function Opportunities() {
       doc.setFont(undefined, 'normal');
       doc.text('Declaro estar de acordo com as condições acima apresentadas:', 14, currentY);
       
-      const signatureY = currentY + 20;
+      const signatureY = currentY + 15;
       
       // Assinatura vendedor
       doc.setDrawColor(100, 100, 100);
