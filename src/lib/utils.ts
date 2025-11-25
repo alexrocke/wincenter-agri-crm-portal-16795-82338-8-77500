@@ -33,3 +33,34 @@ export function hexToHSL(hex: string): string {
   // Retorna no formato "H S% L%" sem "hsl()"
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
+
+// Converter hex para RGB (para jsPDF)
+export function hexToRGB(hex: string): [number, number, number] {
+  hex = hex.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return [r, g, b];
+}
+
+// Formatar número do orçamento
+export function formatBudgetNumber(id: string, date: Date): string {
+  const year = date.getFullYear();
+  const shortId = id.slice(0, 6).toUpperCase();
+  return `${year}-${shortId}`;
+}
+
+// Carregar imagem como base64
+export async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
