@@ -32,9 +32,18 @@ interface Opportunity {
   client_id: string;
   seller_auth_id: string;
   product_ids?: string[];
+  payment_method?: string;
+  card_brand?: string;
+  installments?: number;
+  installment_fee?: number;
+  final_value_with_fee?: number;
   clients?: {
     farm_name: string;
     contact_name: string;
+    city?: string;
+    state?: string;
+    phone?: string;
+    whatsapp?: string;
   };
   seller_name?: string;
 }
@@ -49,6 +58,52 @@ interface ProposalProduct {
   discount_percent: number;
   subtotal: number;
 }
+
+// Tabela de taxas de juros para cartão de crédito
+const CARD_FEES = {
+  'MASTER/VISA': {
+    'DÉBITO': 0.99,
+    'CRÉDITO À VISTA': 2.99,
+    '2X': 4.41,
+    '3X': 5.16,
+    '4X': 5.91,
+    '5X': 6.64,
+    '6X': 7.38,
+    '7X': 8.10,
+    '8X': 8.81,
+    '9X': 9.52,
+    '10X': 10.22,
+    '11X': 10.91,
+    '12X': 11.60,
+    '13X': 12.28,
+    '14X': 12.95,
+    '15X': 13.62,
+    '16X': 14.27,
+    '17X': 14.93,
+    '18X': 15.57,
+  },
+  'ELO/OUTROS': {
+    'DÉBITO': 1.15,
+    'CRÉDITO À VISTA': 3.35,
+    '2X': 4.41,
+    '3X': 5.16,
+    '4X': 5.91,
+    '5X': 6.64,
+    '6X': 7.38,
+    '7X': 8.40,
+    '8X': 9.11,
+    '9X': 9.82,
+    '10X': 10.52,
+    '11X': 11.21,
+    '12X': 11.90,
+    '13X': 12.57,
+    '14X': 13.25,
+    '15X': 13.92,
+    '16X': 14.57,
+    '17X': 15.23,
+    '18X': 15.87,
+  },
+};
 
 export default function Opportunities() {
   const { user, userRole } = useAuth();
@@ -72,6 +127,9 @@ export default function Opportunities() {
     expected_close_date: '',
     history: '',
     product_ids: [] as string[],
+    payment_method: '',
+    card_brand: '',
+    installments: 1,
   });
   const [paymentData, setPaymentData] = useState({
     payment_method_1: '',
@@ -556,19 +614,53 @@ export default function Opportunities() {
       
       let conditionsY = currentY + 18;
       doc.text('• Validade do orçamento: 30 dias', 20, conditionsY);
-      doc.text('• Forma de pagamento: A combinar', 20, conditionsY + 5);
-      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, conditionsY + 10);
-      doc.text('• Garantia: Conforme especificação do fabricante', 20, conditionsY + 15);
+      
+      // Forma de pagamento dinâmica
+      const paymentMethodLabel = (() => {
+        switch (opp.payment_method) {
+          case 'PIX': return 'PIX';
+          case 'DINHEIRO': return 'Dinheiro';
+          case 'CARTAO_DEBITO': return 'Cartão de Débito';
+          case 'CARTAO_CREDITO': return 'Cartão de Crédito';
+          case 'BOLETO': return 'Boleto';
+          case 'A_COMBINAR': return 'A Combinar';
+          default: return 'A combinar';
+        }
+      })();
+      
+      doc.text(`• Forma de pagamento: ${paymentMethodLabel}`, 20, conditionsY + 5);
+      
+      // Se for cartão de crédito parcelado, mostrar detalhes
+      if (opp.payment_method === 'CARTAO_CREDITO' && opp.card_brand && opp.installments) {
+        const feeKey = opp.installments === 1 ? 'CRÉDITO À VISTA' : `${opp.installments}X`;
+        const feePercent = CARD_FEES[opp.card_brand as keyof typeof CARD_FEES]?.[feeKey as keyof typeof CARD_FEES['MASTER/VISA']] || 0;
+        const feeAmount = opp.gross_value * (feePercent / 100);
+        const finalValue = opp.gross_value + feeAmount;
+        const installmentValue = finalValue / opp.installments;
+        
+        doc.text(`  Bandeira: ${opp.card_brand}`, 20, conditionsY + 10);
+        doc.text(`  Parcelas: ${opp.installments}x de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(installmentValue)}`, 20, conditionsY + 15);
+        doc.setTextColor(220, 53, 69);
+        doc.text(`  Taxa (${feePercent}%): + ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(feeAmount)}`, 20, conditionsY + 20);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`  Valor Total a Pagar: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalValue)}`, 20, conditionsY + 25);
+        doc.setFont(undefined, 'normal');
+        conditionsY += 25;
+      }
+      
+      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, conditionsY + 5);
+      doc.text('• Garantia: Conforme especificação do fabricante', 20, conditionsY + 10);
       
       if (opp.history) {
-        conditionsY += 22;
+        conditionsY += 17;
         doc.setFont(undefined, 'bold');
         doc.text('Observações:', 20, conditionsY);
         doc.setFont(undefined, 'normal');
         doc.text(splitHistory, 20, conditionsY + 5);
       }
       
-      currentY += totalConditionsHeight + 18;
+      currentY += totalConditionsHeight + (opp.payment_method === 'CARTAO_CREDITO' && opp.installments ? 30 : 18);
 
       // ===== ÁREA DE ASSINATURAS =====
       // Verificar se há espaço para assinaturas
@@ -664,6 +756,17 @@ export default function Opportunities() {
         ? calculateFinalTotal(proposalProducts, valueAdjustment)
         : Number(formData.gross_value);
 
+      // Calculate fees if credit card payment
+      let installmentFee = 0;
+      let finalValueWithFee = calculatedGrossValue;
+      
+      if (formData.payment_method === 'CARTAO_CREDITO' && formData.card_brand && formData.installments) {
+        const feeKey = formData.installments === 1 ? 'CRÉDITO À VISTA' : `${formData.installments}X`;
+        const feePercent = CARD_FEES[formData.card_brand as keyof typeof CARD_FEES]?.[feeKey as keyof typeof CARD_FEES['MASTER/VISA']] || 0;
+        installmentFee = feePercent;
+        finalValueWithFee = calculatedGrossValue * (1 + feePercent / 100);
+      }
+
       const oppData: any = {
         client_id: formData.client_id,
         seller_auth_id: user?.id,
@@ -674,6 +777,11 @@ export default function Opportunities() {
         expected_close_date: formData.expected_close_date || null,
         history: formData.history || null,
         product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
+        payment_method: formData.payment_method || null,
+        card_brand: formData.payment_method === 'CARTAO_CREDITO' ? formData.card_brand : null,
+        installments: formData.payment_method === 'CARTAO_CREDITO' ? formData.installments : null,
+        installment_fee: installmentFee > 0 ? installmentFee : null,
+        final_value_with_fee: installmentFee > 0 ? finalValueWithFee : null,
       };
 
       const { data: newOpp, error } = await supabase
@@ -723,6 +831,9 @@ export default function Opportunities() {
       expected_close_date: '',
       history: '',
       product_ids: [],
+      payment_method: '',
+      card_brand: '',
+      installments: 1,
     });
     setProposalProducts([]);
     setSelectedNewProduct('');
@@ -744,6 +855,9 @@ export default function Opportunities() {
       expected_close_date: opp.expected_close_date || '',
       history: opp.history || '',
       product_ids: opp.product_ids || [],
+      payment_method: opp.payment_method || '',
+      card_brand: opp.card_brand || '',
+      installments: opp.installments || 1,
     });
 
     // Load products from opportunity_items first, fallback to product_ids for backward compatibility
@@ -823,6 +937,17 @@ export default function Opportunities() {
         ? calculateFinalTotal(proposalProducts, valueAdjustment)
         : Number(formData.gross_value);
 
+      // Calculate fees if credit card payment
+      let installmentFee = 0;
+      let finalValueWithFee = calculatedGrossValue;
+      
+      if (formData.payment_method === 'CARTAO_CREDITO' && formData.card_brand && formData.installments) {
+        const feeKey = formData.installments === 1 ? 'CRÉDITO À VISTA' : `${formData.installments}X`;
+        const feePercent = CARD_FEES[formData.card_brand as keyof typeof CARD_FEES]?.[feeKey as keyof typeof CARD_FEES['MASTER/VISA']] || 0;
+        installmentFee = feePercent;
+        finalValueWithFee = calculatedGrossValue * (1 + feePercent / 100);
+      }
+
       const { error } = await supabase
         .from('opportunities')
         .update({
@@ -834,6 +959,11 @@ export default function Opportunities() {
           expected_close_date: formData.expected_close_date || null,
           history: formData.history || null,
           product_ids: proposalProducts.length > 0 ? proposalProducts.map(p => p.product_id) : null,
+          payment_method: formData.payment_method || null,
+          card_brand: formData.payment_method === 'CARTAO_CREDITO' ? formData.card_brand : null,
+          installments: formData.payment_method === 'CARTAO_CREDITO' ? formData.installments : null,
+          installment_fee: installmentFee > 0 ? installmentFee : null,
+          final_value_with_fee: installmentFee > 0 ? finalValueWithFee : null,
         })
         .eq('id', selectedOpp.id);
 
@@ -1327,6 +1457,121 @@ export default function Opportunities() {
                     onChange={(e) => setFormData({ ...formData, history: e.target.value })}
                     rows={3}
                   />
+                </div>
+
+                {/* Payment Method Fields */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="font-medium text-sm">Forma de Pagamento</h4>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_method">Forma de Pagamento</Label>
+                    <Select
+                      value={formData.payment_method}
+                      onValueChange={(value) => {
+                        setFormData({ 
+                          ...formData, 
+                          payment_method: value,
+                          card_brand: value === 'CARTAO_CREDITO' ? formData.card_brand : '',
+                          installments: value === 'CARTAO_CREDITO' ? formData.installments : 1,
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a forma de pagamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PIX">PIX</SelectItem>
+                        <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
+                        <SelectItem value="CARTAO_DEBITO">Cartão de Débito</SelectItem>
+                        <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
+                        <SelectItem value="BOLETO">Boleto</SelectItem>
+                        <SelectItem value="A_COMBINAR">A Combinar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.payment_method === 'CARTAO_CREDITO' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="card_brand">Bandeira do Cartão</Label>
+                          <Select
+                            value={formData.card_brand}
+                            onValueChange={(value) => setFormData({ ...formData, card_brand: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione a bandeira" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MASTER/VISA">Master/Visa</SelectItem>
+                              <SelectItem value="ELO/OUTROS">Elo/Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="installments">Número de Parcelas</Label>
+                          <Select
+                            value={String(formData.installments)}
+                            onValueChange={(value) => setFormData({ ...formData, installments: Number(value) })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Parcelas" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">À vista</SelectItem>
+                              {Array.from({ length: 17 }, (_, i) => i + 2).map((num) => (
+                                <SelectItem key={num} value={String(num)}>
+                                  {num}x
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {formData.card_brand && formData.installments > 0 && (() => {
+                        const grossValue = proposalProducts.length > 0 
+                          ? calculateFinalTotal(proposalProducts, valueAdjustment)
+                          : Number(formData.gross_value) || 0;
+                        
+                        const feeKey = formData.installments === 1 
+                          ? 'CRÉDITO À VISTA' 
+                          : `${formData.installments}X`;
+                        
+                        const feePercent = CARD_FEES[formData.card_brand as keyof typeof CARD_FEES]?.[feeKey as keyof typeof CARD_FEES['MASTER/VISA']] || 0;
+                        const feeAmount = grossValue * (feePercent / 100);
+                        const finalValue = grossValue + feeAmount;
+                        const installmentValue = finalValue / formData.installments;
+
+                        return (
+                          <div className="bg-muted p-4 rounded-lg space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Valor do Orçamento:</span>
+                              <span className="font-medium">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(grossValue)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm text-orange-600">
+                              <span>Taxa ({feePercent}%):</span>
+                              <span className="font-medium">
+                                + {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(feeAmount)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between font-semibold text-base pt-2 border-t">
+                              <span>Valor Final (Cliente Paga):</span>
+                              <span className="text-primary">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalValue)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground text-center pt-1">
+                              {formData.installments}x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(installmentValue)}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
