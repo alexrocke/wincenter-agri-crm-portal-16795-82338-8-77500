@@ -496,14 +496,19 @@ export type Database = {
       }
       opportunities: {
         Row: {
+          card_brand: string | null
           client_id: string
           created_at: string
           estimated_margin: number | null
           expected_close_date: string | null
+          final_value_with_fee: number | null
           gross_value: number | null
           history: string | null
           id: string
+          installment_fee: number | null
+          installments: number | null
           loss_reason: string | null
+          payment_method: string | null
           probability: number | null
           product_ids: string[] | null
           seller_auth_id: string
@@ -511,14 +516,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          card_brand?: string | null
           client_id: string
           created_at?: string
           estimated_margin?: number | null
           expected_close_date?: string | null
+          final_value_with_fee?: number | null
           gross_value?: number | null
           history?: string | null
           id?: string
+          installment_fee?: number | null
+          installments?: number | null
           loss_reason?: string | null
+          payment_method?: string | null
           probability?: number | null
           product_ids?: string[] | null
           seller_auth_id: string
@@ -526,14 +536,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          card_brand?: string | null
           client_id?: string
           created_at?: string
           estimated_margin?: number | null
           expected_close_date?: string | null
+          final_value_with_fee?: number | null
           gross_value?: number | null
           history?: string | null
           id?: string
+          installment_fee?: number | null
+          installments?: number | null
           loss_reason?: string | null
+          payment_method?: string | null
           probability?: number | null
           product_ids?: string[] | null
           seller_auth_id?: string
