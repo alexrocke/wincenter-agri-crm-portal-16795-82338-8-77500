@@ -388,49 +388,76 @@ export default function Opportunities() {
 
       // ===== DADOS DO VENDEDOR (se disponível) =====
       if (userProfile?.name) {
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Vendedor: ${userProfile.name}`, 14, currentY);
+        doc.setFillColor(248, 249, 250);
+        doc.roundedRect(14, currentY, pageWidth - 28, 20, 2, 2, 'F');
+        
+        currentY += 6;
+        doc.setFontSize(9);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont(undefined, 'bold');
+        doc.text('Vendedor:', 18, currentY);
+        doc.setFont(undefined, 'normal');
+        doc.text(userProfile.name, 40, currentY);
+        
         if (userProfile.email) {
-          doc.text(`Email: ${userProfile.email}`, 14, currentY + 4);
+          doc.setFont(undefined, 'bold');
+          doc.text('Email:', 18, currentY + 5);
+          doc.setFont(undefined, 'normal');
+          doc.text(userProfile.email, 33, currentY + 5);
         }
+        
         if (userProfile.phone) {
-          doc.text(`Telefone: ${userProfile.phone}`, 14, currentY + 8);
+          doc.setFont(undefined, 'bold');
+          doc.text('Telefone:', 18, currentY + 10);
+          doc.setFont(undefined, 'normal');
+          doc.text(userProfile.phone, 40, currentY + 10);
         }
-        currentY += 15;
+        currentY += 26;
       }
 
       // ===== DADOS DO CLIENTE =====
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(14, currentY, pageWidth - 28, 35, 'F');
+      doc.roundedRect(14, currentY, pageWidth - 28, 50, 2, 2, 'F');
       
-      currentY += 5;
-      doc.setFontSize(11);
-      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('📋 DADOS DO CLIENTE', 18, currentY + 5);
+      doc.setFont(undefined, 'bold');
+      doc.text('DADOS DO CLIENTE', 18, currentY + 10);
       
-      currentY += 10;
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      // Linha divisória
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.line(18, currentY + 13, pageWidth - 18, currentY + 13);
+      
+      doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
+      doc.setFont(undefined, 'normal');
+      currentY += 20;
       
-      doc.text(`Fazenda: ${client?.farm_name || 'N/A'}`, 18, currentY + 5);
-      doc.text(`Contato: ${client?.contact_name || 'N/A'}`, 18, currentY + 10);
+      doc.setFont(undefined, 'bold');
+      doc.text('Fazenda:', 18, currentY);
+      doc.setFont(undefined, 'normal');
+      doc.text(client?.farm_name || client?.contact_name || 'N/A', 40, currentY);
       
-      if (client?.phone) {
-        doc.text(`Telefone: ${client.phone}`, 18, currentY + 15);
+      doc.setFont(undefined, 'bold');
+      doc.text('Contato:', 18, currentY + 6);
+      doc.setFont(undefined, 'normal');
+      doc.text(client?.contact_name || 'N/A', 40, currentY + 6);
+      
+      const location = [client?.city, client?.state].filter(Boolean).join(', ') || 'N/A';
+      doc.setFont(undefined, 'bold');
+      doc.text('Localização:', 18, currentY + 12);
+      doc.setFont(undefined, 'normal');
+      doc.text(location, 45, currentY + 12);
+      
+      if (client?.phone || client?.whatsapp) {
+        doc.setFont(undefined, 'bold');
+        doc.text('Telefone:', 18, currentY + 18);
+        doc.setFont(undefined, 'normal');
+        doc.text(client?.phone || client?.whatsapp || '', 40, currentY + 18);
       }
-      if (client?.email) {
-        doc.text(`Email: ${client.email}`, 18, currentY + 20);
-      }
       
-      const cityState = [client?.city, client?.state].filter(Boolean).join(', ');
-      if (cityState) {
-        doc.text(`Localização: ${cityState}`, 18, currentY + 25);
-      }
-      
-      currentY += 40;
+      currentY += 42;
 
       // ===== TABELA DE PRODUTOS =====
       if (productsData.length > 0) {
@@ -455,26 +482,28 @@ export default function Opportunities() {
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             fontSize: 10,
-            halign: 'center'
+            halign: 'center',
+            cellPadding: 6
           },
           bodyStyles: {
             fontSize: 9,
-            textColor: [60, 60, 60]
+            textColor: [50, 50, 50],
+            cellPadding: 6
           },
           alternateRowStyles: { 
             fillColor: lightGray
           },
           columnStyles: {
-            0: { cellWidth: 80 },
+            0: { cellWidth: 70, halign: 'left', fontStyle: 'bold' },
             1: { halign: 'center', cellWidth: 20 },
             2: { halign: 'right', cellWidth: 35 },
-            3: { halign: 'center', cellWidth: 20 },
-            4: { halign: 'right', cellWidth: 35 }
+            3: { halign: 'center', cellWidth: 25 },
+            4: { halign: 'right', cellWidth: 35, fontStyle: 'bold' }
           },
           margin: { left: 14, right: 14 }
         });
 
-        currentY = (doc as any).lastAutoTable.finalY + 5;
+        currentY = (doc as any).lastAutoTable.finalY + 8;
 
         // ===== SEÇÃO DE TOTAIS =====
         const subtotalProducts = productsData.reduce((sum: number, item: any) => {
@@ -487,90 +516,125 @@ export default function Opportunities() {
           return sum + (fullPrice - discounted);
         }, 0);
 
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(80, 80, 80);
-        
         const rightX = pageWidth - 14;
-        doc.text('Subtotal:', rightX - 50, currentY + 5);
-        doc.text(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotalProducts + totalDiscount), rightX, currentY + 5, { align: 'right' });
+        
+        // Box para totais
+        doc.setFillColor(250, 250, 250);
+        doc.roundedRect(rightX - 90, currentY - 5, 90, totalDiscount > 0 ? 30 : 22, 2, 2, 'F');
+        
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        
+        currentY += 2;
+        doc.setFont(undefined, 'normal');
+        doc.text('Subtotal:', rightX - 85, currentY, { align: 'left' });
+        doc.text(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotalProducts + totalDiscount), rightX - 5, currentY, { align: 'right' });
         
         if (totalDiscount > 0) {
-          doc.text('Desconto:', rightX - 50, currentY + 10);
-          doc.text(`-${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDiscount)}`, rightX, currentY + 10, { align: 'right' });
-          currentY += 5;
+          doc.text('Desconto:', rightX - 85, currentY + 7, { align: 'left' });
+          doc.setTextColor(220, 53, 69);
+          doc.text(`-${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDiscount)}`, rightX - 5, currentY + 7, { align: 'right' });
+          currentY += 7;
         }
-
-        // Total destacado
-        doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.rect(pageWidth - 90, currentY + 12, 76, 10, 'F');
         
-        doc.setFontSize(12);
+        // Total destacado
+        currentY += 8;
+        doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.roundedRect(rightX - 90, currentY - 5, 90, 14, 2, 2, 'F');
+        
+        doc.setFontSize(13);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.text('TOTAL:', rightX - 50, currentY + 19);
-        doc.text(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(opp.gross_value), rightX, currentY + 19, { align: 'right' });
+        doc.text('TOTAL:', rightX - 85, currentY + 3, { align: 'left' });
+        doc.text(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(opp.gross_value), rightX - 5, currentY + 3, { align: 'right' });
 
-        currentY += 30;
+        currentY += 20;
       }
 
       // ===== CONDIÇÕES COMERCIAIS =====
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(14, currentY, pageWidth - 28, 45, 'F');
+      doc.roundedRect(14, currentY, pageWidth - 28, 50, 2, 2, 'F');
       
-      currentY += 5;
-      doc.setFontSize(11);
-      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('📝 CONDIÇÕES COMERCIAIS', 18, currentY + 5);
+      doc.setFont(undefined, 'bold');
+      doc.text('CONDIÇÕES COMERCIAIS', 18, currentY + 10);
       
-      currentY += 10;
+      // Linha divisória
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.line(18, currentY + 13, pageWidth - 18, currentY + 13);
+      
       doc.setFontSize(9);
-      doc.setFont(undefined, 'normal');
       doc.setTextColor(60, 60, 60);
+      doc.setFont(undefined, 'normal');
+      currentY += 20;
       
-      doc.text('• Validade do orçamento: 30 dias', 18, currentY + 5);
-      doc.text('• Forma de pagamento: A combinar', 18, currentY + 10);
-      doc.text('• Prazo de entrega: A combinar após confirmação', 18, currentY + 15);
-      doc.text('• Garantia: Conforme fabricante', 18, currentY + 20);
+      doc.text('• Validade do orçamento: 30 dias', 20, currentY);
+      doc.text('• Forma de pagamento: A combinar', 20, currentY + 6);
+      doc.text('• Prazo de entrega: Conforme disponibilidade de estoque', 20, currentY + 12);
+      doc.text('• Garantia: Conforme especificação do fabricante', 20, currentY + 18);
       
       if (opp.history) {
-        currentY += 25;
-        doc.text('Observações:', 18, currentY);
-        const splitHistory = doc.splitTextToSize(opp.history, pageWidth - 36);
-        doc.text(splitHistory, 18, currentY + 5);
+        currentY += 24;
+        doc.setFont(undefined, 'bold');
+        doc.text('Observações:', 20, currentY);
+        doc.setFont(undefined, 'normal');
+        const splitHistory = doc.splitTextToSize(opp.history, pageWidth - 40);
+        doc.text(splitHistory, 20, currentY + 5);
+        currentY += splitHistory.length * 4 + 8;
+      } else {
+        currentY += 42;
       }
-      
-      currentY += 50;
 
       // ===== ÁREA DE ASSINATURAS =====
-      const signatureY = Math.max(currentY, 230);
+      currentY += 18;
+      const signatureY = currentY + 25;
       
-      doc.setFontSize(10);
-      doc.setTextColor(60, 60, 60);
+      // Texto acima das assinaturas
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont(undefined, 'normal');
+      doc.text('Declaro estar de acordo com as condições acima apresentadas:', 14, currentY);
       
-      // Linha vendedor
+      // Assinatura vendedor
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.3);
       doc.line(20, signatureY, 85, signatureY);
-      doc.text('Vendedor', 52, signatureY + 5, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.text('Vendedor(a)', 52, signatureY + 5, { align: 'center' });
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      doc.text(userProfile?.name || '', 52, signatureY + 10, { align: 'center' });
       
-      // Linha cliente
+      // Assinatura cliente
       doc.line(115, signatureY, 180, signatureY);
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
       doc.text('Cliente', 147, signatureY + 5, { align: 'center' });
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      doc.text(client?.contact_name || '', 147, signatureY + 10, { align: 'center' });
 
       // ===== FOOTER =====
-      const footerY = 270;
+      const footerY = signatureY + 25;
       
       // Linha verde
       doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setLineWidth(1.5);
+      doc.setLineWidth(2);
       doc.line(14, footerY, pageWidth - 14, footerY);
       
       doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont(undefined, 'normal');
       const now = new Date();
       const timestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
       doc.text(`Documento gerado em ${timestamp}`, pageWidth / 2, footerY + 7, { align: 'center' });
-      doc.text('Este orçamento tem validade de 30 dias', pageWidth / 2, footerY + 12, { align: 'center' });
+      
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('Validade: 30 dias', pageWidth / 2, footerY + 12, { align: 'center' });
 
       // Salvar PDF
       const fileName = `Orcamento_${client?.farm_name?.replace(/\s+/g, '_') || 'Cliente'}_${budgetNumber.replace('/', '-')}.pdf`;
