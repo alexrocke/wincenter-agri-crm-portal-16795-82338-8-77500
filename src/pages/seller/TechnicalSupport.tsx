@@ -2807,12 +2807,22 @@ export default function TechnicalSupport() {
 
       {/* Dialog de Conclusão */}
       <Dialog open={concludeDialogOpen} onOpenChange={setConcludeDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Concluir Atendimento Técnico</DialogTitle>
           </DialogHeader>
           
-          {serviceToComplete && (
+          {serviceToComplete && (() => {
+            // Calcular valor real baseado em produtos + serviços
+            const productsTotal = (serviceToComplete.service_items || []).reduce((sum, item) => {
+              const itemTotal = item.unit_price * item.qty;
+              const discount = itemTotal * (item.discount_percent / 100);
+              return sum + (itemTotal - discount);
+            }, 0);
+            const servicesTotal = getServicesTotalFromNotes(serviceToComplete.notes);
+            const calculatedTotal = productsTotal + servicesTotal;
+            
+            return (
             <div className="space-y-6">
               {/* Info do Serviço */}
               <div className="p-4 bg-muted/50 rounded-lg space-y-2">
@@ -2824,11 +2834,9 @@ export default function TechnicalSupport() {
                 {serviceToComplete.equipment_model && (
                   <p><strong>Equipamento:</strong> {serviceToComplete.equipment_model}</p>
                 )}
-                {serviceToComplete.total_value !== undefined && serviceToComplete.total_value !== null && (
-                  <p className="text-lg font-semibold text-primary">
-                    Valor: R$ {serviceToComplete.total_value.toFixed(2)}
-                  </p>
-                )}
+                <p className="text-lg font-semibold text-primary">
+                  Valor: R$ {calculatedTotal.toFixed(2)}
+                </p>
               </div>
 
               {/* Formas de Pagamento */}
@@ -2892,7 +2900,7 @@ export default function TechnicalSupport() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-lg font-bold text-primary pt-2 border-t">
                     <span>Valor do Atendimento:</span>
-                    <span>R$ {(serviceToComplete.total_value || 0).toFixed(2)}</span>
+                    <span>R$ {calculatedTotal.toFixed(2)}</span>
                   </div>
                   {paymentMethods.length > 0 && (
                     <div className="pt-2 border-t">
@@ -2902,7 +2910,7 @@ export default function TechnicalSupport() {
                           {paymentMethods[0] === "pix" ? "PIX" : 
                            paymentMethods[0] === "cartao" ? "Cartão" : 
                            paymentMethods[0] === "outro" ? otherPaymentMethod || "Outro" : 
-                           paymentMethods[0]} - R$ {(serviceToComplete.total_value || 0).toFixed(2)}
+                           paymentMethods[0]} - R$ {calculatedTotal.toFixed(2)}
                         </div>
                       ) : (
                         <div className="mt-1 space-y-1">
@@ -2937,7 +2945,8 @@ export default function TechnicalSupport() {
                 </Button>
               </DialogFooter>
             </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
