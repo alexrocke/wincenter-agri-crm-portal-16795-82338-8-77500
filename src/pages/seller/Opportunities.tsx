@@ -1036,13 +1036,34 @@ export default function Opportunities() {
     if (!selectedOpp) return;
 
     try {
+      // 1. Buscar os itens do orçamento com custo dos produtos
+      const { data: oppItems, error: oppItemsError } = await supabase
+        .from('opportunity_items')
+        .select('*, product:products(cost)')
+        .eq('opportunity_id', selectedOpp.id);
+
+      if (oppItemsError) throw oppItemsError;
+
+      // 2. Calcular custo total e lucro real
+      let totalCost = 0;
+      if (oppItems && oppItems.length > 0) {
+        totalCost = oppItems.reduce((sum, item) => {
+          const productCost = (item.product as any)?.cost || 0;
+          return sum + (productCost * item.quantity);
+        }, 0);
+      }
+
+      const grossValue = selectedOpp.final_value_with_fee || selectedOpp.gross_value || 0;
+      const estimatedProfit = grossValue - totalCost;
+
+      // 3. Criar a venda com valores corretos
       const saleData = {
         client_id: selectedOpp.client_id,
         seller_auth_id: user?.id,
         status: 'closed' as const,
-        gross_value: selectedOpp.gross_value,
-        total_cost: 0,
-        estimated_profit: selectedOpp.gross_value * (selectedOpp.estimated_margin / 100 || 0),
+        gross_value: grossValue,
+        total_cost: totalCost,
+        estimated_profit: estimatedProfit,
         payment_method_1: paymentData.payment_method_1 || null,
         payment_method_2: paymentData.payment_method_2 || null,
         sold_at: new Date().toISOString(),
@@ -1056,18 +1077,15 @@ export default function Opportunities() {
 
       if (saleError) throw saleError;
 
-      // Create sale items with proper quantities and discounts
-      if (selectedOpp.product_ids && selectedOpp.product_ids.length > 0) {
-        const saleItems = selectedOpp.product_ids.map(productId => {
-          const product = products.find(p => p.id === productId);
-          return {
-            sale_id: sale.id,
-            product_id: productId,
-            qty: 1, // Default for backward compatibility
-            unit_price: product?.price || 0,
-            discount_percent: 0,
-          };
-        });
+      // 4. Copiar itens com quantidades e preços corretos
+      if (oppItems && oppItems.length > 0) {
+        const saleItems = oppItems.map(item => ({
+          sale_id: sale.id,
+          product_id: item.product_id,
+          qty: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent || 0,
+        }));
 
         const { error: itemsError } = await supabase
           .from('sale_items')
@@ -1076,6 +1094,7 @@ export default function Opportunities() {
         if (itemsError) throw itemsError;
       }
 
+      // 5. Atualizar oportunidade como ganha
       const { error: oppError } = await supabase
         .from('opportunities')
         .update({ stage: 'won' })
