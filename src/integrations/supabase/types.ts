@@ -508,6 +508,7 @@ export type Database = {
           installment_fee: number | null
           installments: number | null
           loss_reason: string | null
+          opportunity_type: string | null
           payment_method: string | null
           probability: number | null
           product_ids: string[] | null
@@ -528,6 +529,7 @@ export type Database = {
           installment_fee?: number | null
           installments?: number | null
           loss_reason?: string | null
+          opportunity_type?: string | null
           payment_method?: string | null
           probability?: number | null
           product_ids?: string[] | null
@@ -548,6 +550,7 @@ export type Database = {
           installment_fee?: number | null
           installments?: number | null
           loss_reason?: string | null
+          opportunity_type?: string | null
           payment_method?: string | null
           probability?: number | null
           product_ids?: string[] | null
