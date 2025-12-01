@@ -5,3 +5,15 @@ verify_jwt = false
 
 [functions.send-fcm-notification]
 verify_jwt = false
+
+[functions.check-expired-reservations]
+verify_jwt = false
+
+[functions.auto-followup]
+verify_jwt = false
+
+[functions.ai-sales-prediction]
+verify_jwt = true
+
+[functions.generate-seller-report]
+verify_jwt = true

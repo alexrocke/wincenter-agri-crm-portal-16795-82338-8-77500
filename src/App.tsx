@@ -50,6 +50,10 @@ import SimplifiedDemonstrations from "./pages/seller/simple/Demonstrations";
 import SimplifiedTechnicalSupport from "./pages/seller/simple/TechnicalSupport";
 import SimplifiedTasks from "./pages/seller/simple/Tasks";
 import SimplifiedNotifications from "./pages/seller/simple/Notifications";
+import Calendar from "./pages/seller/Calendar";
+import Ranking from "./pages/seller/Ranking";
+import Insights from "./pages/seller/Insights";
+import Reports from "./pages/seller/Reports";
 
 const queryClient = new QueryClient();
 
@@ -305,6 +309,38 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Tasks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/calendar"
+              element={
+                <ProtectedRoute>
+                  <Calendar />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/ranking"
+              element={
+                <ProtectedRoute>
+                  <Ranking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/insights"
+              element={
+                <ProtectedRoute>
+                  <Insights />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seller/reports"
+              element={
+                <ProtectedRoute>
+                  <Reports />
                 </ProtectedRoute>
               }
             />
