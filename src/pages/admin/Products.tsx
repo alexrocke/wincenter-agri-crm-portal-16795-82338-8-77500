@@ -1134,11 +1134,6 @@ export default function Products() {
                             </TableCell>
                             <TableCell>
                               <div className="font-medium">{product.name}</div>
-                              {product.description && (
-                                <div className="text-sm text-muted-foreground truncate max-w-xs">
-                                  {product.description}
-                                </div>
-                              )}
                             </TableCell>
                             <TableCell>
                               {new Intl.NumberFormat('pt-BR', {
