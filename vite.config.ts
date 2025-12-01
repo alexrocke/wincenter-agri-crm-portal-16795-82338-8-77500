@@ -45,6 +45,7 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 7000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
+          // Google Fonts - Cache longo (imutável)
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -59,18 +60,52 @@ export default defineConfig(({ mode }) => ({
               }
             }
           },
+          // Supabase Auth - Nunca cachear (NetworkOnly)
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          // Supabase Data (REST API) - NetworkFirst com cache de 7 dias
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-cache',
-              networkTimeoutSeconds: 10,
+              cacheName: 'supabase-data-cache',
+              networkTimeoutSeconds: 5,
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 // 1 hora
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 dias
               },
               cacheableResponse: {
                 statuses: [0, 200]
+              }
+            }
+          },
+          // Supabase Storage - CacheFirst com cache de 30 dias
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-storage-cache',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Supabase Functions - NetworkFirst com timeout curto
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/functions\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-functions-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 5 // 5 minutos
               }
             }
           }

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -441,6 +442,7 @@ const App = () => (
           </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
+      <OfflineIndicator />
   </QueryClientProvider>
 );
 
