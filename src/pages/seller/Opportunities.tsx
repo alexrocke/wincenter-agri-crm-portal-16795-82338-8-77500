@@ -1127,6 +1127,8 @@ export default function Opportunities() {
     if (!selectedOpp) return;
 
     try {
+      console.log('🔄 Iniciando conversão de orçamento em venda:', selectedOpp.id);
+
       // 1. Buscar os itens do orçamento com custo dos produtos
       const { data: oppItems, error: oppItemsError } = await supabase
         .from('opportunity_items')
@@ -1135,10 +1137,23 @@ export default function Opportunities() {
 
       if (oppItemsError) throw oppItemsError;
 
-      // 2. Calcular custo total e lucro real
+      console.log(`📦 ${oppItems?.length || 0} itens encontrados no orçamento`);
+
+      // 2. Filtrar apenas itens de produto (excluir serviços que não têm product_id)
+      const productItems = (oppItems || []).filter(item => 
+        item.product_id && item.item_type === 'product'
+      );
+
+      console.log(`✅ ${productItems.length} itens de produto válidos para conversão`);
+
+      if (productItems.length === 0) {
+        throw new Error('Orçamento não possui produtos válidos para conversão');
+      }
+
+      // 3. Calcular custo total e lucro real
       let totalCost = 0;
-      if (oppItems && oppItems.length > 0) {
-        totalCost = oppItems.reduce((sum, item) => {
+      if (productItems.length > 0) {
+        totalCost = productItems.reduce((sum, item) => {
           const productCost = (item.product as any)?.cost || 0;
           return sum + (productCost * item.quantity);
         }, 0);
@@ -1147,7 +1162,9 @@ export default function Opportunities() {
       const grossValue = selectedOpp.final_value_with_fee || selectedOpp.gross_value || 0;
       const estimatedProfit = grossValue - totalCost;
 
-      // 3. Criar a venda com valores corretos
+      console.log(`💰 Valores - Bruto: ${grossValue}, Custo: ${totalCost}, Lucro: ${estimatedProfit}`);
+
+      // 4. Criar a venda com valores corretos
       const saleData = {
         client_id: selectedOpp.client_id,
         seller_auth_id: user?.id,
@@ -1168,9 +1185,11 @@ export default function Opportunities() {
 
       if (saleError) throw saleError;
 
-      // 4. Copiar itens com quantidades e preços corretos
-      if (oppItems && oppItems.length > 0) {
-        const saleItems = oppItems.map(item => ({
+      console.log('✅ Venda criada com ID:', sale.id);
+
+      // 5. Copiar apenas itens de produto válidos
+      if (productItems.length > 0) {
+        const saleItems = productItems.map(item => ({
           sale_id: sale.id,
           product_id: item.product_id,
           qty: item.quantity,
@@ -1182,10 +1201,19 @@ export default function Opportunities() {
           .from('sale_items')
           .insert(saleItems);
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('❌ Erro ao inserir itens, iniciando rollback:', itemsError);
+          
+          // ROLLBACK: Deletar a venda criada
+          await supabase.from('sales').delete().eq('id', sale.id);
+          
+          throw new Error(`Erro ao adicionar produtos: ${itemsError.message}`);
+        }
+
+        console.log(`✅ ${saleItems.length} itens inseridos com sucesso`);
       }
 
-      // 5. Atualizar oportunidade como ganha
+      // 6. Atualizar oportunidade como ganha
       const { error: oppError } = await supabase
         .from('opportunities')
         .update({ stage: 'won' })
@@ -1193,12 +1221,14 @@ export default function Opportunities() {
 
       if (oppError) throw oppError;
 
+      console.log('✅ Orçamento marcado como ganho');
+
       toast.success('Orçamento convertido em venda com sucesso!');
       setConvertDialogOpen(false);
       setSelectedOpp(null);
       fetchOpportunities();
     } catch (error: any) {
-      console.error('Error converting proposal to sale:', error);
+      console.error('❌ Erro ao converter orçamento:', error);
       toast.error('Erro ao converter orçamento: ' + error.message);
     }
   };
