@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_type: string
+          created_at: string | null
+          earned_at: string | null
+          id: string
+          metadata: Json | null
+          period_ym: string | null
+          seller_auth_id: string
+        }
+        Insert: {
+          achievement_type: string
+          created_at?: string | null
+          earned_at?: string | null
+          id?: string
+          metadata?: Json | null
+          period_ym?: string | null
+          seller_auth_id: string
+        }
+        Update: {
+          achievement_type?: string
+          created_at?: string | null
+          earned_at?: string | null
+          id?: string
+          metadata?: Json | null
+          period_ym?: string | null
+          seller_auth_id?: string
+        }
+        Relationships: []
+      }
       client_drone_info: {
         Row: {
           client_id: string
