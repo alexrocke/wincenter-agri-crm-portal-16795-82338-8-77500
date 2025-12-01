@@ -193,8 +193,20 @@ export default function SimplifiedSales() {
                 <div className="space-y-4">
                   <Label>Adicione os Produtos</Label>
                   <ProductQuickAdd
-                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty, discount_percent: 0 }))}
-                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price, discount_percent: 0 })))}
+                    items={saleItems.map(i => ({ 
+                      product_id: i.product_id, 
+                      item_type: 'product' as const, 
+                      name: '', 
+                      quantity: i.qty, 
+                      unit_price: i.unit_price,
+                      discount_percent: 0 
+                    }))}
+                    onItemsChange={(items) => setSaleItems(items.filter(i => i.product_id).map(i => ({ 
+                      product_id: i.product_id!, 
+                      qty: i.quantity, 
+                      unit_price: i.unit_price, 
+                      discount_percent: i.discount_percent 
+                    })))}
                   />
                   <Button onClick={() => setStep(3)} size="lg" className="w-full">
                     Continuar
@@ -303,8 +315,20 @@ export default function SimplifiedSales() {
                 <div className="space-y-4">
                   <Label>Adicione os Produtos</Label>
                   <ProductQuickAdd
-                    items={saleItems.map(i => ({ ...i, name: '', quantity: i.qty, discount_percent: 0 }))}
-                    onItemsChange={(items) => setSaleItems(items.map(i => ({ product_id: i.product_id, qty: i.quantity, unit_price: i.unit_price, discount_percent: 0 })))}
+                    items={saleItems.map(i => ({ 
+                      product_id: i.product_id, 
+                      item_type: 'product' as const, 
+                      name: '', 
+                      quantity: i.qty, 
+                      unit_price: i.unit_price,
+                      discount_percent: 0 
+                    }))}
+                    onItemsChange={(items) => setSaleItems(items.filter(i => i.product_id).map(i => ({ 
+                      product_id: i.product_id!, 
+                      qty: i.quantity, 
+                      unit_price: i.unit_price, 
+                      discount_percent: i.discount_percent 
+                    })))}
                   />
                   <Button onClick={() => setStep(3)} size="lg" className="w-full">
                     Continuar

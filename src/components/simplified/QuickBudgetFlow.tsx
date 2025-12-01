@@ -16,7 +16,9 @@ interface Client {
 }
 
 interface ProductItem {
-  product_id: string;
+  product_id?: string;
+  service_id?: string;
+  item_type: 'product' | 'internal' | 'service';
   name: string;
   quantity: number;
   unit_price: number;
@@ -67,6 +69,10 @@ export function QuickBudgetFlow({ onComplete }: QuickBudgetFlowProps) {
     try {
       const grossValue = calculateTotal();
       
+      const productIds = items
+        .filter(item => item.product_id)
+        .map(item => item.product_id!);
+      
       // Criar oportunidade
       const { data: opp, error: oppError } = await supabase
         .from('opportunities')
@@ -76,7 +82,7 @@ export function QuickBudgetFlow({ onComplete }: QuickBudgetFlowProps) {
           stage: 'lead' as const,
           gross_value: grossValue,
           probability: 50,
-          product_ids: items.map(item => item.product_id),
+          product_ids: productIds,
         })
         .select()
         .single();
@@ -86,7 +92,9 @@ export function QuickBudgetFlow({ onComplete }: QuickBudgetFlowProps) {
       // Criar itens da oportunidade
       const oppItems = items.map(item => ({
         opportunity_id: opp.id,
-        product_id: item.product_id,
+        product_id: item.product_id || null,
+        service_id: item.service_id || null,
+        item_type: item.item_type,
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_percent: item.discount_percent,
