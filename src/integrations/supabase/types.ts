@@ -570,27 +570,33 @@ export type Database = {
           created_at: string
           discount_percent: number
           id: string
+          item_type: string | null
           opportunity_id: string
           product_id: string
           quantity: number
+          service_id: string | null
           unit_price: number
         }
         Insert: {
           created_at?: string
           discount_percent?: number
           id?: string
+          item_type?: string | null
           opportunity_id: string
           product_id: string
           quantity?: number
+          service_id?: string | null
           unit_price: number
         }
         Update: {
           created_at?: string
           discount_percent?: number
           id?: string
+          item_type?: string | null
           opportunity_id?: string
           product_id?: string
           quantity?: number
+          service_id?: string | null
           unit_price?: number
         }
         Relationships: [
@@ -606,6 +612,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -848,6 +861,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_catalog: {
+        Row: {
+          category: string | null
+          created_at: string
+          default_price: number
+          description: string | null
+          estimated_duration_hours: number | null
+          id: string
+          name: string
+          price_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          default_price?: number
+          description?: string | null
+          estimated_duration_hours?: number | null
+          id?: string
+          name: string
+          price_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          default_price?: number
+          description?: string | null
+          estimated_duration_hours?: number | null
+          id?: string
+          name?: string
+          price_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       service_files: {
         Row: {

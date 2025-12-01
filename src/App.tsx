@@ -22,6 +22,7 @@ import UsersInvites from "./pages/admin/UsersInvites";
 import SiteSettings from "./pages/admin/SiteSettings";
 import AdminNotifications from "./pages/admin/Notifications";
 import InternalStock from "./pages/admin/InternalStock";
+import ServiceCatalog from "./pages/admin/ServiceCatalog";
 import Notifications from "./pages/Notifications";
 import SellerDashboard from "./pages/seller/Dashboard";
 import Clients from "./pages/seller/Clients";
@@ -189,6 +190,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <InternalStock />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/service-catalog"
+              element={
+                <AdminRoute>
+                  <ServiceCatalog />
                 </AdminRoute>
               }
             />
