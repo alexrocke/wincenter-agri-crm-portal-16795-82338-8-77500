@@ -85,6 +85,7 @@ const adminGroups = [
     storageKey: 'sidebar-gestao-open',
     items: [
       { to: '/admin/products', icon: Package, label: 'Produtos' },
+      { to: '/admin/internal-stock', icon: Wrench, label: 'Estoque Interno' },
       { to: '/admin/goals', icon: Target, label: 'Metas' },
       { to: '/admin/company-costs', icon: Receipt, label: 'Custos' },
     ],

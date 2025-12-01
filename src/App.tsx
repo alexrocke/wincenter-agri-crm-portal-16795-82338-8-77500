@@ -21,6 +21,7 @@ import AdminSales from "./pages/admin/Sales";
 import UsersInvites from "./pages/admin/UsersInvites";
 import SiteSettings from "./pages/admin/SiteSettings";
 import AdminNotifications from "./pages/admin/Notifications";
+import InternalStock from "./pages/admin/InternalStock";
 import Notifications from "./pages/Notifications";
 import SellerDashboard from "./pages/seller/Dashboard";
 import Clients from "./pages/seller/Clients";
@@ -180,6 +181,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminNotifications />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/internal-stock"
+              element={
+                <AdminRoute>
+                  <InternalStock />
                 </AdminRoute>
               }
             />
