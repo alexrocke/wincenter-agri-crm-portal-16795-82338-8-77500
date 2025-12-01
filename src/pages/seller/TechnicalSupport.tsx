@@ -32,6 +32,8 @@ interface Product {
   price: number;
   stock: number;
   cost: number;
+  is_internal?: boolean;
+  internal_category?: string;
 }
 
 interface ProductItem {
@@ -40,6 +42,14 @@ interface ProductItem {
   unit_price: number;
   qty: number;
   discount_percent: number;
+}
+
+interface InternalItem {
+  product_id: string;
+  product_name: string;
+  qty: number;
+  charged_to_client: boolean;
+  unit_price: number;
 }
 
 interface ServiceItem {
@@ -124,11 +134,15 @@ export default function TechnicalSupport() {
   const [selectedService, setSelectedService] = useState<TechnicalService | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [internalProducts, setInternalProducts] = useState<Product[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
+  const [internalItems, setInternalItems] = useState<InternalItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [productComboOpen, setProductComboOpen] = useState<{[key: number]: boolean}>({});
   const [newProductComboOpen, setNewProductComboOpen] = useState(false);
+  const [newInternalComboOpen, setNewInternalComboOpen] = useState(false);
   const [selectedNewProduct, setSelectedNewProduct] = useState<string>("");
+  const [selectedNewInternal, setSelectedNewInternal] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
   
   // Service states
@@ -261,12 +275,18 @@ export default function TechnicalSupport() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, stock, cost")
+        .select("id, name, price, stock, cost, is_internal, internal_category")
         .eq("status", "active")
         .order("name");
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Separar produtos normais dos internos
+      const normalProds = (data || []).filter(p => !p.is_internal);
+      const internalProds = (data || []).filter(p => p.is_internal);
+      
+      setProducts(normalProds);
+      setInternalProducts(internalProds);
     } catch (error: any) {
       console.error("Erro ao carregar produtos:", error);
     }
@@ -365,11 +385,22 @@ export default function TechnicalSupport() {
         const product = products.find(p => p.id === item.product_id);
         if (product && product.stock < item.qty) {
           toast.error(`Estoque insuficiente para ${item.product_name}`);
+          setIsSubmitting(false);
           return;
         }
       }
 
-      // Calcular total_value automaticamente
+      // Validar estoque dos itens internos
+      for (const item of internalItems) {
+        const product = internalProducts.find(p => p.id === item.product_id);
+        if (product && product.stock < item.qty) {
+          toast.error(`Estoque insuficiente para item interno: ${item.product_name}`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Calcular total_value automaticamente (inclui itens internos cobrados)
       const productsTotal = productItems.reduce((sum, item) => {
         const itemTotal = item.unit_price * item.qty;
         const discount = itemTotal * (item.discount_percent / 100);
@@ -380,7 +411,14 @@ export default function TechnicalSupport() {
         return sum + (item.value * item.qty);
       }, 0);
 
-      const calculatedTotalValue = productsTotal + servicesTotal;
+      const internalChargedTotal = internalItems.reduce((sum, item) => {
+        if (item.charged_to_client) {
+          return sum + (item.unit_price * item.qty);
+        }
+        return sum;
+      }, 0);
+
+      const calculatedTotalValue = productsTotal + servicesTotal + internalChargedTotal;
 
       const serviceData = {
         ...formData,
@@ -411,6 +449,14 @@ export default function TechnicalSupport() {
 
         if (deleteError) throw deleteError;
 
+        // Deletar itens internos antigos
+        const { error: deleteInternalError } = await supabase
+          .from("service_internal_items")
+          .delete()
+          .eq("service_id", selectedService.id);
+
+        if (deleteInternalError) throw deleteInternalError;
+
         // Inserir novos itens se houver
         if (productItems.length > 0) {
           const productItemsForDb = productItems.map(item => ({
@@ -427,6 +473,23 @@ export default function TechnicalSupport() {
             .insert(productItemsForDb);
 
           if (itemsError) throw itemsError;
+        }
+
+        // Inserir itens internos se houver
+        if (internalItems.length > 0) {
+          const internalItemsForDb = internalItems.map(item => ({
+            service_id: selectedService.id,
+            product_id: item.product_id,
+            qty: item.qty,
+            charged_to_client: item.charged_to_client,
+            unit_price: item.unit_price
+          }));
+
+          const { error: internalItemsError } = await supabase
+            .from("service_internal_items")
+            .insert(internalItemsForDb);
+
+          if (internalItemsError) throw internalItemsError;
         }
 
         // Atualizar arquivos de mídia - deletar existentes e inserir novos
@@ -527,14 +590,28 @@ export default function TechnicalSupport() {
               
               if (stockError) throw stockError;
             }
+            
+            // Baixar estoque dos itens internos na garantia
+            for (const item of internalItems) {
+              const product = internalProducts.find(p => p.id === item.product_id);
+              if (!product) continue;
+              
+              const { error: stockError } = await supabase
+                .from('products')
+                .update({ stock: product.stock - item.qty })
+                .eq('id', item.product_id);
+              
+              if (stockError) throw stockError;
+            }
+            
             toast.success("Atendimento criado e estoque atualizado!");
           } else {
-            // Não é garantia: criar venda
+            // Não é garantia: criar venda (itens internos cobrados serão incluídos)
             const totalGross = productItems.reduce((sum, item) => {
               const itemTotal = item.unit_price * item.qty;
               const discount = itemTotal * (item.discount_percent / 100);
               return sum + (itemTotal - discount);
-            }, 0) + serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) + (formData.total_value || 0);
+            }, 0) + serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) + internalChargedTotal;
 
             const totalCost = productItems.reduce((sum, item) => {
               const product = products.find(p => p.id === item.product_id);
@@ -578,7 +655,41 @@ export default function TechnicalSupport() {
             toast.success("Atendimento criado e venda gerada com sucesso!");
           }
         } else {
-          toast.success("Atendimento criado com sucesso!");
+          // Mesmo sem produtos, pode ter itens internos
+          if (internalItems.length > 0 && formData.under_warranty) {
+            // Baixar estoque dos itens internos na garantia
+            for (const item of internalItems) {
+              const product = internalProducts.find(p => p.id === item.product_id);
+              if (!product) continue;
+              
+              const { error: stockError } = await supabase
+                .from('products')
+                .update({ stock: product.stock - item.qty })
+                .eq('id', item.product_id);
+              
+              if (stockError) throw stockError;
+            }
+            toast.success("Atendimento criado e estoque atualizado!");
+          } else {
+            toast.success("Atendimento criado com sucesso!");
+          }
+        }
+
+        // Salvar itens internos do serviço
+        if (internalItems.length > 0) {
+          const internalItemsForDb = internalItems.map(item => ({
+            service_id: newService.id,
+            product_id: item.product_id,
+            qty: item.qty,
+            charged_to_client: item.charged_to_client,
+            unit_price: item.unit_price
+          }));
+
+          const { error: internalItemsError } = await supabase
+            .from("service_internal_items")
+            .insert(internalItemsForDb);
+
+          if (internalItemsError) throw internalItemsError;
         }
       }
 
@@ -668,6 +779,28 @@ export default function TechnicalSupport() {
     
     // Carregar produtos do serviço
     await fetchServiceItems(service.id);
+    
+    // Carregar itens internos do serviço
+    const { data: internalData, error: internalError } = await supabase
+      .from("service_internal_items")
+      .select(`
+        *,
+        products (
+          name
+        )
+      `)
+      .eq("service_id", service.id);
+
+    if (!internalError && internalData) {
+      const items = internalData.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || "",
+        qty: item.qty,
+        charged_to_client: item.charged_to_client,
+        unit_price: item.unit_price
+      }));
+      setInternalItems(items);
+    }
     
     setConcludeDialogOpen(true);
   };
@@ -789,6 +922,22 @@ export default function TechnicalSupport() {
         throw updateError;
       }
 
+      // Decrementar estoque dos itens internos SEMPRE ao concluir (independente de garantia)
+      for (const item of internalItems) {
+        const product = internalProducts.find(p => p.id === item.product_id);
+        if (!product) continue;
+        
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({ stock: product.stock - item.qty })
+          .eq('id', item.product_id);
+        
+        if (stockError) {
+          console.error("Erro ao decrementar estoque do item interno:", stockError);
+          // Não lançar erro, apenas logar
+        }
+      }
+
       // VALIDAÇÃO: Apenas gerar venda se NÃO estiver sob garantia
       if (!serviceToComplete.under_warranty) {
         // Calcular custos dos produtos
@@ -851,6 +1000,7 @@ export default function TechnicalSupport() {
       setConcludeDialogOpen(false);
       setServiceToComplete(null);
       setProductItems([]);
+      setInternalItems([]);
     } catch (error) {
       console.error("Erro ao concluir atendimento:", error);
       toast.error("Erro ao concluir atendimento");
@@ -895,6 +1045,28 @@ export default function TechnicalSupport() {
     // Carregar produtos do serviço usando a função que mapeia corretamente
     await fetchServiceItems(service.id);
     
+    // Carregar itens internos do serviço
+    const { data: internalData, error: internalError } = await supabase
+      .from("service_internal_items")
+      .select(`
+        *,
+        products (
+          name
+        )
+      `)
+      .eq("service_id", service.id);
+
+    if (!internalError && internalData) {
+      const items = internalData.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || "",
+        qty: item.qty,
+        charged_to_client: item.charged_to_client,
+        unit_price: item.unit_price
+      }));
+      setInternalItems(items);
+    }
+    
     // Carregar serviços do campo notes (se existirem)
     if (service.notes) {
       try {
@@ -917,8 +1089,9 @@ export default function TechnicalSupport() {
     setSelectedService(service);
     setIsEditing(true);
     
-    // Limpar produtos antes de carregar
+    // Limpar produtos e itens internos antes de carregar
     setProductItems([]);
+    setInternalItems([]);
     setProductSearch("");
     
     // Parse notes to extract general notes and services
@@ -964,6 +1137,28 @@ export default function TechnicalSupport() {
     // Carregar produtos do serviço usando a função que mapeia corretamente
     await fetchServiceItems(service.id);
     
+    // Carregar itens internos do serviço
+    const { data: internalData, error: internalError } = await supabase
+      .from("service_internal_items")
+      .select(`
+        *,
+        products (
+          name
+        )
+      `)
+      .eq("service_id", service.id);
+
+    if (!internalError && internalData) {
+      const items = internalData.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || "",
+        qty: item.qty,
+        charged_to_client: item.charged_to_client,
+        unit_price: item.unit_price
+      }));
+      setInternalItems(items);
+    }
+    
     // Carregar arquivos de mídia
     const { data: files } = await supabase
       .from('service_files')
@@ -1005,6 +1200,7 @@ export default function TechnicalSupport() {
       assigned_users: [],
     });
     setProductItems([]);
+    setInternalItems([]);
     setProductSearch("");
     setMediaFiles([]);
     setServiceItems([]);
@@ -1014,6 +1210,40 @@ export default function TechnicalSupport() {
     setNewServiceNotes("");
     setIsEditing(false);
     setSelectedService(null);
+  };
+
+  const addInternalItem = () => {
+    if (!selectedNewInternal) {
+      toast.error("Selecione um item interno");
+      return;
+    }
+    
+    const product = internalProducts.find(p => p.id === selectedNewInternal);
+    if (!product) {
+      toast.error("Item interno não encontrado");
+      return;
+    }
+    
+    setInternalItems([...internalItems, {
+      product_id: product.id,
+      product_name: product.name,
+      qty: 1,
+      charged_to_client: false,
+      unit_price: product.cost // Usar custo como preço padrão
+    }]);
+    
+    // Limpar seleção
+    setSelectedNewInternal("");
+  };
+
+  const removeInternalItem = (index: number) => {
+    setInternalItems(internalItems.filter((_, i) => i !== index));
+  };
+
+  const updateInternalItem = (index: number, field: keyof InternalItem, value: any) => {
+    const newItems = [...internalItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setInternalItems(newItems);
   };
 
   const addProductItem = () => {
@@ -1421,10 +1651,11 @@ export default function TechnicalSupport() {
             </DialogHeader>
             
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="general">Dados Gerais</TabsTrigger>
                 <TabsTrigger value="products">Produtos</TabsTrigger>
                 <TabsTrigger value="services">Serviços</TabsTrigger>
+                <TabsTrigger value="internal">Itens Internos</TabsTrigger>
                 <TabsTrigger value="equipment">Equipamento</TabsTrigger>
                 <TabsTrigger value="checklist">Checklist</TabsTrigger>
               </TabsList>
@@ -2002,7 +2233,7 @@ export default function TechnicalSupport() {
                     {/* Taxa de serviço será calculada automaticamente como produtos + serviços */}
 
                     {/* Totalizadores */}
-                    {(serviceItems.length > 0 || productItems.length > 0) && (
+                    {(serviceItems.length > 0 || productItems.length > 0 || internalItems.length > 0) && (
                       <div className="space-y-2 mt-4">
           <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
             <span className="font-semibold">Total dos Serviços:</span>
@@ -2011,7 +2242,7 @@ export default function TechnicalSupport() {
             </span>
           </div>
 
-                        {/* Total Geral (Produtos + Serviços + Valor do Atendimento) */}
+                        {/* Total Geral (Produtos + Serviços + Itens Internos Cobrados) */}
                         <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary">
                           <span className="font-bold text-lg">Total Geral da Ordem:</span>
                           <span className="text-2xl font-bold text-primary">
@@ -2021,15 +2252,217 @@ export default function TechnicalSupport() {
                                 const discount = itemTotal * (item.discount_percent / 100);
                                 return sum + (itemTotal - discount);
                               }, 0) + 
-                              serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0)
+                              serviceItems.reduce((sum, item) => sum + (item.value * item.qty), 0) +
+                              internalItems.reduce((sum, item) => 
+                                item.charged_to_client ? sum + (item.unit_price * item.qty) : sum
+                              , 0)
                             ).toFixed(2)}
                           </span>
                         </div>
 
                         <p className="text-sm text-info bg-info/10 p-2 rounded">
-                          ℹ️ Os serviços serão incluídos no valor total da ordem de serviço.
+                          ℹ️ Os serviços {internalItems.some(i => i.charged_to_client) && 'e itens internos cobrados'} serão incluídos no valor total da ordem de serviço.
                         </p>
                       </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="internal" className="space-y-4">
+                <div className="space-y-4">
+                  {/* Card para adicionar novo item interno */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Wrench className="h-5 w-5" />
+                        Adicionar Item Interno
+                      </CardTitle>
+                      <CardDescription>
+                        Itens de consumo interno (parafusos, limpa contato, etc.) utilizados no atendimento
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <div className="md:col-span-5 space-y-1">
+                          <Label className="text-xs">Item Interno *</Label>
+                          <Popover open={newInternalComboOpen} onOpenChange={setNewInternalComboOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={newInternalComboOpen}
+                                className="w-full justify-between"
+                              >
+                                {selectedNewInternal
+                                  ? internalProducts.find((p) => p.id === selectedNewInternal)?.name
+                                  : "Selecione um item..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput placeholder="Buscar item interno..." />
+                                <CommandList>
+                                  <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                                  <CommandGroup>
+                                    {internalProducts.map((product) => (
+                                      <CommandItem
+                                        key={product.id}
+                                        value={product.name}
+                                        onSelect={() => {
+                                          setSelectedNewInternal(product.id);
+                                          setNewInternalComboOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 ${
+                                            selectedNewInternal === product.id ? "opacity-100" : "opacity-0"
+                                          }`}
+                                        />
+                                        <div className="flex-1">
+                                          <div className="font-medium">{product.name}</div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {product.internal_category} • Custo: R$ {product.cost.toFixed(2)} • Estoque: {product.stock}
+                                          </div>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="md:col-span-6">
+                          <Button
+                            type="button"
+                            onClick={addInternalItem}
+                            className="w-full"
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Adicionar Item
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Lista de itens internos adicionados */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">Itens Internos Utilizados ({internalItems.length})</h3>
+                    
+                    {internalItems.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-center text-muted-foreground">
+                          Nenhum item interno adicionado ainda
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      internalItems.map((item, index) => (
+                        <Card key={index}>
+                          <CardContent className="pt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                              <div className="md:col-span-4 space-y-1">
+                                <Label className="text-xs">Item</Label>
+                                <div className="h-10 flex items-center px-3 bg-muted rounded-md">
+                                  <span className="text-sm font-medium truncate">{item.product_name}</span>
+                                </div>
+                              </div>
+
+                              <div className="md:col-span-2 space-y-1">
+                                <Label className="text-xs">Quantidade</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={item.qty}
+                                  onChange={(e) => updateInternalItem(index, 'qty', parseInt(e.target.value) || 1)}
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 space-y-1">
+                                <Label className="text-xs">Cobrar Cliente?</Label>
+                                <div className="flex items-center space-x-2 h-10">
+                                  <Checkbox
+                                    id={`charged-${index}`}
+                                    checked={item.charged_to_client}
+                                    onCheckedChange={(checked) => 
+                                      updateInternalItem(index, 'charged_to_client', checked)
+                                    }
+                                  />
+                                  <label
+                                    htmlFor={`charged-${index}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    Sim
+                                  </label>
+                                </div>
+                              </div>
+
+                              {item.charged_to_client && (
+                                <div className="md:col-span-2 space-y-1">
+                                  <Label className="text-xs">Valor Unit. (R$)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unit_price}
+                                    onChange={(e) => updateInternalItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                  />
+                                </div>
+                              )}
+
+                              <div className={`${item.charged_to_client ? 'md:col-span-1' : 'md:col-span-3'} space-y-1`}>
+                                <Label className="text-xs">Total</Label>
+                                <div className="h-10 flex items-center px-3 bg-muted rounded-md">
+                                  <span className="text-sm font-semibold">
+                                    {item.charged_to_client 
+                                      ? `R$ ${(item.unit_price * item.qty).toFixed(2)}`
+                                      : 'Sem custo'
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="md:col-span-1 flex items-end">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeInternalItem(index)}
+                                  className="w-full"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+
+                    {/* Totalizador de itens internos cobrados */}
+                    {internalItems.some(i => i.charged_to_client) && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                          <span className="font-semibold">Total Itens Internos Cobrados:</span>
+                          <span className="text-lg font-bold text-primary">
+                            R$ {internalItems.reduce((sum, item) => {
+                              return item.charged_to_client ? sum + (item.unit_price * item.qty) : sum;
+                            }, 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-info bg-info/10 p-2 rounded">
+                          ℹ️ Itens marcados como "cobrar cliente" serão incluídos no valor total da ordem.
+                        </p>
+                      </div>
+                    )}
+
+                    {internalItems.some(i => !i.charged_to_client) && (
+                      <p className="text-sm text-muted-foreground bg-muted p-2 rounded">
+                        💡 Itens não cobrados são para controle interno e terão o estoque decrementado automaticamente ao concluir o atendimento.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -2340,6 +2773,7 @@ export default function TechnicalSupport() {
         setViewDialogOpen(open);
         if (!open) {
           setProductItems([]);
+          setInternalItems([]);
           setServiceItems([]);
           setMediaFiles([]);
         }
