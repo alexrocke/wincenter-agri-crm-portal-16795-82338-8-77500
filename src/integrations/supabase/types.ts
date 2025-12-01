@@ -1238,6 +1238,57 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_reservations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          opportunity_id: string
+          product_id: string
+          quantity: number
+          released_at: string | null
+          reserved_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          opportunity_id: string
+          product_id: string
+          quantity: number
+          released_at?: string | null
+          reserved_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          opportunity_id?: string
+          product_id?: string
+          quantity?: number
+          released_at?: string | null
+          reserved_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_reservations_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_update_history: {
         Row: {
           edited_at: string
@@ -1526,6 +1577,11 @@ export type Database = {
         Returns: {
           auth_user_id: string
         }[]
+      }
+      get_available_stock: { Args: { p_product_id: string }; Returns: number }
+      has_sufficient_stock: {
+        Args: { p_product_id: string; p_quantity: number }
+        Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
       recalc_sale_totals: { Args: { p_sale: string }; Returns: undefined }

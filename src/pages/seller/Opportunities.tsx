@@ -1131,15 +1131,28 @@ export default function Opportunities() {
     setConvertDialogOpen(true);
   };
 
-  // Validate stock before converting to sale
+  // Validate stock before converting to sale (considering active reservations)
   const validateStock = async (productItems: any[]) => {
-    // Fetch current stock for all products
+    // Fetch current stock and active reservations for all products
     const productIds = productItems.map(item => item.product_id);
     
     const { data: productsData } = await supabase
       .from('products')
       .select('id, name, stock')
       .in('id', productIds);
+    
+    // Get active reservations for these products
+    const { data: reservations } = await supabase
+      .from('stock_reservations')
+      .select('product_id, quantity')
+      .in('product_id', productIds)
+      .eq('status', 'active');
+    
+    // Calculate reserved quantities per product
+    const reservedByProduct = (reservations || []).reduce((acc, res) => {
+      acc[res.product_id] = (acc[res.product_id] || 0) + res.quantity;
+      return acc;
+    }, {} as Record<string, number>);
     
     // Check each item
     const insufficientStock: Array<{
@@ -1150,12 +1163,17 @@ export default function Opportunities() {
     
     productItems.forEach(item => {
       const product = productsData?.find(p => p.id === item.product_id);
-      if (product && product.stock < item.quantity) {
-        insufficientStock.push({
-          productName: product.name,
-          requested: item.quantity,
-          available: product.stock
-        });
+      if (product) {
+        const reserved = reservedByProduct[item.product_id] || 0;
+        const availableStock = product.stock - reserved;
+        
+        if (availableStock < item.quantity) {
+          insufficientStock.push({
+            productName: product.name,
+            requested: item.quantity,
+            available: availableStock
+          });
+        }
       }
     });
     
