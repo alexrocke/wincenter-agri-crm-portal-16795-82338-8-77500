@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart, X, Download } from 'lucide-react';
+import { Plus, TrendingUp, DollarSign, Edit, Trash2, ShoppingCart, X, Download, Package, Wrench } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { hexToRGB, formatBudgetNumber, loadImageAsBase64 } from '@/lib/utils';
@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { ClientAutocomplete } from '@/components/ClientAutocomplete';
 import { ProductAutocomplete } from '@/components/ProductAutocomplete';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface Opportunity {
   id: string;
@@ -37,6 +38,7 @@ interface Opportunity {
   installments?: number;
   installment_fee?: number;
   final_value_with_fee?: number;
+  opportunity_type?: string;
   clients?: {
     farm_name: string;
     contact_name: string;
@@ -105,6 +107,33 @@ const CARD_FEES = {
   },
 };
 
+// Function to determine opportunity type based on items
+const determineOpportunityType = async (opportunityId: string): Promise<'equipment' | 'service'> => {
+  const { data: items } = await supabase
+    .from('opportunity_items')
+    .select('product_id, item_type, products(category)')
+    .eq('opportunity_id', opportunityId);
+  
+  if (!items || items.length === 0) return 'equipment';
+  
+  // Check if contains drone products
+  const hasDrone = items.some(item => 
+    item.products?.category?.toUpperCase().includes('DRONE')
+  );
+  
+  if (hasDrone) return 'equipment';
+  
+  // Check if contains only services or parts
+  const allServicesOrParts = items.every(item => 
+    item.item_type === 'service' || 
+    ['PEÇAS', 'ACESSÓRIOS', 'REVISÃO'].some(cat => 
+      item.products?.category?.toUpperCase().includes(cat)
+    )
+  );
+  
+  return allServicesOrParts ? 'service' : 'equipment';
+};
+
 export default function Opportunities() {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
@@ -136,6 +165,7 @@ export default function Opportunities() {
     payment_method_2: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'equipment' | 'service'>('all');
 
   // Multi-product state
   const [proposalProducts, setProposalProducts] = useState<ProposalProduct[]>([]);
@@ -242,10 +272,52 @@ export default function Opportunities() {
         }
       }
       
-      const opportunitiesWithSeller = (data || []).map((opp: any) => ({
-        ...opp,
-        seller_name: sellersMap[opp.seller_auth_id] || 'N/A',
-      }));
+      // Auto-classify opportunities that don't have a type yet
+      const opportunitiesWithSeller = await Promise.all(
+        (data || []).map(async (opp: any) => {
+          let oppType = opp.opportunity_type;
+          
+          // If opportunity doesn't have a type, determine it based on items
+          if (!oppType || oppType === 'equipment') {
+            const { data: items } = await supabase
+              .from('opportunity_items')
+              .select('product_id, item_type, products(category)')
+              .eq('opportunity_id', opp.id);
+            
+            if (items && items.length > 0) {
+              const hasDrone = items.some(item => 
+                item.products?.category?.toUpperCase().includes('DRONE')
+              );
+              
+              if (hasDrone) {
+                oppType = 'equipment';
+              } else {
+                const allServicesOrParts = items.every(item => 
+                  item.item_type === 'service' || 
+                  ['PEÇAS', 'ACESSÓRIOS', 'REVISÃO'].some(cat => 
+                    item.products?.category?.toUpperCase().includes(cat)
+                  )
+                );
+                oppType = allServicesOrParts ? 'service' : 'equipment';
+              }
+              
+              // Update the opportunity type in database
+              if (oppType !== opp.opportunity_type) {
+                await supabase
+                  .from('opportunities')
+                  .update({ opportunity_type: oppType })
+                  .eq('id', opp.id);
+              }
+            }
+          }
+          
+          return {
+            ...opp,
+            opportunity_type: oppType,
+            seller_name: sellersMap[opp.seller_auth_id] || 'N/A',
+          };
+        })
+      );
       
       setOpportunities(opportunitiesWithSeller);
     } catch (error) {
@@ -802,12 +874,21 @@ export default function Opportunities() {
           discount_percent: p.discount_percent,
         }));
 
-        const { error: itemsError } = await supabase
-          .from('opportunity_items')
-          .insert(items);
+      const { error: itemsError } = await supabase
+        .from('opportunity_items')
+        .insert(items);
 
-        if (itemsError) throw itemsError;
+      if (itemsError) throw itemsError;
+
+      // Auto-classify opportunity type
+      if (newOpp) {
+        const oppType = await determineOpportunityType(newOpp.id);
+        await supabase
+          .from('opportunities')
+          .update({ opportunity_type: oppType })
+          .eq('id', newOpp.id);
       }
+    }
 
       toast.success('Orçamento criado com sucesso!');
       setDialogOpen(false);
@@ -989,6 +1070,13 @@ export default function Opportunities() {
           .insert(items);
 
         if (itemsError) throw itemsError;
+
+        // Auto-classify opportunity type
+        const oppType = await determineOpportunityType(selectedOpp.id);
+        await supabase
+          .from('opportunities')
+          .update({ opportunity_type: oppType })
+          .eq('id', selectedOpp.id);
       }
 
       toast.success('Orçamento atualizado!');
@@ -1132,6 +1220,20 @@ export default function Opportunities() {
     acc[opp.stage].value += Number(opp.gross_value || 0);
     return acc;
   }, {} as Record<string, { count: number; value: number }>);
+
+  // Filter opportunities by active tab
+  const filteredOpportunities = opportunities.filter(opp => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'equipment') return opp.opportunity_type === 'equipment';
+    if (activeTab === 'service') return opp.opportunity_type === 'service';
+    return true;
+  });
+
+  // Statistics by type
+  const equipmentOpps = opportunities.filter(o => o.opportunity_type === 'equipment');
+  const serviceOpps = opportunities.filter(o => o.opportunity_type === 'service');
+  const equipmentValue = equipmentOpps.reduce((sum, o) => sum + Number(o.gross_value || 0), 0);
+  const serviceValue = serviceOpps.reduce((sum, o) => sum + Number(o.gross_value || 0), 0);
 
   const totalValue = opportunities.reduce((sum, opp) => sum + Number(opp.gross_value || 0), 0);
   const activeOpps = opportunities.filter(o => !['won', 'lost'].includes(o.stage));
@@ -1601,71 +1703,227 @@ export default function Opportunities() {
           </Dialog>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total de Orçamentos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{opportunities.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {activeOpps.length} em andamento
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  notation: 'compact',
-                }).format(totalValue)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Ganhas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {statsByStage.won?.count || 0}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  notation: 'compact',
-                }).format(statsByStage.won?.value || 0)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Em Fechamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {closingOpps.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  notation: 'compact',
-                }).format(statsByStage.closing?.value || 0)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'equipment' | 'service')} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="equipment" className="gap-2">
+              <Package className="h-4 w-4" />
+              Equipamentos ({equipmentOpps.length})
+            </TabsTrigger>
+            <TabsTrigger value="service" className="gap-2">
+              <Wrench className="h-4 w-4" />
+              Assistência Técnica ({serviceOpps.length})
+            </TabsTrigger>
+            <TabsTrigger value="all" className="gap-2">
+              Todos ({opportunities.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Orçamentos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{opportunities.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {activeOpps.length} em andamento
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(totalValue)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Ganhas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {statsByStage.won?.count || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(statsByStage.won?.value || 0)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Em Fechamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {closingOpps.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(statsByStage.closing?.value || 0)}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="equipment" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Package className="h-4 w-4 text-green-600" />
+                    Orçamentos de Equipamentos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{equipmentOpps.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {equipmentOpps.filter(o => !['won', 'lost'].includes(o.stage)).length} em andamento
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(equipmentValue)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Ganhas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {equipmentOpps.filter(o => o.stage === 'won').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(equipmentOpps.filter(o => o.stage === 'won').reduce((sum, o) => sum + Number(o.gross_value || 0), 0))}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Em Fechamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {equipmentOpps.filter(o => o.stage === 'closing').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(equipmentOpps.filter(o => o.stage === 'closing').reduce((sum, o) => sum + Number(o.gross_value || 0), 0))}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="service" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-blue-600" />
+                    Orçamentos de Assistência
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{serviceOpps.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {serviceOpps.filter(o => !['won', 'lost'].includes(o.stage)).length} em andamento
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(serviceValue)}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Ganhas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {serviceOpps.filter(o => o.stage === 'won').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(serviceOpps.filter(o => o.stage === 'won').reduce((sum, o) => sum + Number(o.gross_value || 0), 0))}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Em Fechamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {serviceOpps.filter(o => o.stage === 'closing').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      notation: 'compact',
+                    }).format(serviceOpps.filter(o => o.stage === 'closing').reduce((sum, o) => sum + Number(o.gross_value || 0), 0))}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline de Orçamentos</CardTitle>
+            <CardTitle>
+              {activeTab === 'equipment' && 'Pipeline de Orçamentos - Equipamentos'}
+              {activeTab === 'service' && 'Pipeline de Orçamentos - Assistência Técnica'}
+              {activeTab === 'all' && 'Pipeline de Orçamentos'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -1681,14 +1939,14 @@ export default function Opportunities() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {opportunities.length === 0 ? (
+                {filteredOpportunities.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum orçamento encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
-                  opportunities.map((opp) => {
+                  filteredOpportunities.map((opp) => {
                     const stageInfo = getStageInfo(opp.stage);
                     return (
                       <TableRow key={opp.id} className="hover:bg-muted/50">
@@ -1711,9 +1969,23 @@ export default function Opportunities() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={stageInfo.color}>
-                            {stageInfo.label}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {opp.opportunity_type === 'equipment' && (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                                <Package className="h-3 w-3 mr-1" />
+                                Equipamento
+                              </Badge>
+                            )}
+                            {opp.opportunity_type === 'service' && (
+                              <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
+                                <Wrench className="h-3 w-3 mr-1" />
+                                Assistência
+                              </Badge>
+                            )}
+                            <Badge className={stageInfo.color}>
+                              {stageInfo.label}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
