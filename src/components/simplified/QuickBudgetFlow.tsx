@@ -19,6 +19,7 @@ interface ProductItem {
   product_id?: string;
   service_id?: string;
   item_type: 'product' | 'internal' | 'service';
+  price_type?: 'fixed' | 'per_hour' | 'per_hectare';
   name: string;
   quantity: number;
   unit_price: number;

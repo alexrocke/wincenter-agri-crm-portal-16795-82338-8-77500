@@ -29,6 +29,7 @@ interface ProductItem {
   product_id?: string;
   service_id?: string;
   item_type: 'product' | 'internal' | 'service';
+  price_type?: 'fixed' | 'per_hour' | 'per_hectare';
   name: string;
   quantity: number;
   unit_price: number;
@@ -153,6 +154,7 @@ export function ProductQuickAdd({ items, onItemsChange }: ProductQuickAddProps) 
         {
           service_id: service.id,
           item_type: 'service',
+          price_type: service.price_type as 'fixed' | 'per_hour' | 'per_hectare',
           name: service.name,
           quantity: 1,
           unit_price: service.default_price,
@@ -174,15 +176,37 @@ export function ProductQuickAdd({ items, onItemsChange }: ProductQuickAddProps) 
     onItemsChange(items.filter((_, i) => i !== index));
   };
 
-  const getItemTypeBadge = (type: 'product' | 'internal' | 'service') => {
-    switch (type) {
-      case 'product':
-        return <Badge variant="default" className="text-xs"><Package className="h-3 w-3 mr-1" />Produto</Badge>;
-      case 'internal':
-        return <Badge variant="secondary" className="text-xs"><WrenchIcon className="h-3 w-3 mr-1" />Interno</Badge>;
-      case 'service':
-        return <Badge variant="outline" className="text-xs"><Settings className="h-3 w-3 mr-1" />Serviço</Badge>;
+  const getItemTypeBadge = (item: ProductItem) => {
+    if (item.item_type === 'product') {
+      return <Badge variant="default" className="text-xs"><Package className="h-3 w-3 mr-1" />Produto</Badge>;
+    } else if (item.item_type === 'internal') {
+      return <Badge variant="secondary" className="text-xs"><WrenchIcon className="h-3 w-3 mr-1" />Interno</Badge>;
+    } else {
+      // Service with type indicator
+      if (item.price_type === 'per_hour') {
+        return <Badge variant="outline" className="text-xs">⏱️ Serviço (por hora)</Badge>;
+      } else if (item.price_type === 'per_hectare') {
+        return <Badge variant="outline" className="text-xs">📏 Serviço (por ha)</Badge>;
+      } else {
+        return <Badge variant="outline" className="text-xs">🛠️ Serviço (fixo)</Badge>;
+      }
     }
+  };
+
+  const getQuantityLabel = (item: ProductItem) => {
+    if (item.item_type === 'service') {
+      if (item.price_type === 'per_hour') return 'Horas';
+      if (item.price_type === 'per_hectare') return 'Hectares';
+    }
+    return 'Qtd';
+  };
+
+  const getQuantityStep = (item: ProductItem) => {
+    return item.item_type === 'service' ? 0.5 : 1;
+  };
+
+  const getQuantityMin = (item: ProductItem) => {
+    return item.item_type === 'service' ? 0.5 : 1;
   };
 
   const productItems = items.filter(i => i.item_type === 'product');
@@ -208,7 +232,7 @@ export function ProductQuickAdd({ items, onItemsChange }: ProductQuickAddProps) 
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        {getItemTypeBadge(item.item_type)}
+                        {getItemTypeBadge(item)}
                       </div>
                       <p className="font-semibold text-sm">{item.name}</p>
                     </div>
@@ -224,10 +248,13 @@ export function ProductQuickAdd({ items, onItemsChange }: ProductQuickAddProps) 
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs text-muted-foreground">Qtd</label>
+                      <label className="text-xs text-muted-foreground">
+                        {getQuantityLabel(item)}
+                      </label>
                       <Input
                         type="number"
-                        min="1"
+                        min={getQuantityMin(item)}
+                        step={getQuantityStep(item)}
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                         className="h-10 text-base"
@@ -406,30 +433,49 @@ export function ProductQuickAdd({ items, onItemsChange }: ProductQuickAddProps) 
                       Nenhum serviço encontrado
                     </div>
                   ) : (
-                    filteredServices.map((service) => (
-                      <Card
-                        key={service.id}
-                        className="p-3 cursor-pointer transition-all hover:shadow-md active:scale-98"
-                        onClick={() => addService(service)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                            <Settings className="h-5 w-5 text-accent-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm truncate">{service.name}</p>
-                            {service.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                {service.description}
+                    filteredServices.map((service) => {
+                      const priceTypeLabel = 
+                        service.price_type === 'per_hour' ? '/hora' :
+                        service.price_type === 'per_hectare' ? '/ha' :
+                        '';
+                      const priceIcon = 
+                        service.price_type === 'per_hour' ? '⏱️' :
+                        service.price_type === 'per_hectare' ? '📏' :
+                        '🛠️';
+                      
+                      return (
+                        <Card
+                          key={service.id}
+                          className="p-3 cursor-pointer transition-all hover:shadow-md active:scale-98"
+                          onClick={() => addService(service)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 text-lg">
+                              {priceIcon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{service.name}</p>
+                              {service.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {service.description}
+                                </p>
+                              )}
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {service.price_type === 'per_hour' ? 'Cobrado por hora' :
+                                 service.price_type === 'per_hectare' ? 'Cobrado por hectare' :
+                                 'Valor fixo'}
+                              </Badge>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-accent-foreground text-sm">
+                                R$ {service.default_price.toFixed(2)}
                               </p>
-                            )}
+                              <p className="text-xs text-muted-foreground">{priceTypeLabel}</p>
+                            </div>
                           </div>
-                          <p className="font-bold text-accent-foreground text-sm">
-                            R$ {service.default_price.toFixed(2)}
-                          </p>
-                        </div>
-                      </Card>
-                    ))
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>
