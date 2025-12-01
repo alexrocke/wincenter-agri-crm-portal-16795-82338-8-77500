@@ -53,7 +53,7 @@ import SimplifiedNotifications from "./pages/seller/simple/Notifications";
 import Calendar from "./pages/seller/Calendar";
 import Ranking from "./pages/seller/Ranking";
 import Insights from "./pages/seller/Insights";
-import Reports from "./pages/seller/Reports";
+import SellerReports from "./pages/seller/Reports";
 
 const queryClient = new QueryClient();
 
@@ -340,7 +340,7 @@ const App = () => (
               path="/seller/reports"
               element={
                 <ProtectedRoute>
-                  <Reports />
+                  <SellerReports />
                 </ProtectedRoute>
               }
             />
