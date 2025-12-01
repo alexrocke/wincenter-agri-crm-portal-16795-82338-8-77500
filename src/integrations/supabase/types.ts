@@ -671,6 +671,8 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          internal_category: string | null
+          is_internal: boolean | null
           low_stock_threshold: number
           max_discount_percent: number
           name: string
@@ -690,6 +692,8 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          internal_category?: string | null
+          is_internal?: boolean | null
           low_stock_threshold?: number
           max_discount_percent?: number
           name: string
@@ -709,6 +713,8 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          internal_category?: string | null
+          is_internal?: boolean | null
           low_stock_threshold?: number
           max_discount_percent?: number
           name?: string
@@ -877,6 +883,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "service_files_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_internal_items: {
+        Row: {
+          charged_to_client: boolean | null
+          created_at: string
+          id: string
+          product_id: string
+          qty: number
+          service_id: string
+          unit_price: number | null
+        }
+        Insert: {
+          charged_to_client?: boolean | null
+          created_at?: string
+          id?: string
+          product_id: string
+          qty?: number
+          service_id: string
+          unit_price?: number | null
+        }
+        Update: {
+          charged_to_client?: boolean | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          qty?: number
+          service_id?: string
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_internal_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_internal_items_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"

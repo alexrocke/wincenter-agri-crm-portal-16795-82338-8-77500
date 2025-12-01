@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Package, AlertTriangle, Upload, X, Pencil, History, Calculator, Trash2 } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Upload, X, Pencil, History, Calculator, Trash2, Wrench } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { productSchema } from '@/lib/validation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,8 @@ interface Product {
   profit_margin_percent: number;
   tax_percent: number;
   pricing_mode: 'manual' | 'calculated';
+  is_internal: boolean;
+  internal_category: string | null;
 }
 
 interface PriceHistory {
@@ -90,6 +93,7 @@ export default function Products() {
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeTab, setActiveTab] = useState<'products' | 'internal'>('products');
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -104,6 +108,8 @@ export default function Products() {
     profit_margin_percent: '',
     tax_percent: '',
     pricing_mode: 'manual' as 'manual' | 'calculated',
+    is_internal: false,
+    internal_category: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -126,6 +132,8 @@ export default function Products() {
       setProducts((data || []).map(p => ({
         ...p,
         pricing_mode: (p.pricing_mode || 'manual') as 'manual' | 'calculated',
+        is_internal: p.is_internal || false,
+        internal_category: p.internal_category || null,
       })) as Product[]);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -134,11 +142,17 @@ export default function Products() {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = 
+      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.internal_category?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesTab = activeTab === 'internal' ? product.is_internal : !product.is_internal;
+    
+    return matchesSearch && matchesTab;
+  });
 
   // Paginação
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -416,15 +430,17 @@ export default function Products() {
         category: formData.category || null,
         description: formData.description || null,
         cost: Number(formData.cost),
-        price: Number(formData.price),
+        price: formData.is_internal ? 0 : Number(formData.price),
         stock: Number(formData.stock),
         low_stock_threshold: Number(formData.low_stock_threshold) || 0,
-        max_discount_percent: Number(formData.max_discount_percent) || 0,
+        max_discount_percent: formData.is_internal ? 0 : Number(formData.max_discount_percent) || 0,
         status: formData.status,
         image_url: imageUrl,
-        profit_margin_percent: Number(formData.profit_margin_percent) || 0,
-        tax_percent: Number(formData.tax_percent) || 0,
-        pricing_mode: formData.pricing_mode,
+        profit_margin_percent: formData.is_internal ? 0 : Number(formData.profit_margin_percent) || 0,
+        tax_percent: formData.is_internal ? 0 : Number(formData.tax_percent) || 0,
+        pricing_mode: formData.is_internal ? 'manual' : formData.pricing_mode,
+        is_internal: formData.is_internal,
+        internal_category: formData.is_internal ? (formData.internal_category || null) : null,
       };
 
       if (editingProduct) {
@@ -472,6 +488,8 @@ export default function Products() {
         profit_margin_percent: '',
         tax_percent: '',
         pricing_mode: 'manual',
+        is_internal: activeTab === 'internal',
+        internal_category: '',
       });
       removeImage();
       fetchProducts();
@@ -500,6 +518,8 @@ export default function Products() {
       profit_margin_percent: (product.profit_margin_percent || 0).toString(),
       tax_percent: (product.tax_percent || 0).toString(),
       pricing_mode: product.pricing_mode || 'manual',
+      is_internal: product.is_internal || false,
+      internal_category: product.internal_category || '',
     });
     setImagePreview(product.image_url || null);
     setShowHistory(false);
@@ -555,9 +575,12 @@ export default function Products() {
     }
   };
 
-  const activeProducts = products.filter(p => p.status === 'active');
-  const lowStockProducts = products.filter(p => p.stock <= p.low_stock_threshold && p.status === 'active');
-  const totalValue = products.reduce((sum, p) => sum + (p.cost * p.stock), 0);
+  const currentTabProducts = products.filter(p => 
+    activeTab === 'internal' ? p.is_internal : !p.is_internal
+  );
+  const activeProducts = currentTabProducts.filter(p => p.status === 'active');
+  const lowStockProducts = currentTabProducts.filter(p => p.stock <= p.low_stock_threshold && p.status === 'active');
+  const totalValue = currentTabProducts.reduce((sum, p) => sum + (p.cost * p.stock), 0);
 
   if (loading) {
     return (
@@ -595,6 +618,8 @@ export default function Products() {
                 profit_margin_percent: '',
                 tax_percent: '',
                 pricing_mode: 'manual',
+                is_internal: activeTab === 'internal',
+                internal_category: '',
               });
               removeImage();
               setShowHistory(false);
@@ -603,12 +628,17 @@ export default function Products() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Produto
+                {activeTab === 'internal' ? 'Novo Item Interno' : 'Novo Produto'}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingProduct ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+                <DialogTitle>
+                  {editingProduct 
+                    ? (formData.is_internal ? 'Editar Item Interno' : 'Editar Produto')
+                    : (formData.is_internal ? 'Novo Item Interno' : 'Novo Produto')
+                  }
+                </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -678,14 +708,36 @@ export default function Products() {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  />
-                </div>
+
+                {formData.is_internal ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="internal_category">Categoria Interna</Label>
+                    <Select
+                      value={formData.internal_category}
+                      onValueChange={(value) => setFormData({ ...formData, internal_category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="parafusos">Parafusos</SelectItem>
+                        <SelectItem value="eletronicos">Eletrônicos (limpa contato, etc.)</SelectItem>
+                        <SelectItem value="fixacao">Fixação (abraçadeiras, fitas)</SelectItem>
+                        <SelectItem value="lubrificantes">Lubrificantes</SelectItem>
+                        <SelectItem value="outros">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Categoria</Label>
+                    <Input
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
@@ -696,34 +748,38 @@ export default function Products() {
                   />
                 </div>
 
-                {/* Modo de Precificação */}
-                <div className="space-y-2">
-                  <Label>Modo de Precificação</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={formData.pricing_mode === 'manual' ? 'default' : 'outline'}
-                      onClick={() => handlePricingModeChange('manual')}
-                      className="flex-1"
-                    >
-                      Manual
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={formData.pricing_mode === 'calculated' ? 'default' : 'outline'}
-                      onClick={() => handlePricingModeChange('calculated')}
-                      className="flex-1"
-                    >
-                      <Calculator className="mr-2 h-4 w-4" />
-                      Calculado
-                    </Button>
-                  </div>
-                </div>
+                {/* Modo de Precificação - apenas para produtos normais */}
+                {!formData.is_internal && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Modo de Precificação</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={formData.pricing_mode === 'manual' ? 'default' : 'outline'}
+                          onClick={() => handlePricingModeChange('manual')}
+                          className="flex-1"
+                        >
+                          Manual
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={formData.pricing_mode === 'calculated' ? 'default' : 'outline'}
+                          onClick={() => handlePricingModeChange('calculated')}
+                          className="flex-1"
+                        >
+                          <Calculator className="mr-2 h-4 w-4" />
+                          Calculado
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Campos de Precificação */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="cost">Custo (R$) *</Label>
+                    <Label htmlFor="cost">Custo Unitário (R$) *</Label>
                     <Input
                       id="cost"
                       type="number"
@@ -733,22 +789,24 @@ export default function Products() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Preço de Venda (R$) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      disabled={formData.pricing_mode === 'calculated'}
-                      required
-                    />
-                  </div>
+                  {!formData.is_internal && (
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Preço de Venda (R$) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        disabled={formData.pricing_mode === 'calculated'}
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Margem e Impostos - visíveis no modo calculado */}
-                {formData.pricing_mode === 'calculated' && (
+                {/* Margem e Impostos - visíveis no modo calculado apenas para produtos normais */}
+                {!formData.is_internal && formData.pricing_mode === 'calculated' && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="profit_margin">Margem de Lucro (%)</Label>
@@ -776,8 +834,8 @@ export default function Products() {
                   </div>
                 )}
 
-                {/* Mostrar cálculo em tempo real */}
-                {formData.pricing_mode === 'calculated' && formData.cost && (
+                {/* Mostrar cálculo em tempo real - apenas para produtos normais */}
+                {!formData.is_internal && formData.pricing_mode === 'calculated' && formData.cost && (
                   <div className="p-3 bg-muted rounded-lg space-y-1">
                     <div className="flex justify-between text-sm">
                       <span>Custo:</span>
@@ -797,7 +855,7 @@ export default function Products() {
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-4">
+                <div className={`grid gap-4 ${formData.is_internal ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   <div className="space-y-2">
                     <Label htmlFor="stock">Estoque Inicial *</Label>
                     <Input
@@ -817,16 +875,18 @@ export default function Products() {
                       onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="max_discount_percent">Desconto Máx. (%)</Label>
-                    <Input
-                      id="max_discount_percent"
-                      type="number"
-                      step="0.01"
-                      value={formData.max_discount_percent}
-                      onChange={(e) => setFormData({ ...formData, max_discount_percent: e.target.value })}
-                    />
-                  </div>
+                  {!formData.is_internal && (
+                    <div className="space-y-2">
+                      <Label htmlFor="max_discount_percent">Desconto Máx. (%)</Label>
+                      <Input
+                        id="max_discount_percent"
+                        type="number"
+                        step="0.01"
+                        value={formData.max_discount_percent}
+                        onChange={(e) => setFormData({ ...formData, max_discount_percent: e.target.value })}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status">Status *</Label>
@@ -936,19 +996,38 @@ export default function Products() {
           </Dialog>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{products.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {activeProducts.length} ativos
-              </p>
-            </CardContent>
-          </Card>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'products' | 'internal')} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="products" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Produtos
+            </TabsTrigger>
+            <TabsTrigger value="internal" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Estoque Interno
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium">
+                    {activeTab === 'internal' ? 'Itens Internos' : 'Total de Produtos'}
+                  </CardTitle>
+                  {activeTab === 'internal' ? (
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{currentTabProducts.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {activeProducts.length} ativos
+                  </p>
+                </CardContent>
+              </Card>
 
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
@@ -980,180 +1059,201 @@ export default function Products() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium">Unidades em Estoque</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {products.reduce((sum, p) => sum + p.stock, 0)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Catálogo de Produtos</CardTitle>
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar produtos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <Card>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium">Unidades em Estoque</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {currentTabProducts.reduce((sum, p) => sum + p.stock, 0)}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Foto</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Custo</TableHead>
-                  <TableHead>Preço</TableHead>
-                  <TableHead>Margem</TableHead>
-                  <TableHead>Estoque</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      Nenhum produto encontrado
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedProducts.map((product) => {
-                    const margin = product.cost > 0 ? ((product.price - product.cost) / product.cost * 100) : 0;
-                    const isLowStock = product.stock <= product.low_stock_threshold;
 
-                    return (
-                      <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell>
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={product.image_url || ''} alt={product.name} />
-                            <AvatarFallback>
-                              <Package className="h-6 w-6" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{product.name}</div>
-                          {product.description && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
-                              {product.description}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {product.sku || '-'}
-                          </code>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{product.category || 'Sem categoria'}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(product.cost)}
-                        </TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(product.price)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={margin > 20 ? 'bg-green-50' : ''}>
-                            {margin.toFixed(1)}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {isLowStock && (
-                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                            )}
-                            <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
-                              {product.stock}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(product.status)}>
-                            {getStatusLabel(product.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(product)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => handleDeleteClick(product, e)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>
+                    {activeTab === 'internal' ? 'Itens de Estoque Interno' : 'Catálogo de Produtos'}
+                  </CardTitle>
+                  <div className="relative w-full max-w-sm">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={activeTab === 'internal' ? "Buscar itens internos..." : "Buscar produtos..."}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Foto</TableHead>
+                      <TableHead>{activeTab === 'internal' ? 'Item' : 'Produto'}</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Custo</TableHead>
+                      {activeTab !== 'internal' && (
+                        <>
+                          <TableHead>Preço</TableHead>
+                          <TableHead>Margem</TableHead>
+                        </>
+                      )}
+                      <TableHead>Estoque</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={activeTab === 'internal' ? 7 : 9} className="text-center py-8 text-muted-foreground">
+                          {activeTab === 'internal' ? 'Nenhum item interno encontrado' : 'Nenhum produto encontrado'}
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                    ) : (
+                      paginatedProducts.map((product) => {
+                        const margin = product.cost > 0 ? ((product.price - product.cost) / product.cost * 100) : 0;
+                        const isLowStock = product.stock <= product.low_stock_threshold;
+
+                        return (
+                          <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
+                            <TableCell>
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={product.image_url || ''} alt={product.name} />
+                                <AvatarFallback>
+                                  {activeTab === 'internal' ? (
+                                    <Wrench className="h-6 w-6" />
+                                  ) : (
+                                    <Package className="h-6 w-6" />
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{product.name}</div>
+                              {product.description && (
+                                <div className="text-sm text-muted-foreground truncate max-w-xs">
+                                  {product.description}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {product.sku || '-'}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {activeTab === 'internal' 
+                                  ? (product.internal_category || 'Sem categoria')
+                                  : (product.category || 'Sem categoria')
+                                }
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(product.cost)}
+                            </TableCell>
+                            {activeTab !== 'internal' && (
+                              <>
+                                <TableCell>
+                                  {new Intl.NumberFormat('pt-BR', {
+                                    style: 'currency',
+                                    currency: 'BRL',
+                                  }).format(product.price)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={margin > 20 ? 'bg-green-50' : ''}>
+                                    {margin.toFixed(1)}%
+                                  </Badge>
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {isLowStock && (
+                                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                )}
+                                <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
+                                  {product.stock}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(product.status)}>
+                                {getStatusLabel(product.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEdit(product)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => handleDeleteClick(product, e)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
             
-            {/* Paginação */}
-            {totalPages > 1 && (
-              <div className="mt-4 flex justify-center">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          onClick={() => setCurrentPage(page)}
-                          isActive={currentPage === page}
-                          className="cursor-pointer"
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
