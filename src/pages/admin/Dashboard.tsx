@@ -6,6 +6,11 @@ import { DollarSign, TrendingUp, Users, Package, Target, ShoppingCart } from 'lu
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { SalesChart } from '@/components/dashboard/SalesChart';
+import { SalesDistributionChart } from '@/components/dashboard/SalesDistributionChart';
+import { ConversionFunnelChart } from '@/components/dashboard/ConversionFunnelChart';
+import { RevenueComparisonChart } from '@/components/dashboard/RevenueComparisonChart';
+import { GoalsProgress } from '@/components/dashboard/GoalsProgress';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -21,6 +26,11 @@ export default function AdminDashboard() {
     pendingCommissions: 0,
     conversionRate: 0,
   });
+
+  const [salesEvolution, setSalesEvolution] = useState<Array<{ month: string; revenue: number; profit: number }>>([]);
+  const [salesDistribution, setSalesDistribution] = useState<Array<{ name: string; value: number }>>([]);
+  const [conversionFunnel, setConversionFunnel] = useState<Array<{ stage: string; count: number; percentage: number }>>([]);
+  const [revenueComparison, setRevenueComparison] = useState<Array<{ name: string; revenue: number; profit: number }>>([]);
 
   useEffect(() => {
     fetchSellers();
@@ -53,7 +63,7 @@ export default function AdminDashboard() {
       // Fetch sales data with seller filter
       let salesQuery = supabase
         .from('sales')
-        .select('gross_value, estimated_profit, status, created_at, seller_auth_id')
+        .select('gross_value, estimated_profit, status, created_at, seller_auth_id, sold_at')
         .eq('status', 'closed');
 
       if (selectedSeller !== 'all') {
@@ -68,6 +78,74 @@ export default function AdminDashboard() {
 
       const totalRevenue = sales?.reduce((sum, s) => sum + Number(s.gross_value), 0) || 0;
       const totalProfit = sales?.reduce((sum, s) => sum + Number(s.estimated_profit), 0) || 0;
+
+      // Calculate sales evolution (last 6 months)
+      const monthsData = new Map<string, { revenue: number; profit: number }>();
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = date.toISOString().slice(0, 7);
+        monthsData.set(monthKey, { revenue: 0, profit: 0 });
+      }
+
+      sales?.forEach(sale => {
+        const monthKey = new Date(sale.sold_at).toISOString().slice(0, 7);
+        if (monthsData.has(monthKey)) {
+          const data = monthsData.get(monthKey)!;
+          data.revenue += Number(sale.gross_value);
+          data.profit += Number(sale.estimated_profit);
+        }
+      });
+
+      const evolution = Array.from(monthsData.entries()).map(([month, data]) => ({
+        month: new Date(month + '-01').toLocaleDateString('pt-BR', { month: 'short' }),
+        revenue: data.revenue,
+        profit: data.profit,
+      }));
+
+      setSalesEvolution(evolution);
+
+      // Calculate sales distribution by seller
+      const { data: sellersData } = await supabase
+        .from('users')
+        .select('id, auth_user_id, name')
+        .in('role', ['seller', 'admin'])
+        .eq('status', 'active');
+
+      const sellerSales = new Map<string, { name: string; value: number }>();
+      sellersData?.forEach(seller => {
+        sellerSales.set(seller.auth_user_id, { name: seller.name, value: 0 });
+      });
+
+      sales?.forEach(sale => {
+        if (sellerSales.has(sale.seller_auth_id)) {
+          sellerSales.get(sale.seller_auth_id)!.value += Number(sale.gross_value);
+        }
+      });
+
+      const distribution = Array.from(sellerSales.values())
+        .filter(s => s.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+      setSalesDistribution(distribution);
+
+      // Calculate revenue comparison by seller
+      const comparison = Array.from(sellerSales.entries())
+        .map(([authId, data]) => {
+          const sellerProfit = sales?.filter(s => s.seller_auth_id === authId)
+            .reduce((sum, s) => sum + Number(s.estimated_profit), 0) || 0;
+          return {
+            name: data.name,
+            revenue: data.value,
+            profit: sellerProfit,
+          };
+        })
+        .filter(s => s.revenue > 0)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 6);
+
+      setRevenueComparison(comparison);
 
       // Fetch users/sellers
       const { data: sellers } = await supabase
@@ -102,7 +180,7 @@ export default function AdminDashboard() {
 
       const pendingComm = commissions?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
 
-      // Fetch opportunities for conversion rate with seller filter
+      // Fetch opportunities for conversion rate and funnel with seller filter
       let opportunitiesQuery = supabase
         .from('opportunities')
         .select('stage, seller_auth_id');
@@ -116,6 +194,35 @@ export default function AdminDashboard() {
       const wonOpps = opportunities?.filter(o => o.stage === 'won').length || 0;
       const totalOpps = opportunities?.length || 0;
       const conversionRate = totalOpps > 0 ? (wonOpps / totalOpps) * 100 : 0;
+
+      // Calculate conversion funnel
+      const stageLabels: Record<string, string> = {
+        lead: 'Lead',
+        qualified: 'Qualificado',
+        proposal: 'Proposta',
+        closing: 'Fechamento',
+        won: 'Ganha',
+        lost: 'Perdida',
+      };
+
+      const stageCounts = new Map<string, number>();
+      ['lead', 'qualified', 'proposal', 'closing', 'won'].forEach(stage => {
+        stageCounts.set(stage, 0);
+      });
+
+      opportunities?.forEach(opp => {
+        if (stageCounts.has(opp.stage)) {
+          stageCounts.set(opp.stage, stageCounts.get(opp.stage)! + 1);
+        }
+      });
+
+      const funnel = Array.from(stageCounts.entries()).map(([stage, count]) => ({
+        stage: stageLabels[stage],
+        count,
+        percentage: totalOpps > 0 ? Math.round((count / totalOpps) * 100) : 0,
+      }));
+
+      setConversionFunnel(funnel);
 
       setStats({
         totalSales: sales?.length || 0,
@@ -253,6 +360,21 @@ export default function AdminDashboard() {
               <div className="text-2xl font-bold">{stats.productsInStock}</div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4">
+            <SalesChart data={salesEvolution} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <SalesDistributionChart data={salesDistribution} />
+              <ConversionFunnelChart data={conversionFunnel} />
+            </div>
+            <RevenueComparisonChart data={revenueComparison} />
+          </div>
+          <div>
+            <GoalsProgress selectedSeller={selectedSeller} />
+          </div>
         </div>
 
         <Card>
