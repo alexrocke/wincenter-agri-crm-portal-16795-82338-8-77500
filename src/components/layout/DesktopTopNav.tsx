@@ -22,6 +22,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -78,6 +79,7 @@ const adminGroups = [
     items: [
       { to: '/admin/reports', icon: FileText, label: 'Relatórios' },
       { to: '/admin/sales', icon: ShoppingCart, label: 'Vendas' },
+      { to: '/admin/clients-map', icon: MapPin, label: 'Mapa de Clientes' },
     ],
   },
   {
