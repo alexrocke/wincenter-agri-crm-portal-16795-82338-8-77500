@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { ClientAutocomplete } from '@/components/ClientAutocomplete';
 import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from '@/components/ui/pagination';
 
 interface Opportunity {
   id: string;
@@ -166,6 +167,8 @@ export default function Opportunities() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'equipment' | 'service'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Multi-product state
   const [proposalProducts, setProposalProducts] = useState<ProposalProduct[]>([]);
@@ -1229,6 +1232,17 @@ export default function Opportunities() {
     return true;
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredOpportunities.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOpportunities = filteredOpportunities.slice(startIndex, endIndex);
+
+  // Reset to page 1 when changing tabs
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   // Statistics by type
   const equipmentOpps = opportunities.filter(o => o.opportunity_type === 'equipment');
   const serviceOpps = opportunities.filter(o => o.opportunity_type === 'service');
@@ -1939,14 +1953,14 @@ export default function Opportunities() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOpportunities.length === 0 ? (
+                {paginatedOpportunities.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum orçamento encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredOpportunities.map((opp) => {
+                  paginatedOpportunities.map((opp) => {
                     const stageInfo = getStageInfo(opp.stage);
                     return (
                       <TableRow key={opp.id} className="hover:bg-muted/50">
@@ -2052,6 +2066,65 @@ export default function Opportunities() {
                 )}
               </TableBody>
             </Table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredOpportunities.length)} de {filteredOpportunities.length} orçamentos
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      const showPage = 
+                        page === 1 || 
+                        page === totalPages || 
+                        (page >= currentPage - 1 && page <= currentPage + 1);
+                      
+                      const showEllipsisBefore = page === currentPage - 2 && currentPage > 3;
+                      const showEllipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2;
+
+                      if (showEllipsisBefore || showEllipsisAfter) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                      }
+
+                      if (!showPage) return null;
+
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(page)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
