@@ -23,6 +23,7 @@ import SiteSettings from "./pages/admin/SiteSettings";
 import AdminNotifications from "./pages/admin/Notifications";
 import InternalStock from "./pages/admin/InternalStock";
 import ServiceCatalog from "./pages/admin/ServiceCatalog";
+import ClientsMap from "./pages/admin/ClientsMap";
 import Notifications from "./pages/Notifications";
 import SellerDashboard from "./pages/seller/Dashboard";
 import Clients from "./pages/seller/Clients";
@@ -198,6 +199,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <ServiceCatalog />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/clients-map"
+              element={
+                <AdminRoute>
+                  <ClientsMap />
                 </AdminRoute>
               }
             />
