@@ -169,6 +169,14 @@ export default function Opportunities() {
   const [activeTab, setActiveTab] = useState<'all' | 'equipment' | 'service'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  
+  // Stock validation state
+  const [stockErrorDialogOpen, setStockErrorDialogOpen] = useState(false);
+  const [insufficientStockProducts, setInsufficientStockProducts] = useState<Array<{
+    productName: string;
+    requested: number;
+    available: number;
+  }>>([]);
 
   // Multi-product state
   const [proposalProducts, setProposalProducts] = useState<ProposalProduct[]>([]);
@@ -1123,6 +1131,37 @@ export default function Opportunities() {
     setConvertDialogOpen(true);
   };
 
+  // Validate stock before converting to sale
+  const validateStock = async (productItems: any[]) => {
+    // Fetch current stock for all products
+    const productIds = productItems.map(item => item.product_id);
+    
+    const { data: productsData } = await supabase
+      .from('products')
+      .select('id, name, stock')
+      .in('id', productIds);
+    
+    // Check each item
+    const insufficientStock: Array<{
+      productName: string;
+      requested: number;
+      available: number;
+    }> = [];
+    
+    productItems.forEach(item => {
+      const product = productsData?.find(p => p.id === item.product_id);
+      if (product && product.stock < item.quantity) {
+        insufficientStock.push({
+          productName: product.name,
+          requested: item.quantity,
+          available: product.stock
+        });
+      }
+    });
+    
+    return insufficientStock;
+  };
+
   const handleConfirmConvertToSale = async () => {
     if (!selectedOpp) return;
 
@@ -1149,6 +1188,19 @@ export default function Opportunities() {
       if (productItems.length === 0) {
         throw new Error('Orçamento não possui produtos válidos para conversão');
       }
+
+      // 2.5. Validar estoque ANTES de criar qualquer registro
+      const insufficientStock = await validateStock(productItems);
+
+      if (insufficientStock.length > 0) {
+        console.warn('⚠️ Estoque insuficiente detectado:', insufficientStock);
+        setInsufficientStockProducts(insufficientStock);
+        setStockErrorDialogOpen(true);
+        return; // Não prosseguir com a conversão
+      }
+
+      console.log('✅ Validação de estoque aprovada');
+
 
       // 3. Calcular custo total e lucro real
       let totalCost = 0;
@@ -2510,6 +2562,67 @@ export default function Opportunities() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Stock Error Dialog */}
+      <AlertDialog open={stockErrorDialogOpen} onOpenChange={setStockErrorDialogOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Package className="h-5 w-5" />
+              Estoque Insuficiente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Os seguintes produtos não possuem estoque suficiente para converter este orçamento em venda:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="my-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead className="text-center">Solicitado</TableHead>
+                  <TableHead className="text-center">Disponível</TableHead>
+                  <TableHead className="text-center">Faltam</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {insufficientStockProducts.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{item.productName}</TableCell>
+                    <TableCell className="text-center">{item.requested}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="destructive">{item.available}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center text-destructive font-semibold">
+                      {item.requested - item.available}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setStockErrorDialogOpen(false);
+              setInsufficientStockProducts([]);
+            }}>
+              Fechar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setStockErrorDialogOpen(false);
+                setInsufficientStockProducts([]);
+                setEditDialogOpen(true);
+              }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Ajustar Orçamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
