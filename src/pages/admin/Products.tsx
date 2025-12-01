@@ -1095,8 +1095,6 @@ export default function Products() {
                     <TableRow>
                       <TableHead>Foto</TableHead>
                       <TableHead>{activeTab === 'internal' ? 'Item' : 'Produto'}</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Categoria</TableHead>
                       <TableHead>Custo</TableHead>
                       {activeTab !== 'internal' && (
                         <>
@@ -1111,7 +1109,7 @@ export default function Products() {
                   <TableBody>
                     {paginatedProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={activeTab === 'internal' ? 7 : 9} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={activeTab === 'internal' ? 5 : 7} className="text-center py-8 text-muted-foreground">
                           {activeTab === 'internal' ? 'Nenhum item interno encontrado' : 'Nenhum produto encontrado'}
                         </TableCell>
                       </TableRow>
@@ -1141,19 +1139,6 @@ export default function Products() {
                                   {product.description}
                                 </div>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {product.sku || '-'}
-                              </code>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {activeTab === 'internal' 
-                                  ? (product.internal_category || 'Sem categoria')
-                                  : (product.category || 'Sem categoria')
-                                }
-                              </Badge>
                             </TableCell>
                             <TableCell>
                               {new Intl.NumberFormat('pt-BR', {
