@@ -161,13 +161,14 @@ Deno.serve(async (req) => {
       throw new Error('notification_id is required');
     }
 
-    console.log('📨 Processing FCM notification:', notification_id);
+    console.log('📨 [FCM] Processing notification:', notification_id);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Buscar notificação
+    console.log('🔍 [FCM] Fetching notification from database...');
     const { data: notification, error: notifError } = await supabase
       .from('notifications')
       .select('*')
@@ -175,33 +176,63 @@ Deno.serve(async (req) => {
       .single();
 
     if (notifError || !notification) {
-      console.error('❌ Notification not found:', notifError);
-      throw new Error('Notification not found');
+      console.error('❌ [FCM] Error fetching notification:', notifError);
+      throw new Error(`Notification not found: ${notification_id}`);
     }
 
+    console.log('✅ [FCM] Notification loaded:', {
+      id: notification.id,
+      title: notification.title,
+      user: notification.user_auth_id,
+      category: notification.category,
+      kind: notification.kind
+    });
+
     // Buscar token FCM do usuário
+    console.log('👤 [FCM] Fetching user FCM token...');
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('fcm_token')
+      .select('fcm_token, name, email')
       .eq('auth_user_id', notification.user_auth_id)
       .single();
 
     if (userError || !user) {
-      console.error('❌ User not found:', userError);
-      throw new Error('User not found');
+      console.error('❌ [FCM] User not found:', userError);
+      throw new Error(`User not found: ${notification.user_auth_id}`);
     }
 
     const fcmToken = user.fcm_token;
 
-    if (!fcmToken) {
-      console.log('⚠️ User has no FCM token, skipping');
+    if (!fcmToken || fcmToken.trim() === '') {
+      console.warn('⚠️ [FCM] User has no FCM token, skipping:', user.name);
+      // Update notification to reflect this
+      await supabase
+        .from('notifications')
+        .update({ 
+          fcm_error: 'No FCM token registered',
+          fcm_sent: false 
+        })
+        .eq('id', notification_id);
+      
       return new Response(
-        JSON.stringify({ success: false, reason: 'no_token' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false, 
+          message: 'User has no FCM token',
+          user: user.name
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
+    console.log('✅ [FCM] User loaded:', {
+      name: user.name,
+      email: user.email,
+      hasToken: true,
+      tokenPreview: fcmToken.substring(0, 20) + '...'
+    });
+
     // Enviar notificação FCM
+    console.log('🚀 [FCM] Sending notification via Firebase...');
     try {
       await sendFCM(
         fcmToken,
@@ -214,6 +245,8 @@ Deno.serve(async (req) => {
         }
       );
 
+      console.log('✅ [FCM] Notification sent successfully to:', user.name);
+
       // Atualizar registro de envio
       await supabase
         .from('notifications')
@@ -224,21 +257,31 @@ Deno.serve(async (req) => {
         })
         .eq('id', notification_id);
 
-      console.log('✅ FCM notification sent and recorded');
-
       return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: true, 
+          message: 'FCM notification sent successfully',
+          user: user.name,
+          notification_id: notification_id
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     } catch (fcmError: any) {
-      console.error('❌ FCM send error:', fcmError);
+      console.error('❌ [FCM] Error sending notification:', fcmError);
+      console.error('📋 [FCM] Error details:', {
+        message: fcmError.message,
+        stack: fcmError.stack,
+        user: user.name,
+        notification_id: notification_id
+      });
 
       // Registrar erro
       await supabase
         .from('notifications')
         .update({
           fcm_sent: false,
-          fcm_error: fcmError.message,
+          fcm_error: fcmError.message || 'Unknown error',
+          fcm_sent_at: new Date().toISOString()
         })
         .eq('id', notification_id);
 
