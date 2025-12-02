@@ -2,6 +2,7 @@ import { useSimplifiedMode } from '@/hooks/useSimplifiedMode';
 import { Button } from '@/components/ui/button';
 import { Zap, Maximize2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function SimplifiedHeader() {
   const { isSimplified, toggleMode, canUseSimplified } = useSimplifiedMode();
@@ -38,24 +39,27 @@ export function SimplifiedHeader() {
           </div>
         </div>
 
-        <Button
-          variant={isSimplified ? "default" : "outline"}
-          size="sm"
-          onClick={handleToggle}
-          className="h-9 gap-2"
-        >
-          {isSimplified ? (
-            <>
-              <Maximize2 className="h-4 w-4" />
-              <span className="text-xs">Completo</span>
-            </>
-          ) : (
-            <>
-              <Zap className="h-4 w-4" />
-              <span className="text-xs">Rápido</span>
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button
+            variant={isSimplified ? "default" : "outline"}
+            size="sm"
+            onClick={handleToggle}
+            className="h-9 gap-2"
+          >
+            {isSimplified ? (
+              <>
+                <Maximize2 className="h-4 w-4" />
+                <span className="text-xs">Completo</span>
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4" />
+                <span className="text-xs">Rápido</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </header>
   );

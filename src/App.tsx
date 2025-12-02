@@ -1,7 +1,7 @@
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-// removed TooltipProvider import
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -58,7 +58,7 @@ import SellerReports from "./pages/seller/Reports";
 
 const queryClient = new QueryClient();
 
-function ThemeProvider({ children }: { children: React.ReactNode }) {
+function SiteSettingsLoader({ children }: { children: React.ReactNode }) {
   const { loading } = useSiteSettings();
   
   if (loading) {
@@ -92,11 +92,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <Toaster />
-    <Sonner />
-    <BrowserRouter>
+    <NextThemesProvider attribute="class" defaultTheme="system" enableSystem storageKey="wincenter-theme">
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
         <AuthProvider>
-          <ThemeProvider>
+          <SiteSettingsLoader>
             <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -439,10 +440,11 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             </Routes>
-          </ThemeProvider>
+          </SiteSettingsLoader>
         </AuthProvider>
       </BrowserRouter>
       <OfflineIndicator />
+    </NextThemesProvider>
   </QueryClientProvider>
 );
 
