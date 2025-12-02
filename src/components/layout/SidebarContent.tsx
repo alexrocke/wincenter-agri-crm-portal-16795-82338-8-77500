@@ -28,6 +28,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Badge } from '@/components/ui/badge';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { MenuItemWithSubmenu } from './MenuItemWithSubmenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // Links diretos do vendedor
 const sellerDirectLinks = [
@@ -225,10 +226,11 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border flex items-center gap-2">
+        <ThemeToggle />
         <Button
           variant="outline"
-          className="w-full"
+          className="flex-1"
           onClick={signOut}
         >
           Sair

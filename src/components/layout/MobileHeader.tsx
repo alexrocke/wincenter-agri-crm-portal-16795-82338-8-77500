@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SidebarContent } from './SidebarContent';
 import { useSimplifiedMode } from '@/hooks/useSimplifiedMode';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function MobileHeader() {
   const { user } = useAuth();
@@ -66,7 +67,8 @@ export function MobileHeader() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
           {canUseSimplified && (
             <Button
               variant={isSimplified ? "default" : "ghost"}
