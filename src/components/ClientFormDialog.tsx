@@ -63,18 +63,18 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
     
     try {
       const clientData: any = {
-        farm_name: formData.farm_name,
-        contact_name: formData.contact_name,
+        farm_name: formData.farm_name?.toUpperCase() || null,
+        contact_name: formData.contact_name?.toUpperCase() || null,
         email: formData.email || null,
         phone: formData.phone || null,
         whatsapp: formData.whatsapp || null,
-        city: formData.city,
-        state: formData.state,
-        address: formData.address || null,
+        city: formData.city?.toUpperCase() || null,
+        state: formData.state?.toUpperCase() || null,
+        address: formData.address?.toUpperCase() || null,
         cep: formData.cep || null,
         hectares: formData.hectares ? Number(formData.hectares) : null,
         relationship_status: formData.relationship_status,
-        crops: formData.crops ? formData.crops.split(',').map(c => c.trim()) : null,
+        crops: formData.crops ? formData.crops.split(',').map(c => c.trim().toUpperCase()) : null,
         location_link: formData.location_link || null,
         seller_auth_id: user?.id,
         ...(userRole === 'admin' ? { owner_user_id: formData.owner_user_id || null } : {}),
@@ -114,7 +114,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
               <Input
                 id="farm_name"
                 value={formData.farm_name}
-                onChange={(e) => setFormData({ ...formData, farm_name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, farm_name: e.target.value.toUpperCase() })}
                 required
               />
             </div>
@@ -123,7 +123,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
               <Input
                 id="contact_name"
                 value={formData.contact_name}
-                onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, contact_name: e.target.value.toUpperCase() })}
                 required
               />
             </div>
@@ -183,7 +183,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
               <Input
                 id="city"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value.toUpperCase() })}
                 required
               />
             </div>
@@ -192,7 +192,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
               <Input
                 id="state"
                 value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
                 required
                 maxLength={2}
                 placeholder="UF"
@@ -205,7 +205,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
             <Input
               id="address"
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value.toUpperCase() })}
             />
           </div>
 
@@ -215,7 +215,7 @@ export function ClientFormDialog({ open, onOpenChange, onClientCreated, sellers 
               <Input
                 id="crops"
                 value={formData.crops}
-                onChange={(e) => setFormData({ ...formData, crops: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, crops: e.target.value.toUpperCase() })}
                 placeholder="Ex: Soja, Milho, Café"
               />
             </div>
