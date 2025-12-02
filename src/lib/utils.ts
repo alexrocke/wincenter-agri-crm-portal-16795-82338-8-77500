@@ -64,3 +64,8 @@ export async function loadImageAsBase64(url: string): Promise<string | null> {
     return null;
   }
 }
+
+// Converter texto para maiúsculas de forma segura
+export function toUpperSafe(text: string | null | undefined): string {
+  return text?.toUpperCase() || '';
+}
