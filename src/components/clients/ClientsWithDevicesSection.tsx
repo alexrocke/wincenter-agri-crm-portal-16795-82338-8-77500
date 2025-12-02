@@ -63,15 +63,15 @@ export function ClientsWithDevicesSection({
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold truncate">{client.farm_name}</h3>
+                      <h3 className="font-semibold truncate uppercase">{client.farm_name}</h3>
                       <Badge variant="secondary" className="shrink-0">
                         <Smartphone className="h-3 w-3 mr-1" />
                         {client.device_count} {client.device_count === 1 ? 'dispositivo' : 'dispositivos'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{client.contact_name}</p>
+                    <p className="text-sm text-muted-foreground uppercase">{client.contact_name}</p>
                     {(client.city || client.state) && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1 uppercase">
                         {client.city}{client.city && client.state ? ', ' : ''}{client.state}
                       </p>
                     )}

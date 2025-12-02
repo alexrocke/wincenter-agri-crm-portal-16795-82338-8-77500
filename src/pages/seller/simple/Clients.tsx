@@ -231,12 +231,12 @@ export default function SimplifiedClients() {
             <Card key={client.id} className="p-4">
               <div className="space-y-3">
                 <div>
-                  <h3 className="font-semibold text-lg">{client.contact_name}</h3>
+                  <h3 className="font-semibold text-lg uppercase">{client.contact_name}</h3>
                   {client.farm_name && (
-                    <p className="text-sm text-muted-foreground">{client.farm_name}</p>
+                    <p className="text-sm text-muted-foreground uppercase">{client.farm_name}</p>
                   )}
                   {(client.city || client.state) && (
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 uppercase">
                       {client.city}{client.city && client.state && ', '}{client.state}
                     </p>
                   )}

@@ -1171,7 +1171,7 @@ export default function Clients() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="font-medium">{client.farm_name || 'Sem nome'}</div>
+                          <div className="font-medium uppercase">{client.farm_name || 'Sem nome'}</div>
                           {(client.device_count || 0) > 0 && (
                             <Badge variant="secondary" className="shrink-0">
                               <Smartphone className="h-3 w-3 mr-1" />
@@ -1182,7 +1182,7 @@ export default function Clients() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{client.contact_name}</div>
+                          <div className="font-medium uppercase">{client.contact_name}</div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             {client.email && (
                               <span className="flex items-center gap-1">
@@ -1202,7 +1202,7 @@ export default function Clients() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">
+                          <span className="text-sm uppercase">
                             {client.city}, {client.state}
                           </span>
                         </div>
@@ -1221,7 +1221,7 @@ export default function Clients() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{client.seller_name}</span>
+                          <span className="text-sm uppercase">{client.seller_name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">

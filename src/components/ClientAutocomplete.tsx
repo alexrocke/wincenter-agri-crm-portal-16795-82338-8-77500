@@ -81,7 +81,7 @@ export function ClientAutocomplete({ value, onChange, userRole, userId, sellers 
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between"
+            className="w-full justify-between uppercase"
           >
             {selectedClient
               ? `${selectedClient.farm_name} - ${selectedClient.contact_name}`
@@ -123,8 +123,8 @@ export function ClientAutocomplete({ value, onChange, userRole, userId, sellers 
                       )}
                     />
                     <div className="flex flex-col">
-                      <span className="font-medium">{client.farm_name}</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="font-medium uppercase">{client.farm_name}</span>
+                      <span className="text-sm text-muted-foreground uppercase">
                         {client.contact_name}
                       </span>
                     </div>
