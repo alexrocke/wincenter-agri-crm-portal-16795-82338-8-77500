@@ -1122,7 +1122,13 @@ export default function Products() {
                           <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
                             <TableCell>
                               <Avatar className="h-12 w-12">
-                                <AvatarImage src={product.image_url || ''} alt={product.name} />
+                                <AvatarImage 
+                                  src={product.image_url || ''} 
+                                  alt={product.name}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
                                 <AvatarFallback>
                                   {activeTab === 'internal' ? (
                                     <Wrench className="h-6 w-6" />
