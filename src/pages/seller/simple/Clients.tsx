@@ -106,11 +106,11 @@ export default function SimplifiedClients() {
       const { data, error } = await supabase
         .from('clients')
         .insert([{
-          contact_name: newClient.contact_name,
-          farm_name: newClient.farm_name,
+          contact_name: newClient.contact_name.toUpperCase(),
+          farm_name: newClient.farm_name ? newClient.farm_name.toUpperCase() : null,
           phone: newClient.phone,
-          city: newClient.city,
-          state: newClient.state,
+          city: newClient.city ? newClient.city.toUpperCase() : null,
+          state: newClient.state ? newClient.state.toUpperCase() : null,
           seller_auth_id: user!.id,
           relationship_status: 'prospect'
         }])
@@ -164,7 +164,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="contact_name"
                   value={newClient.contact_name}
-                  onChange={(e) => setNewClient({ ...newClient, contact_name: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, contact_name: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -173,7 +173,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="farm_name"
                   value={newClient.farm_name}
-                  onChange={(e) => setNewClient({ ...newClient, farm_name: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, farm_name: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -192,7 +192,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="city"
                   value={newClient.city}
-                  onChange={(e) => setNewClient({ ...newClient, city: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, city: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -201,7 +201,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="state"
                   value={newClient.state}
-                  onChange={(e) => setNewClient({ ...newClient, state: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, state: e.target.value.toUpperCase() })}
                   maxLength={2}
                   className="h-12 text-base"
                 />
@@ -280,7 +280,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="contact_name"
                   value={newClient.contact_name}
-                  onChange={(e) => setNewClient({ ...newClient, contact_name: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, contact_name: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -289,7 +289,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="farm_name"
                   value={newClient.farm_name}
-                  onChange={(e) => setNewClient({ ...newClient, farm_name: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, farm_name: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -308,7 +308,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="city"
                   value={newClient.city}
-                  onChange={(e) => setNewClient({ ...newClient, city: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, city: e.target.value.toUpperCase() })}
                   className="h-12 text-base"
                 />
               </div>
@@ -317,7 +317,7 @@ export default function SimplifiedClients() {
                 <Input
                   id="state"
                   value={newClient.state}
-                  onChange={(e) => setNewClient({ ...newClient, state: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, state: e.target.value.toUpperCase() })}
                   maxLength={2}
                   className="h-12 text-base"
                 />
